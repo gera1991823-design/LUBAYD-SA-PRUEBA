@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#126334">
+  <title>Gestión Forestal | Parte Diario</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+      <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">
+          <img src="assets/logo.png" alt="Lubayd SA" class="brand-logo">
+        </div>
+        <div>
+          <strong>Gestión Forestal</strong>
+          <small>Operaciones</small>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">
+          <span>▦</span> Inicio
+        </button>
+        <button class="nav-item" data-view="nuevo">
+          <span>＋</span> Nuevo parte
+        </button>
+        <button class="nav-item" data-view="historial">
+          <span>▤</span> Historial
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-dot"></div>
+        <span>Sistema operativo</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="breadcrumb">Operaciones / Partes diarios</p>
+          <h1 id="pageTitle">Panel operativo</h1>
+        </div>
+        <div class="user">
+          <div class="user-avatar">OP</div>
+          <div>
+            <strong>Operador</strong>
+            <small>Usuario activo</small>
+          </div>
+        </div>
+      </header>
+
+      <section id="dashboard" class="view active">
+        <div class="hero">
+          <div>
+            <span class="badge">CENTRO DE CONTROL</span>
+            <h2>Gestiona cada turno con claridad</h2>
+            <p>Registra, supervisa y consulta tus partes diarios desde una solución simple, ordenada y confiable.</p>
+          </div>
+          <button class="primary-btn" id="heroNewBtn">Nuevo parte</button>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi-card">
+            <span>Partes registrados</span>
+            <strong id="kpiTotal">0</strong>
+            <small>Total almacenado</small>
+          </article>
+          <article class="kpi-card">
+            <span>Árboles procesados</span>
+            <strong id="kpiArboles">0</strong>
+            <small>Acumulado</small>
+          </article>
+          <article class="kpi-card">
+            <span>Horas trabajadas</span>
+            <strong id="kpiHoras">0,0</strong>
+            <small>Horas acumuladas</small>
+          </article>
+          <article class="kpi-card accent">
+            <span>Chequeos completos</span>
+            <strong id="kpiChequeos">0%</strong>
+            <small>Agua y aceite</small>
+          </article>
+        </div>
+
+        <div class="content-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Últimos partes</h3>
+                <p>Registros recientes de la operación.</p>
+              </div>
+              <button class="text-btn" data-view-link="historial">Ver todos</button>
+            </div>
+            <div id="recentList" class="record-list empty-state">
+              Aquí aparecerán tus últimos partes guardados.
+            </div>
+          </article>
+
+          <article class="panel operational">
+            <div class="panel-header">
+              <div>
+                <h3>Estado del sistema</h3>
+                <p>Resumen técnico.</p>
+              </div>
+            </div>
+            <div class="system-row"><span>Almacenamiento local</span><strong>Activo</strong></div>
+            <div class="system-row"><span>Aplicación móvil</span><strong>Disponible</strong></div>
+            <div class="system-row"><span>Última actualización</span><strong id="lastUpdate">—</strong></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="nuevo" class="view">
+        <div class="form-header">
+          <div>
+            <span class="badge">NUEVO REGISTRO</span>
+            <h2>Parte diario forestal</h2>
+            <p>Completa los datos del turno paso a paso con un flujo claro y ordenado.</p>
+          </div>
+          <div class="step-indicator">
+            <span id="stepNumber">1</span>
+            <small id="stepText">Datos generales</small>
+          </div>
+        </div>
+
+        <div class="form-shell">
+          <div class="stepper">
+            <div class="step active"><span>1</span><b>Datos generales</b></div>
+            <div class="step"><span>2</span><b>Producción</b></div>
+            <div class="step"><span>3</span><b>Chequeo</b></div>
+          </div>
+
+          <form id="parteForm">
+            <div class="form-page active" data-step="1">
+              <div class="section-heading">
+                <h3>Identificación del turno</h3>
+                <p>Datos básicos de la operación.</p>
+              </div>
+
+              <div class="form-grid">
+                <label><span>Monte</span><input id="monte" required placeholder="Ingrese el monte"></label>
+                <label><span>Fecha</span><input id="fecha" type="date" required></label>
+                <label><span>Nº Máquina</span><input id="maquina" required placeholder="Ej.: 859M-03"></label>
+                <label><span>Operador</span><input id="operador" required placeholder="Nombre del operador"></label>
+                <label class="full"><span>Turno</span>
+                  <div class="toggle-grid">
+                    <label class="toggle-item"><input type="radio" name="turno" value="Diurno" required><span>Diurno</span></label>
+                    <label class="toggle-item"><input type="radio" name="turno" value="Nocturno"><span>Nocturno</span></label>
+                  </div>
+                </label>
+                <label><span>Especie</span>
+                  <select id="especie" required>
+                    <option value="">Seleccionar</option>
+                    <option>Eucalyptus</option>
+                    <option>Pino</option>
+                    <option>Otra</option>
+                  </select>
+                </label>
+                <label><span>Largo (m)</span><input id="largo" type="number" min="0" step="0.01" required placeholder="0,00"></label>
+              </div>
+            </div>
+
+            <div class="form-page" data-step="2">
+              <div class="section-heading">
+                <h3>Producción del turno</h3>
+                <p>Lecturas, actividad y registros de trabajo.</p>
+              </div>
+
+              <div class="form-grid">
+                <label><span>Hs. inicio</span><input id="horometroInicio" type="number" min="0" step="0.1" required></label>
+                <label><span>Hs. final</span><input id="horometroFinal" type="number" min="0" step="0.1" required></label>
+                <label><span>Árb. iniciales</span><input id="arbolesIniciales" type="number" min="0" step="1" required></label>
+                <label><span>Árb. finales</span><input id="arbolesFinales" type="number" min="0" step="1" required></label>
+                <label><span>Carros</span><input id="carros" type="number" min="0" step="1" required></label>
+                <label class="full"><span>Actividad</span>
+                  <div class="toggle-grid">
+                    <label class="toggle-item"><input type="radio" name="actividad" value="Cosecha" required><span>Cosecha</span></label>
+                    <label class="toggle-item"><input type="radio" name="actividad" value="Extracción"><span>Extracción</span></label>
+                    <label class="toggle-item"><input type="radio" name="actividad" value="Feller Buncher"><span>Feller Buncher</span></label>
+                  </div>
+                </label>
+              </div>
+
+              <div class="calculation-grid">
+                <div><span>Horas trabajadas</span><strong id="calcHoras">0,0 h</strong></div>
+                <div><span>Árboles procesados</span><strong id="calcArboles">0</strong></div>
+              </div>
+
+              <div class="section-heading" style="margin-top:28px;">
+                <h3>Trabajo realizado</h3>
+                <p>Completa el detalle de tareas y mecánico responsable.</p>
+              </div>
+              <div class="log-grid">
+                <label><span>Desde</span><input id="desde1" placeholder="hh:mm"></label>
+                <label><span>Hasta</span><input id="hasta1" placeholder="hh:mm"></label>
+                <label class="full"><span>Trabajo realizado</span><input id="trabajo1" placeholder="Descripción"></label>
+                <label class="full"><span>Mecánico</span><input id="mecanico1" placeholder="Responsable"></label>
+              </div>
+            </div>
+
+            <div class="form-page" data-step="3">
+              <div class="section-heading">
+                <h3>Chequeo previo</h3>
+                <p>Confirma las inspecciones realizadas.</p>
+              </div>
+
+              <div class="check-grid">
+                <label class="check-option">
+                  <input id="agua" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Agua</strong><small>Nivel y estado verificado</small></div>
+                </label>
+                <label class="check-option">
+                  <input id="aceite" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Aceite</strong><small>Nivel y estado verificado</small></div>
+                </label>
+                <label class="check-option">
+                  <input id="valvulina" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Valvulina</strong><small>Presión y estado verificado</small></div>
+                </label>
+                <label class="check-option">
+                  <input id="giro" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Giro</strong><small>Movimiento revisado</small></div>
+                </label>
+                <label class="check-option">
+                  <input id="chequeoGral" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Chequeo gral. máq.</strong><small>Inspección general</small></div>
+                </label>
+                <label class="check-option">
+                  <input id="cabezal" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Cabezal</strong><small>Estado del cabezal</small></div>
+                </label>
+                <label class="check-option">
+                  <input id="grua" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Grúa</strong><small>Operación confirmada</small></div>
+                </label>
+              </div>
+
+              <label class="full"><span>Observaciones</span><textarea id="observaciones" rows="4" placeholder="Anota comentarios y notas importantes"></textarea></label>
+
+              <div class="section-heading" style="margin-top:24px;">
+                <h3>Fin de turno</h3>
+              </div>
+              <div class="form-grid">
+                <label><span>Combustible (litros)</span><input id="combustible" type="number" min="0" step="0.1" placeholder="0"></label>
+                <label><span>Hidráulico (litros)</span><input id="hidraulico" type="number" min="0" step="0.1" placeholder="0"></label>
+              </div>
+
+              <div class="section-heading" style="margin-top:24px;">
+                <h3>Espadas y cadenas</h3>
+              </div>
+              <div class="check-grid">
+                <label class="check-option">
+                  <input id="espadasUtilizadas" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Espadas utilizadas</strong></div>
+                </label>
+                <label class="check-option">
+                  <input id="espadasRoturas" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Espadas roturas</strong></div>
+                </label>
+                <label class="check-option">
+                  <input id="espadasExtravio" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Espadas extravío</strong></div>
+                </label>
+                <label class="check-option">
+                  <input id="cadenasUtilizadas" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Cadenas utilizadas</strong></div>
+                </label>
+                <label class="check-option">
+                  <input id="cadenasRoturas" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Cadenas roturas</strong></div>
+                </label>
+                <label class="check-option">
+                  <input id="cadenasExtravio" type="checkbox">
+                  <span class="check-box">✓</span>
+                  <div><strong>Cadenas extravío</strong></div>
+                </label>
+              </div>
+
+              <div class="form-grid" style="margin-top:24px;">
+                <label><span>Controlado por encargado</span><input id="controlado" placeholder="Nombre del encargado"></label>
+                <label><span>Firma</span><input id="firma" placeholder="Firma registrada"></label>
+              </div>
+
+              <div class="review">
+                <h3>Resumen del registro</h3>
+                <div id="reviewContent"></div>
+              </div>
+            </div>
+
+            <p id="message" class="message"></p>
+
+            <div class="form-actions">
+              <button type="button" id="cancelBtn" class="secondary-btn">Cancelar</button>
+              <button type="button" id="prevBtn" class="secondary-btn hidden">Anterior</button>
+              <button type="button" id="nextBtn" class="primary-btn">Continuar</button>
+              <button type="submit" id="saveBtn" class="primary-btn hidden">Guardar parte</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section id="historial" class="view">
+        <div class="history-header">
+          <div>
+            <span class="badge">REGISTROS</span>
+            <h2>Historial de partes</h2>
+            <p>Consulta los registros guardados en el dispositivo.</p>
+          </div>
+          <div>
+            <button class="secondary-btn" id="exportBtn">Exportar JSON</button>
+            <button class="primary-btn" data-view-link="nuevo">Nuevo parte</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Monte</th>
+                  <th>Máquina</th>
+                  <th>Operador</th>
+                  <th>Actividad</th>
+                  <th>Árboles</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+          <div id="historyEmpty" class="empty-table">No hay registros guardados.</div>
+        </div>
+      </section>
+      
+      <!-- Detalle modal -->
+      <div id="detailModal" class="modal-overlay hidden">
+        <div class="modal-content">
+          <button id="detailClose" class="modal-close">Cerrar</button>
+          <div id="detailContent"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden">Parte guardado correctamente.</div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f6a3a">
+  <meta name="description" content="Gestión de partes diarios forestales de Lubayd SA">
+  <title>Lubayd SA | Gestión Forestal</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./assets/icon-192.png">
+  <link rel="apple-touch-icon" href="./assets/icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Gestión Forestal">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style-v4.css">
+  <link rel="stylesheet" href="./style-v5.css">
+  <link rel="stylesheet" href="./style-v6.css">
+  <link rel="stylesheet" href="./style-v7.css">
+  <link rel="stylesheet" href="./style-v8.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img src="./assets/logo.png" alt="Lubayd SA" class="brand-logo">
+        <div><strong>Gestión Forestal</strong><span>Lubayd SA</span></div>
+      </div>
+      <nav class="nav" aria-label="Navegación principal">
+        <button class="nav-item active" data-view="dashboard"><span class="icon">⌂</span><span>Inicio</span></button>
+        <button class="nav-item" data-view="nuevo"><span class="icon">＋</span><span>Nuevo parte</span></button>
+        <button class="nav-item" data-view="historial"><span class="icon">▤</span><span>Historial</span></button>
+        <button class="nav-item" data-view="graficos"><span class="icon">⌁</span><span>Gráficos</span></button>
+        <button class="nav-item" data-view="ubicaciones"><span class="icon">⌖</span><span>Ubicaciones</span></button>
+      </nav>
+      <div class="sidebar-card">
+        <span class="live-dot"></span>
+        <div><strong>Sistema disponible</strong><small>Datos guardados en el dispositivo</small></div>
+      </div>
+      <div class="sidebar-version">Versión 8.0 · Corporate</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title">
+          <button class="menu-btn" id="menuBtn" aria-label="Abrir menú">☰</button>
+          <div><p>Centro de operaciones</p><h1 id="pageTitle">Panel de gestión forestal</h1></div>
+        </div>
+        <div class="topbar-actions">
+          <button id="installBtn" class="install-btn hidden">Instalar app</button>
+          <div id="networkStatus" class="network-pill"><span></span><b>En línea</b></div>
+          <div class="user"><div class="avatar">OP</div><div><strong>Operador</strong><small>Sesión local</small></div></div>
+        </div>
+      </header>
+
+      <section id="dashboard" class="view active">
+        <div class="hero">
+          <div class="hero-copy">
+            <span class="eyebrow">GESTIÓN FORESTAL INTELIGENTE</span>
+            <h2>Control operativo con información clara y confiable.</h2>
+            <p>Centraliza partes diarios, producción, rendimiento y ubicaciones GPS en una única plataforma.</p>
+            <div class="hero-actions">
+              <button class="btn primary" id="heroNewBtn">＋ Nuevo parte</button>
+              <button class="btn ghost" data-view-link="historial">▤ Ver historial</button>
+            </div>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="sun"></div><div class="hill h1"></div><div class="hill h2"></div>
+            <div class="pine p1"></div><div class="pine p2"></div><div class="pine p3"></div>
+            <div class="hero-stat"><span>HOY</span><strong>Listo para comenzar</strong><small id="heroDate">—</small></div>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi-card kpi-blue"><div class="kpi-icon">📋</div><div><span>Partes registrados</span><strong id="kpiTotal">0</strong><small>Total almacenado</small></div></article>
+          <article class="kpi-card kpi-green"><div class="kpi-icon">🌲</div><div><span>Árboles procesados</span><strong id="kpiArboles">0</strong><small>Producción acumulada</small></div></article>
+          <article class="kpi-card kpi-amber"><div class="kpi-icon">⏱️</div><div><span>Horas trabajadas</span><strong id="kpiHoras">0,0</strong><small>Horas acumuladas</small></div></article>
+          <article class="kpi-card success kpi-mint"><div class="kpi-icon">✅</div><div><span>Chequeos completos</span><strong id="kpiChequeos">0%</strong><small>Agua y aceite verificados</small></div></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel span-2">
+            <div class="panel-header"><div><h3>Últimos movimientos</h3><p>Tu actividad más reciente, ordenada por fecha.</p></div><button class="link-btn" data-view-link="historial">Ver todos →</button></div>
+            <div id="recentList" class="record-list empty-state">Aquí aparecerán tus últimos partes guardados.</div>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><div><h3>Así viene la jornada</h3><p>Un resumen rápido de la operación.</p></div></div>
+            <div class="summary-list">
+              <div><span>Promedio árboles/parte</span><strong id="avgTrees">0</strong></div>
+              <div><span>Promedio horas/parte</span><strong id="avgHours">0,0 h</strong></div>
+              <div><span>Último registro</span><strong id="lastRecord">—</strong></div>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><div><h3>Todo funcionando</h3><p>Estado de la aplicación y tus datos.</p></div></div>
+            <div class="system-list">
+              <div><span><i class="status ok"></i>Almacenamiento local</span><strong>Activo</strong></div>
+              <div><span><i class="status ok"></i>Modo sin conexión</span><strong>Disponible</strong></div>
+              <div><span><i class="status" id="gpsStatusDot"></i>Ubicación GPS</span><strong id="gpsSystemStatus">Sin comprobar</strong></div>
+              <div><span><i class="status"></i>Última actualización</span><strong id="lastUpdate">—</strong></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="nuevo" class="view">
+        <div class="section-top">
+          <div><span class="eyebrow">NUEVO REGISTRO</span><h2>Parte diario forestal</h2><p>Te guiamos paso a paso para que sea rápido y sencillo.</p></div>
+          <div class="step-chip"><span id="stepNumber">1</span><div><small>Paso actual</small><strong id="stepText">Datos generales</strong></div></div>
+        </div>
+        <div class="form-card">
+          <div class="stepper">
+            <div class="step active"><span>1</span><b>Datos generales</b></div>
+            <div class="step"><span>2</span><b>Producción</b></div>
+            <div class="step"><span>3</span><b>Chequeo</b></div>
+          </div>
+          <form id="parteForm" novalidate>
+            <div class="form-page active" data-step="1">
+              <div class="form-section-title"><h3>Identificación del turno</h3><p>Información básica de la operación.</p></div>
+              <div class="form-grid">
+                <label><span>Monte *</span><input id="monte" required placeholder="Ej.: Monte Norte"></label>
+                <label><span>Fecha *</span><input id="fecha" type="date" required></label>
+                <label><span>N.º de máquina *</span><input id="maquina" required placeholder="Ej.: 859M-03"></label>
+                <label><span>Operador *</span><input id="operador" required placeholder="Nombre y apellido"></label>
+                <label><span>Especie *</span><select id="especie" required><option value="">Seleccionar</option><option>Eucalyptus</option><option>Pino</option><option>Otra</option></select></label>
+                <label><span>Largo (m) *</span><input id="largo" type="number" min="0" step="0.01" required placeholder="0,00"></label>
+
+              <div class="gps-card full" id="gpsCard">
+                <div class="gps-card-head">
+                  <div class="gps-icon">⌖</div>
+                  <div><strong>Ubicación del parte</strong><small>Se guardarán las coordenadas y la precisión GPS.</small></div>
+                </div>
+                <div id="gpsState" class="gps-state idle"><span class="gps-pulse"></span><div><strong>Ubicación pendiente</strong><small>Presiona el botón para obtenerla.</small></div></div>
+                <div id="gpsCoordinates" class="gps-coordinates hidden"></div>
+                <div class="gps-actions">
+                  <button type="button" class="btn gps-btn" id="gpsCaptureBtn">⌖ Obtener ubicación</button>
+                  <a id="gpsPreviewLink" class="btn ghost hidden" target="_blank" rel="noopener">Ver en el mapa</a>
+                </div>
+                <p class="gps-help">El teléfono solicitará permiso. Funciona mejor al aire libre y con la ubicación activada.</p>
+              </div>
+                <fieldset class="full"><legend>Turno *</legend><div class="segmented"><label><input type="radio" name="turno" value="Diurno" required><span>☀ Diurno</span></label><label><input type="radio" name="turno" value="Nocturno"><span>☾ Nocturno</span></label></div></fieldset>
+              </div>
+            </div>
+
+            <div class="form-page" data-step="2">
+              <div class="form-section-title"><h3>Producción del turno</h3><p>Lecturas de máquina y volumen procesado.</p></div>
+              <div class="form-grid">
+                <label><span>Horómetro inicial *</span><input id="horometroInicio" type="number" min="0" step="0.1" required></label>
+                <label><span>Horómetro final *</span><input id="horometroFinal" type="number" min="0" step="0.1" required></label>
+                <label><span>Árboles iniciales *</span><input id="arbolesIniciales" type="number" min="0" step="1" required></label>
+                <label><span>Árboles finales *</span><input id="arbolesFinales" type="number" min="0" step="1" required></label>
+                <label><span>Carros *</span><input id="carros" type="number" min="0" step="1" required></label>
+                <fieldset class="full"><legend>Actividad *</legend><div class="segmented three"><label><input type="radio" name="actividad" value="Cosecha" required><span>Cosecha</span></label><label><input type="radio" name="actividad" value="Extracción"><span>Extracción</span></label><label><input type="radio" name="actividad" value="Feller Buncher"><span>Feller Buncher</span></label></div></fieldset>
+              </div>
+              <div class="calc-strip"><div><span>Horas trabajadas</span><strong id="calcHoras">0,0 h</strong></div><div><span>Árboles procesados</span><strong id="calcArboles">0</strong></div><div><span>Rendimiento</span><strong id="calcRendimiento">0 árb/h</strong></div></div>
+              <div class="form-section-title spaced"><h3>Trabajo realizado</h3><p>Detalle de tareas y asistencia técnica.</p></div>
+              <div class="form-grid"><label><span>Desde</span><input id="desde1" type="time"></label><label><span>Hasta</span><input id="hasta1" type="time"></label><label class="full"><span>Trabajo realizado</span><input id="trabajo1" placeholder="Descripción de la tarea"></label><label class="full"><span>Mecánico</span><input id="mecanico1" placeholder="Responsable"></label></div>
+            </div>
+
+            <div class="form-page" data-step="3">
+              <div class="form-section-title"><h3>Chequeo previo</h3><p>Marca los controles realizados antes de iniciar.</p></div>
+              <div class="check-grid">
+                <label class="check-card"><input id="agua" type="checkbox"><span class="checkmark">✓</span><div><strong>Agua</strong><small>Nivel verificado</small></div></label>
+                <label class="check-card"><input id="aceite" type="checkbox"><span class="checkmark">✓</span><div><strong>Aceite</strong><small>Nivel verificado</small></div></label>
+                <label class="check-card"><input id="valvulina" type="checkbox"><span class="checkmark">✓</span><div><strong>Valvulina</strong><small>Estado verificado</small></div></label>
+                <label class="check-card"><input id="giro" type="checkbox"><span class="checkmark">✓</span><div><strong>Giro</strong><small>Movimiento revisado</small></div></label>
+                <label class="check-card"><input id="chequeoGral" type="checkbox"><span class="checkmark">✓</span><div><strong>Chequeo general</strong><small>Inspección completa</small></div></label>
+                <label class="check-card"><input id="cabezal" type="checkbox"><span class="checkmark">✓</span><div><strong>Cabezal</strong><small>Estado verificado</small></div></label>
+                <label class="check-card"><input id="grua" type="checkbox"><span class="checkmark">✓</span><div><strong>Grúa</strong><small>Operación confirmada</small></div></label>
+              </div>
+              <div class="form-grid spaced"><label class="full"><span>Observaciones</span><textarea id="observaciones" rows="4" placeholder="Comentarios, fallas o novedades"></textarea></label><label><span>Combustible (L)</span><input id="combustible" type="number" min="0" step="0.1"></label><label><span>Hidráulico (L)</span><input id="hidraulico" type="number" min="0" step="0.1"></label><label><span>Controlado por</span><input id="controlado" placeholder="Nombre del encargado"></label><label><span>Firma</span><input id="firma" placeholder="Firma registrada"></label></div>
+              <div class="review"><div class="review-title"><span>Resumen</span><small>Verifica la información antes de guardar.</small></div><div id="reviewContent"></div></div>
+            </div>
+            <p id="message" class="message"></p>
+            <div class="form-actions"><button type="button" id="cancelBtn" class="btn ghost">Cancelar</button><button type="button" id="prevBtn" class="btn ghost hidden">Anterior</button><button type="button" id="nextBtn" class="btn primary">Continuar</button><button type="submit" id="saveBtn" class="btn primary hidden">Guardar parte</button></div>
+          </form>
+        </div>
+      </section>
+
+
+      <section id="graficos" class="view">
+        <div class="section-top charts-heading">
+          <div><span class="eyebrow">ANÁLISIS OPERATIVO</span><h2>Gráficos de producción</h2><p>Analiza combustible, horas y árboles por período y operador.</p></div>
+          <button class="btn ghost" id="chartsRefresh">Actualizar datos</button>
+        </div>
+
+        <div class="charts-filter-card">
+          <label><span>Operador</span><select id="chartOperator"><option value="">Todos los operadores</option></select></label>
+          <div class="period-control"><span>Agrupar por</span><div class="period-tabs" role="group" aria-label="Agrupar gráficos"><button class="active" data-period="day">Día</button><button data-period="week">Semana</button><button data-period="month">Mes</button></div></div>
+          <label><span>Rango</span><select id="chartRange"><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option><option value="365">Últimos 12 meses</option><option value="all">Todo el historial</option></select></label>
+        </div>
+
+        <div class="chart-summary-grid">
+          <article><div class="chart-summary-icon fuel">⛽</div><div><span>Combustible</span><strong id="chartFuelTotal">0 L</strong><small id="chartFuelAvg">Promedio: 0 L/parte</small></div></article>
+          <article><div class="chart-summary-icon hours">⏱</div><div><span>Horas trabajadas</span><strong id="chartHoursTotal">0 h</strong><small id="chartHoursAvg">Promedio: 0 h/parte</small></div></article>
+          <article><div class="chart-summary-icon trees">🌲</div><div><span>Árboles procesados</span><strong id="chartTreesTotal">0</strong><small id="chartTreesAvg">Promedio: 0/parte</small></div></article>
+          <article><div class="chart-summary-icon performance">↗</div><div><span>Rendimiento</span><strong id="chartPerformance">0 árb/h</strong><small>Árboles por hora</small></div></article>
+        </div>
+
+        <div class="charts-grid">
+          <article class="chart-card"><div class="chart-card-head"><div><span class="chart-kicker fuel-text">COMBUSTIBLE</span><h3>Consumo por período</h3></div><strong id="fuelPeak">Máximo: —</strong></div><div class="canvas-wrap"><canvas id="fuelChart"></canvas><div class="chart-empty hidden">No hay datos de combustible.</div></div></article>
+          <article class="chart-card"><div class="chart-card-head"><div><span class="chart-kicker hours-text">HORAS</span><h3>Horas trabajadas</h3></div><strong id="hoursPeak">Máximo: —</strong></div><div class="canvas-wrap"><canvas id="hoursChart"></canvas><div class="chart-empty hidden">No hay datos de horas.</div></div></article>
+          <article class="chart-card"><div class="chart-card-head"><div><span class="chart-kicker trees-text">ÁRBOLES</span><h3>Producción por período</h3></div><strong id="treesPeak">Máximo: —</strong></div><div class="canvas-wrap"><canvas id="treesChart"></canvas><div class="chart-empty hidden">No hay datos de árboles.</div></div></article>
+          <article class="chart-card"><div class="chart-card-head"><div><span class="chart-kicker performance-text">OPERADORES</span><h3>Rendimiento por operador</h3></div><strong>Árboles/hora</strong></div><div id="operatorRanking" class="operator-ranking"><div class="chart-empty">No hay datos para comparar.</div></div></article>
+        </div>
+      </section>
+
+
+      <section id="ubicaciones" class="view">
+        <div class="section-top"><div><span class="eyebrow">UBICACIONES GPS</span><h2>Mapa de partes</h2><p>Consulta dónde fue registrado cada parte y abre la ubicación en el mapa.</p></div><button class="btn ghost" id="gpsRefreshBtn">Actualizar</button></div>
+        <div class="location-summary-grid">
+          <article><span>Partes con GPS</span><strong id="gpsRecordCount">0</strong><small>Ubicaciones registradas</small></article>
+          <article><span>Precisión promedio</span><strong id="gpsAverageAccuracy">—</strong><small>Menor valor = mayor precisión</small></article>
+          <article><span>Última captura</span><strong id="gpsLastCapture">—</strong><small>Fecha y hora</small></article>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div><h3>Registros geolocalizados</h3><p>Selecciona “Abrir mapa” para ver las coordenadas.</p></div></div>
+          <div id="locationList" class="location-list"><div class="empty-state">Todavía no hay partes con ubicación GPS.</div></div>
+        </div>
+      </section>
+
+      <section id="historial" class="view">
+        <div class="section-top"><div><span class="eyebrow">REGISTROS</span><h2>Historial de partes</h2><p>Encuentra fácilmente cualquier parte guardado.</p></div><div class="history-actions"><button class="btn ghost" id="exportBtn">Exportar JSON</button><button class="btn primary" data-view-link="nuevo">Nuevo parte</button></div></div>
+        <div class="panel">
+          <div class="toolbar"><div class="search-box"><span>⌕</span><input id="historySearch" placeholder="Buscar por monte, máquina u operador"></div><select id="activityFilter"><option value="">Todas las actividades</option><option>Cosecha</option><option>Extracción</option><option>Feller Buncher</option></select></div>
+          <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Monte</th><th>Máquina</th><th>Operador</th><th>Actividad</th><th>Árboles</th><th>Acciones</th></tr></thead><tbody id="historyBody"></tbody></table></div>
+          <div id="historyEmpty" class="empty-table">No hay registros para mostrar.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="mobile-nav"><button class="active" data-view="dashboard"><span>⌂</span>Inicio</button><button data-view="nuevo"><span>＋</span>Nuevo</button><button data-view="graficos"><span>⌁</span>Gráficos</button><button data-view="ubicaciones"><span>⌖</span>GPS</button><button data-view="historial"><span>▤</span>Historial</button></nav>
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+  <div id="detailModal" class="modal-overlay hidden"><div class="modal"><button id="detailClose" class="modal-close">×</button><div id="detailContent"></div></div></div>
+  <div id="toast" class="toast hidden">Parte guardado correctamente.</div>
+  <div id="updateBanner" class="update-banner hidden"><span>Hay una nueva versión disponible.</span><button id="updateBtn">Actualizar</button></div>
+  <script src="./app.js"></script>
+  <script src="./charts-v6.js"></script>
+</body>
+</html>
