@@ -1,10 +1,11 @@
-const CACHE_NAME = 'lubayd-forestal-v11.0.0';
+const CACHE_NAME = 'lubayd-forestal-v12.0.0';
 const LOCAL_ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './charts.js',
+  './chat.js',
   './firebase-init.js',
   './manifest.json',
   './assets/logo.png',

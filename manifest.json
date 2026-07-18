@@ -1,7 +1,7 @@
 {
-  "name": "Gestión Forestal Lubayd SA",
+  "name": "Gestión Forestal y Chat Lubayd SA",
   "short_name": "Lubayd Forestal",
-  "description": "Registro, sincronización y análisis de partes diarios forestales",
+  "description": "Registro, sincronización, análisis y chat interno para operaciones forestales",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -28,6 +28,13 @@
       "short_name": "Nuevo",
       "description": "Crear un nuevo parte diario",
       "url": "./?view=nuevo",
+      "icons": [{"src":"./assets/icon-192.png","sizes":"192x192"}]
+    },
+    {
+      "name": "Mensajes",
+      "short_name": "Chat",
+      "description": "Abrir el chat interno",
+      "url": "./?view=chat",
       "icons": [{"src":"./assets/icon-192.png","sizes":"192x192"}]
     },
     {

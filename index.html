@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b7a45">
   <meta name="description" content="Gestión de partes diarios, producción y ubicaciones forestales de Lubayd SA">
-  <title>Lubayd SA | Gestión Forestal</title>
+  <title>Lubayd SA | Gestión Forestal y Chat</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./assets/icon-192.png">
   <link rel="apple-touch-icon" href="./assets/icon-192.png">
@@ -49,43 +49,43 @@
     <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8Z"/><path d="m19 16 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8Z"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
-    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol>
-    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h6a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-6"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4Z"/><path d="M8 9h8M8 12h5"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m3 3 18 9-18 9 4-9Z"/><path d="M7 12h14"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M10 7l-5 5 5 5"/></symbol>
   </svg>
 
-  <section id="authGate" class="auth-gate" aria-label="Acceso a Gestión Forestal">
-    <div class="auth-visual">
-      <div class="auth-brand"><img src="./assets/logo-transparent.png" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
-      <div class="auth-copy"><span>PLATAFORMA SEGURA</span><h1>La operación forestal, conectada en tiempo real.</h1><p>Ingresa con tu correo y contraseña para registrar partes, consultar el historial y sincronizar todos los dispositivos.</p></div>
-      <div class="auth-feature-list"><span><svg><use href="#i-cloud"></use></svg> Datos sincronizados</span><span><svg><use href="#i-lock"></use></svg> Acceso protegido</span><span><svg><use href="#i-pin"></use></svg> GPS bloqueado</span></div>
-    </div>
-    <div class="auth-panel">
+
+  <div class="auth-gate" id="authGate">
+    <section class="auth-visual" aria-hidden="true">
+      <div class="auth-brand"><img src="./assets/logo-transparent.png" alt=""><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
+      <div class="auth-copy"><span>PLATAFORMA OPERATIVA SEGURA</span><h1>Gestión forestal conectada, clara y en tiempo real.</h1><p>Registra partes, consulta ubicaciones y comunícate con el equipo desde una única plataforma.</p></div>
+      <div class="auth-feature-list"><span><svg><use href="#i-shield"></use></svg> Acceso protegido</span><span><svg><use href="#i-cloud"></use></svg> Datos sincronizados</span><span><svg><use href="#i-chat"></use></svg> Chat interno</span></div>
+    </section>
+    <section class="auth-panel">
       <div class="auth-card">
         <div class="auth-mobile-brand"><img src="./assets/logo-transparent.png" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
-        <div class="auth-tabs" role="tablist"><button type="button" class="active" data-auth-tab="login">Ingresar</button><button type="button" data-auth-tab="register">Crear usuario</button></div>
-
-        <form id="loginForm" class="auth-form active" novalidate>
-          <div class="auth-heading"><span>BIENVENIDO</span><h2>Iniciar sesión</h2><p>Usa el correo registrado en Firebase.</p></div>
-          <label><span>Correo electrónico</span><div class="auth-input"><svg><use href="#i-user"></use></svg><input id="loginEmail" type="email" autocomplete="email" required placeholder="nombre@empresa.com"></div></label>
-          <label><span>Contraseña</span><div class="auth-input"><svg><use href="#i-lock"></use></svg><input id="loginPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Tu contraseña"></div></label>
+        <div class="auth-tabs" role="tablist"><button type="button" class="active" data-auth-tab="login">Ingresar</button><button type="button" data-auth-tab="register">Crear cuenta</button></div>
+        <form id="loginForm" class="auth-form active">
+          <div class="auth-heading"><span>ACCESO AL SISTEMA</span><h2>Bienvenido</h2><p>Ingresa con tu correo y contraseña.</p></div>
+          <label><span>Correo electrónico</span><div class="auth-input"><svg><use href="#i-user"></use></svg><input id="loginEmail" type="email" autocomplete="email" required placeholder="nombre@correo.com"></div></label>
+          <label><span>Contraseña</span><div class="auth-input"><svg><use href="#i-shield"></use></svg><input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••"></div></label>
           <button type="submit" class="btn btn-primary auth-submit">Ingresar <svg><use href="#i-arrow"></use></svg></button>
-          <button type="button" id="resetPasswordBtn" class="auth-link">¿Olvidaste la contraseña?</button>
+          <button type="button" id="resetPasswordBtn" class="auth-link">Olvidé mi contraseña</button>
         </form>
-
-        <form id="registerForm" class="auth-form" novalidate>
-          <div class="auth-heading"><span>NUEVO USUARIO</span><h2>Crear una cuenta</h2><p>Después del registro, un administrador debe habilitar la cuenta en Firebase.</p></div>
-          <label><span>Nombre completo</span><div class="auth-input"><svg><use href="#i-user"></use></svg><input id="registerName" autocomplete="name" required placeholder="Nombre y apellido"></div></label>
-          <label><span>Correo electrónico</span><div class="auth-input"><svg><use href="#i-user"></use></svg><input id="registerEmail" type="email" autocomplete="email" required placeholder="nombre@empresa.com"></div></label>
-          <label><span>Contraseña</span><div class="auth-input"><svg><use href="#i-lock"></use></svg><input id="registerPassword" type="password" autocomplete="new-password" required minlength="6" placeholder="Mínimo 6 caracteres"></div></label>
-          <label><span>Confirmar contraseña</span><div class="auth-input"><svg><use href="#i-lock"></use></svg><input id="registerConfirm" type="password" autocomplete="new-password" required minlength="6" placeholder="Repite la contraseña"></div></label>
+        <form id="registerForm" class="auth-form">
+          <div class="auth-heading"><span>NUEVO USUARIO</span><h2>Crear cuenta</h2><p>La cuenta queda habilitada automáticamente.</p></div>
+          <label><span>Nombre y apellido</span><div class="auth-input"><svg><use href="#i-user"></use></svg><input id="registerName" autocomplete="name" required placeholder="Nombre completo"></div></label>
+          <label><span>Correo electrónico</span><div class="auth-input"><svg><use href="#i-user"></use></svg><input id="registerEmail" type="email" autocomplete="email" required placeholder="nombre@correo.com"></div></label>
+          <label><span>Contraseña</span><div class="auth-input"><svg><use href="#i-shield"></use></svg><input id="registerPassword" type="password" autocomplete="new-password" minlength="6" required placeholder="Mínimo 6 caracteres"></div></label>
+          <label><span>Repetir contraseña</span><div class="auth-input"><svg><use href="#i-shield"></use></svg><input id="registerConfirm" type="password" autocomplete="new-password" minlength="6" required placeholder="Repite la contraseña"></div></label>
           <button type="submit" class="btn btn-primary auth-submit">Crear usuario <svg><use href="#i-arrow"></use></svg></button>
         </form>
         <p id="authMessage" class="auth-message" role="alert"></p>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
-  <div class="app-shell" id="appShell">
+  <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark"><img src="./assets/logo-transparent.png" alt="Lubayd SA"></div>
@@ -96,6 +96,7 @@
         <button class="nav-item active" data-view="dashboard"><svg><use href="#i-home"></use></svg><span>Inicio</span></button>
         <button class="nav-item" data-view="nuevo"><svg><use href="#i-plus"></use></svg><span>Nuevo parte</span></button>
         <button class="nav-item" data-view="historial"><svg><use href="#i-file"></use></svg><span>Historial</span></button>
+        <button class="nav-item" data-view="chat"><svg><use href="#i-chat"></use></svg><span>Mensajes</span><span class="nav-badge chat-unread-badge hidden">0</span></button>
         <button class="nav-item" data-view="graficos"><svg><use href="#i-chart"></use></svg><span>Gráficos</span></button>
         <button class="nav-item" data-view="ubicaciones"><svg><use href="#i-pin"></use></svg><span>Ubicaciones</span></button>
       </nav>
@@ -106,11 +107,11 @@
         <div><strong id="sidebarSyncTitle">Sistema en línea</strong><small id="sidebarSyncText">Conectando con Firebase…</small></div>
       </div>
       <button type="button" class="sidebar-profile" id="logoutBtn" title="Cerrar sesión">
-        <div class="avatar" id="sidebarAvatar">US</div>
-        <div><strong id="sidebarUserName">Usuario</strong><small id="sidebarUserEmail">Sesión segura</small></div>
-        <svg><use href="#i-logout"></use></svg>
+        <div class="avatar" id="sidebarAvatar">OP</div>
+        <div><strong id="sidebarUserName">Operador</strong><small id="sidebarUserEmail">Sesión segura</small></div>
+        <svg><use href="#i-chevron-left"></use></svg>
       </button>
-      <div class="sidebar-version">V11 Secure · Lubayd SA</div>
+      <div class="sidebar-version">V12 Chat · Lubayd SA</div>
     </aside>
 
     <main class="main">
@@ -122,8 +123,8 @@
         <div class="topbar-actions">
           <button id="installBtn" class="install-button hidden"><svg><use href="#i-download"></use></svg> Instalar</button>
           <div id="networkStatus" class="network-pill"><span class="network-dot"></span><div><b>Conectando…</b><small id="lastSyncLabel">Esperando datos</small></div></div>
-          <button class="icon-button notification-button" aria-label="Notificaciones"><svg><use href="#i-bell"></use></svg></button>
-          <div class="topbar-user"><div class="avatar" id="topbarAvatar">US</div><div><strong id="topbarUserName">Usuario</strong><small id="topbarUserEmail">Lubayd SA</small></div></div>
+          <button class="icon-button notification-button" data-view-link="chat" aria-label="Abrir mensajes"><svg><use href="#i-chat"></use></svg><span class="topbar-badge chat-unread-badge hidden">0</span></button>
+          <div class="topbar-user"><div class="avatar" id="topbarAvatar">OP</div><div><strong id="topbarUserName">Operador</strong><small id="topbarUserEmail">Lubayd SA</small></div></div>
         </div>
       </header>
 
@@ -214,7 +215,7 @@
                 <label class="field"><span class="field-label">Monte <em>*</em></span><div class="input-shell"><svg><use href="#i-tree"></use></svg><input id="monte" list="monteOptions" required placeholder="Ej.: Monte Verde"></div></label>
                 <label class="field"><span class="field-label">Fecha <em>*</em></span><div class="input-shell"><svg><use href="#i-calendar"></use></svg><input id="fecha" type="date" required></div></label>
                 <label class="field"><span class="field-label">N.º de máquina <em>*</em></span><div class="input-shell"><svg><use href="#i-machine"></use></svg><input id="maquina" list="maquinaOptions" required placeholder="Ej.: 859M-03"></div></label>
-                <label class="field"><span class="field-label">Operador autenticado</span><div class="input-shell locked-input"><svg><use href="#i-lock"></use></svg><input id="operador" required readonly aria-readonly="true" placeholder="Se completa al iniciar sesión"></div><small class="field-help">Se toma automáticamente del usuario conectado.</small></label>
+                <label class="field"><span class="field-label">Operador <em>*</em></span><div class="input-shell"><svg><use href="#i-user"></use></svg><input id="operador" list="operadorOptions" required placeholder="Nombre y apellido"></div></label>
                 <fieldset class="field-group full"><legend>Turno <em>*</em></legend><div class="segmented"><label><input type="radio" name="turno" value="Diurno" required><span><svg><use href="#i-sun"></use></svg>Diurno</span></label><label><input type="radio" name="turno" value="Nocturno"><span><svg><use href="#i-moon"></use></svg>Nocturno</span></label></div></fieldset>
                 <label class="field"><span class="field-label">Especie <em>*</em></span><div class="input-shell"><svg><use href="#i-leaf"></use></svg><select id="especie" required><option value="">Seleccionar especie</option><option>Eucalyptus</option><option>Pino</option><option>Otra</option></select></div></label>
                 <label class="field"><span class="field-label">Largo (m) <em>*</em></span><div class="input-shell"><span class="input-prefix">m</span><input id="largo" type="number" inputmode="decimal" min="0" step="0.01" required placeholder="0,00"></div></label>
@@ -268,15 +269,15 @@
             </div>
 
             <div class="form-page" data-step="4">
-              <div class="form-section-head"><div><span class="form-section-number">04</span><h3>Ubicación del parte</h3><p>Se captura la ubicación actual y queda bloqueada al obtenerla.</p></div><span class="required-badge"><svg><use href="#i-lock"></use></svg> Obligatoria</span></div>
+              <div class="form-section-head"><div><span class="form-section-number">04</span><h3>Ubicación del parte</h3><p>La captura GPS es opcional y nunca impide continuar.</p></div><span class="optional-badge">Opcional</span></div>
               <div class="gps-layout">
                 <div class="map-preview" id="mapPreview"><div class="map-grid"></div><div class="map-road road-one"></div><div class="map-road road-two"></div><div class="map-water"></div><div class="gps-map-pin" id="gpsMapPin"><span></span></div><div class="map-status"><span class="live-dot"></span><b id="mapStatusText">Esperando ubicación</b></div></div>
                 <div class="gps-control-card">
                   <div class="gps-control-icon"><svg><use href="#i-pin"></use></svg></div>
-                  <div id="gpsState" class="gps-state idle"><strong>Ubicación pendiente</strong><small>Debes obtener la ubicación actual para continuar.</small></div>
+                  <div id="gpsState" class="gps-state idle"><strong>Ubicación pendiente</strong><small>Presiona “Obtener ubicación” o continúa sin GPS.</small></div>
                   <div id="gpsCoordinates" class="gps-coordinates hidden"></div>
                   <div class="gps-actions"><button type="button" class="btn btn-primary" id="gpsCaptureBtn"><svg><use href="#i-pin"></use></svg> Obtener ubicación</button><a id="gpsPreviewLink" class="btn btn-ghost hidden" target="_blank" rel="noopener"><svg><use href="#i-external"></use></svg> Abrir mapa</a></div>
-                  <div class="info-note"><svg><use href="#i-lock"></use></svg><p>Una vez obtenida, la ubicación queda bloqueada y no puede cambiarse dentro del parte.</p></div>
+                  <div class="info-note"><svg><use href="#i-info"></use></svg><p>Para mayor precisión, activa la ubicación del teléfono y realiza la captura al aire libre.</p></div>
                 </div>
               </div>
             </div>
@@ -316,6 +317,38 @@
         </div>
       </section>
 
+
+      <section id="chat" class="view">
+        <div class="section-heading-row chat-heading">
+          <div><span class="section-kicker"><svg><use href="#i-chat"></use></svg> COMUNICACIÓN INTERNA</span><h2>Mensajes del equipo</h2><p id="chatIntroText">Conversaciones privadas y sincronizadas en tiempo real.</p></div>
+          <span class="chat-security-pill"><svg><use href="#i-shield"></use></svg> Solo participantes</span>
+        </div>
+        <div class="chat-layout" id="chatLayout">
+          <aside class="chat-directory">
+            <div class="chat-directory-head"><div><span>CONVERSACIONES</span><strong id="chatDirectoryTitle">Equipo</strong></div><span id="chatTotalUnread" class="chat-total-badge hidden">0</span></div>
+            <label class="chat-search"><svg><use href="#i-search"></use></svg><input id="chatSearch" placeholder="Buscar usuario"></label>
+            <div id="chatDirectoryNotice" class="chat-directory-notice hidden"></div>
+            <div id="chatConversationList" class="chat-conversation-list"><div class="chat-loading">Cargando conversaciones…</div></div>
+          </aside>
+          <article class="chat-thread">
+            <div id="chatEmptyState" class="chat-empty-state"><span class="chat-empty-icon"><svg><use href="#i-chat"></use></svg></span><h3>Selecciona una conversación</h3><p>Elige una persona para comenzar a intercambiar mensajes.</p></div>
+            <div id="chatThreadContent" class="chat-thread-content hidden">
+              <header class="chat-thread-head">
+                <button type="button" id="chatBackBtn" class="chat-back-button" aria-label="Volver a conversaciones"><svg><use href="#i-back"></use></svg></button>
+                <div class="chat-peer-avatar" id="chatPeerAvatar">US</div>
+                <div class="chat-peer-copy"><strong id="chatPeerName">Usuario</strong><span id="chatPeerEmail">correo</span></div>
+                <span class="chat-online-label"><i></i> Cuenta activa</span>
+              </header>
+              <div id="chatMessages" class="chat-messages" aria-live="polite"><div class="chat-loading">Cargando mensajes…</div></div>
+              <form id="chatForm" class="chat-composer">
+                <textarea id="chatMessageInput" rows="1" maxlength="1000" required placeholder="Escribe un mensaje…"></textarea>
+                <div class="chat-composer-meta"><small><span id="chatCharacterCount">0</span>/1000</small><button type="submit" id="chatSendBtn" class="chat-send-button" aria-label="Enviar mensaje"><svg><use href="#i-send"></use></svg></button></div>
+              </form>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <section id="ubicaciones" class="view">
         <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-pin"></use></svg> GEOLOCALIZACIÓN</span><h2>Ubicaciones GPS</h2><p>Consulta los partes geolocalizados y ábrelos en el mapa.</p></div><button class="btn btn-soft" id="gpsRefreshBtn"><svg><use href="#i-refresh"></use></svg> Actualizar</button></div>
         <div class="location-hero"><div class="location-hero-copy"><span>CONTROL DE CAMPO</span><h3>Todos los registros con ubicación, en un solo lugar.</h3><p>La precisión depende del dispositivo, la señal y las condiciones del entorno.</p></div><div class="radar"><span class="radar-ring r1"></span><span class="radar-ring r2"></span><span class="radar-ring r3"></span><span class="radar-pin"><svg><use href="#i-pin"></use></svg></span></div></div>
@@ -326,7 +359,7 @@
       <section id="historial" class="view">
         <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-file"></use></svg> REGISTROS</span><h2>Historial de partes</h2><p>Busca, filtra y consulta los registros sincronizados.</p></div><div class="heading-actions"><button class="btn btn-soft" id="exportBtn"><svg><use href="#i-download"></use></svg> Exportar JSON</button><button class="btn btn-primary" data-view-link="nuevo"><svg><use href="#i-plus"></use></svg> Nuevo parte</button></div></div>
         <article class="panel history-panel">
-          <div class="history-toolbar"><label class="search-control"><svg><use href="#i-search"></use></svg><input id="historySearch" placeholder="Buscar por monte, máquina u operador"></label><label class="select-control date-control"><svg><use href="#i-calendar"></use></svg><input id="historyDateFilter" type="date" aria-label="Filtrar por día"></label><label class="select-control"><svg><use href="#i-filter"></use></svg><select id="activityFilter"><option value="">Todas las actividades</option><option>Cosecha</option><option>Extracción</option><option>Feller Buncher</option></select></label><label class="select-control"><svg><use href="#i-user"></use></svg><select id="historyOperatorFilter"><option value="">Todos los operadores</option></select></label><button type="button" id="clearHistoryFilters" class="clear-filter-button"><svg><use href="#i-close"></use></svg> Limpiar filtros</button></div><div class="history-filter-summary"><strong id="historyResultCount">0 registros</strong><span id="historyDateLabel">Todos los días</span></div>
+          <div class="history-toolbar"><label class="search-control"><svg><use href="#i-search"></use></svg><input id="historySearch" placeholder="Buscar por monte, máquina u operador"></label><label class="select-control"><svg><use href="#i-calendar"></use></svg><input id="historyDateFilter" type="date" aria-label="Filtrar por día"></label><label class="select-control"><svg><use href="#i-filter"></use></svg><select id="activityFilter"><option value="">Todas las actividades</option><option>Cosecha</option><option>Extracción</option><option>Feller Buncher</option></select></label><label class="select-control"><svg><use href="#i-user"></use></svg><select id="historyOperatorFilter"><option value="">Todos los operadores</option></select></label><button type="button" id="clearHistoryFilters" class="clear-filter-button"><svg><use href="#i-close"></use></svg> Limpiar</button></div><div class="history-filter-summary"><span id="historyDateLabel">Todos los días</span><strong id="historyResultCount">0 registros</strong></div>
           <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Monte</th><th>Máquina</th><th>Operador</th><th>Actividad</th><th>Árboles</th><th>Acciones</th></tr></thead><tbody id="historyBody"></tbody></table></div>
           <div id="historyCards" class="history-cards"></div>
           <div id="historyEmpty" class="empty-table">No hay registros para mostrar.</div>
@@ -339,6 +372,7 @@
     <button class="active" data-view="dashboard"><svg><use href="#i-home"></use></svg><span>Inicio</span></button>
     <button data-view="nuevo"><svg><use href="#i-plus"></use></svg><span>Nuevo</span></button>
     <button data-view="historial"><svg><use href="#i-file"></use></svg><span>Historial</span></button>
+    <button data-view="chat"><svg><use href="#i-chat"></use></svg><span>Chat</span><span class="mobile-badge chat-unread-badge hidden">0</span></button>
     <button data-view="graficos"><svg><use href="#i-chart"></use></svg><span>Gráficos</span></button>
     <button data-view="ubicaciones"><svg><use href="#i-pin"></use></svg><span>GPS</span></button>
   </nav>
@@ -357,5 +391,6 @@
   <script src="./firebase-init.js"></script>
   <script src="./app.js"></script>
   <script src="./charts.js"></script>
+  <script src="./chat.js"></script>
 </body>
 </html>

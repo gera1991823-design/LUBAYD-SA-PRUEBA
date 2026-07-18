@@ -2,7 +2,7 @@
 
 const STORAGE_KEY = 'lubayd_partes_v3';
 const LEGACY_KEYS = ['lubayd_partes_v2', 'lubayd_partes'];
-const DRAFT_KEY = 'lubayd_parte_draft_v11';
+const DRAFT_KEY = 'lubayd_parte_draft_v12';
 const TOTAL_STEPS = 5;
 const CHECK_IDS = ['agua', 'aceite', 'valvulina', 'giro', 'chequeoGral', 'cabezal', 'grua'];
 const CHECK_LABELS = {
@@ -243,6 +243,7 @@ async function handleAuthChange(user) {
   cloudUnsubscribe = null;
   authenticatedUser = null;
   authenticatedProfile = null;
+  window.LubaydCurrentProfile = null;
 
   if (!user) {
     document.body.classList.remove('auth-ready');
@@ -273,10 +274,12 @@ async function handleAuthChange(user) {
 
     authenticatedUser = user;
     authenticatedProfile = profile;
+    window.LubaydCurrentProfile = profile;
     document.body.classList.remove('auth-pending');
     document.body.classList.add('auth-ready');
     setAuthMessage('');
     updateUserInterface(user);
+    window.dispatchEvent(new CustomEvent('lubayd-profile-ready', { detail: { user, profile } }));
     initializeForm();
     renderAll();
     startCloudSync();
@@ -294,7 +297,8 @@ const viewMeta = {
   nuevo: ['Registro guiado', 'Nuevo parte diario'],
   historial: ['Registros', 'Historial de partes'],
   graficos: ['Análisis operativo', 'Gráficos de producción'],
-  ubicaciones: ['Geolocalización', 'Ubicaciones GPS']
+  ubicaciones: ['Geolocalización', 'Ubicaciones GPS'],
+  chat: ['Comunicación interna', 'Mensajes del equipo']
 };
 
 function showView(id) {
@@ -315,6 +319,7 @@ function showView(id) {
   if (id === 'historial') renderHistory();
   if (id === 'ubicaciones') renderLocations();
   if (id === 'graficos' && typeof window.renderCharts === 'function') window.renderCharts();
+  if (id === 'chat' && window.LubaydChatUI?.show) window.LubaydChatUI.show();
 
   closeSidebar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -536,7 +541,7 @@ function recordFromForm() {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    version: 11,
+    version: 12,
     createdAt: now,
     updatedAt: now,
     monte: $('#monte').value.trim(),

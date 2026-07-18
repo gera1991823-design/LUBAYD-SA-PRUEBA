@@ -1,4 +1,4 @@
-/* Lubayd SA - Firebase Authentication + Cloud Firestore */
+/* Lubayd SA - Firebase Authentication, Cloud Firestore and internal chat */
 (function () {
   const firebaseConfig = {
     apiKey: "AIzaSyCQDwcbAox4QEDe_czZX_YSd9jVx9g5BkY",
@@ -32,9 +32,14 @@
       'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.',
       'auth/too-many-requests': 'Demasiados intentos. Espera unos minutos y vuelve a probar.',
       'auth/network-request-failed': 'No se pudo conectar con Firebase. Revisa internet.',
-      'auth/operation-not-allowed': 'Debes habilitar el acceso por correo y contraseña en Firebase Authentication.'
+      'auth/operation-not-allowed': 'Debes habilitar el acceso por correo y contraseña en Firebase Authentication.',
+      'permission-denied': 'Firebase rechazó la operación. Publica las reglas incluidas en esta versión.'
     };
     return messages[error && error.code] || (error && error.message) || 'No se pudo completar la operación.';
+  }
+
+  function safeName(profile, user) {
+    return String(profile?.nombre || user?.displayName || user?.email || 'Usuario').trim();
   }
 
   try {
@@ -43,7 +48,8 @@
 
     const auth = firebase.auth();
     const db = firebase.firestore();
-    const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp;
+    const FieldValue = firebase.firestore.FieldValue;
+    const serverTimestamp = FieldValue.serverTimestamp;
 
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function (error) {
       console.warn('Persistencia de sesión:', error);
@@ -55,13 +61,17 @@
       }
     });
 
-    const collection = db.collection('partes');
+    const partesCollection = db.collection('partes');
     const usersCollection = db.collection('usuarios');
+    const chatsCollection = db.collection('chats');
 
     window.LubaydAuth = {
       available: true,
       currentUser() {
         return auth.currentUser;
+      },
+      currentProfile() {
+        return window.LubaydCurrentProfile || null;
       },
       async login(email, password) {
         const credential = await auth.signInWithEmailAndPassword(String(email || '').trim(), password);
@@ -76,7 +86,7 @@
           await usersCollection.doc(credential.user.uid).set({
             nombre: cleanName || credential.user.email || 'Usuario',
             email: credential.user.email || '',
-            active: false,
+            active: true,
             role: 'operador',
             createdAt: serverTimestamp()
           });
@@ -96,7 +106,7 @@
           await reference.set({
             nombre: user.displayName || user.email || 'Usuario',
             email: user.email || '',
-            active: false,
+            active: true,
             role: 'operador',
             createdAt: serverTimestamp()
           });
@@ -117,7 +127,7 @@
       available: true,
       subscribe(onData, onError) {
         if (!auth.currentUser) throw new Error('Debes iniciar sesión para sincronizar.');
-        return collection.onSnapshot({ includeMetadataChanges: true }, function (snapshot) {
+        return partesCollection.onSnapshot({ includeMetadataChanges: true }, function (snapshot) {
           const records = snapshot.docs.map(function (doc) {
             return Object.assign({ id: doc.id }, normalizeFirestoreValue(doc.data()));
           }).sort(function (a, b) {
@@ -144,16 +154,161 @@
           })
         });
 
-        return collection.doc(record.id).set(payload);
+        return partesCollection.doc(record.id).set(payload);
       },
       remove(id) {
         if (!auth.currentUser) return Promise.reject(new Error('Debes iniciar sesión.'));
-        return collection.doc(id).delete();
+        return partesCollection.doc(id).delete();
+      }
+    };
+
+    window.LubaydChat = {
+      available: true,
+      subscribeUsers(profile, onData, onError) {
+        if (!auth.currentUser) throw new Error('Debes iniciar sesión.');
+        const query = profile?.role === 'admin'
+          ? usersCollection
+          : usersCollection.where('role', '==', 'admin');
+        return query.onSnapshot(function (snapshot) {
+          const users = snapshot.docs.map(function (doc) {
+            return Object.assign({ uid: doc.id }, normalizeFirestoreValue(doc.data()));
+          }).filter(function (user) {
+            return user.active === true && user.uid !== auth.currentUser.uid;
+          }).sort(function (a, b) {
+            return String(a.nombre || a.email || '').localeCompare(String(b.nombre || b.email || ''), 'es');
+          });
+          onData(users);
+        }, onError);
+      },
+      subscribeConversations(onData, onError) {
+        if (!auth.currentUser) throw new Error('Debes iniciar sesión.');
+        return chatsCollection.where('participants', 'array-contains', auth.currentUser.uid)
+          .onSnapshot(function (snapshot) {
+            const conversations = snapshot.docs.map(function (doc) {
+              return Object.assign({ id: doc.id }, normalizeFirestoreValue(doc.data()));
+            }).sort(function (a, b) {
+              return String(b.lastMessageAtClient || b.createdAtClient || '')
+                .localeCompare(String(a.lastMessageAtClient || a.createdAtClient || ''));
+            });
+            onData(conversations);
+          }, onError);
+      },
+      async ensureConversation(peer, profile) {
+        const user = auth.currentUser;
+        if (!user || !peer || !profile) throw new Error('No se pudo identificar a los participantes.');
+
+        const currentIsAdmin = profile.role === 'admin';
+        const admin = currentIsAdmin
+          ? { uid: user.uid, nombre: safeName(profile, user), email: user.email || '', role: 'admin' }
+          : peer;
+        const operator = currentIsAdmin
+          ? peer
+          : { uid: user.uid, nombre: safeName(profile, user), email: user.email || '', role: profile.role || 'operador' };
+
+        if (admin.role !== 'admin') throw new Error('No hay un administrador configurado para el chat.');
+        if (admin.uid === operator.uid) throw new Error('No puedes iniciar una conversación contigo mismo.');
+
+        const id = [admin.uid, operator.uid].sort().join('__');
+        const reference = chatsCollection.doc(id);
+        const snapshot = await reference.get();
+        const now = new Date().toISOString();
+
+        if (!snapshot.exists) {
+          await reference.set({
+            participants: [admin.uid, operator.uid],
+            adminUid: admin.uid,
+            adminName: admin.nombre || admin.email || 'Administrador',
+            adminEmail: admin.email || '',
+            operatorUid: operator.uid,
+            operatorName: operator.nombre || operator.email || 'Operador',
+            operatorEmail: operator.email || '',
+            lastMessage: '',
+            lastMessageAt: serverTimestamp(),
+            lastMessageAtClient: now,
+            lastSenderId: '',
+            unreadByAdmin: 0,
+            unreadByOperator: 0,
+            createdAt: serverTimestamp(),
+            createdAtClient: now
+          });
+        }
+
+        const latest = await reference.get();
+        return Object.assign({ id }, normalizeFirestoreValue(latest.data() || {}));
+      },
+      subscribeMessages(chatId, onData, onError) {
+        if (!auth.currentUser || !chatId) throw new Error('Conversación no disponible.');
+        return chatsCollection.doc(chatId).collection('mensajes')
+          .orderBy('createdAtClient', 'asc')
+          .onSnapshot(function (snapshot) {
+            const messages = snapshot.docs.map(function (doc) {
+              return Object.assign({ id: doc.id }, normalizeFirestoreValue(doc.data()));
+            });
+            onData(messages);
+          }, onError);
+      },
+      async sendMessage(chatId, text) {
+        const user = auth.currentUser;
+        const cleanText = String(text || '').trim();
+        if (!user) throw new Error('Debes iniciar sesión.');
+        if (!chatId) throw new Error('Selecciona una conversación.');
+        if (!cleanText) throw new Error('Escribe un mensaje.');
+        if (cleanText.length > 1000) throw new Error('El mensaje supera los 1000 caracteres.');
+
+        const chatRef = chatsCollection.doc(chatId);
+        const chatSnapshot = await chatRef.get();
+        if (!chatSnapshot.exists) throw new Error('La conversación no existe.');
+        const chat = chatSnapshot.data();
+        if (!Array.isArray(chat.participants) || !chat.participants.includes(user.uid)) {
+          throw new Error('No tienes acceso a esta conversación.');
+        }
+
+        const receiverId = chat.participants.find(function (uid) { return uid !== user.uid; });
+        const ownIsAdmin = chat.adminUid === user.uid;
+        const now = new Date().toISOString();
+        const messageRef = chatRef.collection('mensajes').doc();
+        const batch = db.batch();
+
+        batch.set(messageRef, {
+          text: cleanText,
+          senderId: user.uid,
+          receiverId: receiverId,
+          createdAt: serverTimestamp(),
+          createdAtClient: now
+        });
+
+        const chatUpdate = {
+          lastMessage: cleanText.slice(0, 160),
+          lastMessageAt: serverTimestamp(),
+          lastMessageAtClient: now,
+          lastSenderId: user.uid
+        };
+        if (ownIsAdmin) {
+          chatUpdate.unreadByAdmin = 0;
+          chatUpdate.unreadByOperator = FieldValue.increment(1);
+        } else {
+          chatUpdate.unreadByOperator = 0;
+          chatUpdate.unreadByAdmin = FieldValue.increment(1);
+        }
+        batch.set(chatRef, chatUpdate, { merge: true });
+        await batch.commit();
+      },
+      async markRead(chatId) {
+        const user = auth.currentUser;
+        if (!user || !chatId) return;
+        const reference = chatsCollection.doc(chatId);
+        const snapshot = await reference.get();
+        if (!snapshot.exists) return;
+        const chat = snapshot.data();
+        if (!Array.isArray(chat.participants) || !chat.participants.includes(user.uid)) return;
+        const field = chat.adminUid === user.uid ? 'unreadByAdmin' : 'unreadByOperator';
+        if (Number(chat[field] || 0) > 0) await reference.set({ [field]: 0 }, { merge: true });
       }
     };
 
     auth.onAuthStateChanged(function (user) {
       window.LubaydCurrentUser = user || null;
+      if (!user) window.LubaydCurrentProfile = null;
       if (window.LubaydRegistrationInProgress) return;
       window.dispatchEvent(new CustomEvent('lubayd-auth-changed', { detail: { user: user || null } }));
     });
@@ -163,6 +318,7 @@
     console.error('Firebase:', error);
     window.LubaydAuth = { available: false, error: error, errorMessage: authErrorMessage };
     window.LubaydCloud = { available: false, error: error };
+    window.LubaydChat = { available: false, error: error };
     window.dispatchEvent(new CustomEvent('lubayd-firebase-error', { detail: error }));
   }
 })();

@@ -1,44 +1,51 @@
-GESTION FORESTAL LUBAYD SA - VERSION 11 SECURE
-================================================
+GESTIÓN FORESTAL LUBAYD SA - V12 CHAT
+=====================================
 
-MEJORAS INCLUIDAS
-- Inicio de sesion con correo y contrasena mediante Firebase Authentication.
-- Alta de usuarios desde la pantalla de acceso.
-- Aprobacion obligatoria del usuario antes de acceder a los datos.
-- Recuperacion de contrasena por correo.
-- El operador se completa automaticamente con el usuario conectado.
-- GPS obligatorio, capturado con maximumAge=0 y bloqueado despues de obtenerse.
-- Los partes son inmutables en Firestore: no se permite modificar la ubicacion ni otros datos.
-- Filtro exacto por dia en el historial.
-- Sincronizacion entre celular y PC mediante Cloud Firestore.
-- Funcionamiento PWA y cache sin conexion.
+NOVEDADES
+---------
+- Chat privado en tiempo real entre el usuario principal y cada operador.
+- El administrador ve la lista de usuarios y abre una conversación individual.
+- Cada operador ve la cuenta de administración y puede responder.
+- Contador de mensajes no leídos en computadora y celular.
+- Mensajes de texto de hasta 1000 caracteres.
+- Los mensajes no pueden editarse ni eliminarse.
+- Usuarios nuevos habilitados automáticamente.
+- Se mantiene GPS obligatorio e inmutable.
+- Se mantiene el filtro del historial por día.
 
-PASOS OBLIGATORIOS EN FIREBASE
-1. Ve a Authentication > Sign-in method.
-2. Habilita el proveedor "Correo electronico/contrasena".
-3. Ve a Authentication > Settings > Authorized domains.
-4. Agrega: gera1991823-design.github.io
-5. Ve a Firestore Database > Rules.
-6. Copia todo el contenido de firestore.rules y presiona Publicar.
+INSTALACIÓN
+-----------
+1. Sube todos los archivos y la carpeta assets al repositorio de GitHub Pages.
+2. Reemplaza los archivos anteriores y realiza Commit changes.
+3. En Firebase abre Firestore Database > Reglas.
+4. Copia todo el contenido de firestore.rules y presiona Publicar.
+5. Cierra y vuelve a abrir la app. Si aparece una actualización, presiona Actualizar.
 
-COMO HABILITAR UN USUARIO
-1. La persona crea su cuenta desde la aplicacion.
-2. En Firestore aparecera la coleccion usuarios.
-3. Abre el documento del usuario correspondiente.
-4. Cambia el campo active de false a true.
-5. La proxima vez que inicie sesion tendra acceso.
+CONFIGURAR EL USUARIO PRINCIPAL
+-------------------------------
+El chat necesita una cuenta principal con rol de administrador.
 
-PUBLICACION EN GITHUB
-1. Sube todos los archivos y la carpeta assets al repositorio LUBAYD-SA.
-2. Reemplaza los archivos anteriores.
-3. Haz Commit changes.
-4. Espera entre 1 y 3 minutos.
-5. Cierra completamente la app del celular y vuelve a abrirla.
-6. Si aparece "Nueva version disponible", presiona Actualizar.
+1. Firebase > Firestore Database > Datos > usuarios.
+2. Abre el documento correspondiente a la cuenta principal.
+3. Cambia el campo role de:
+   operador
+   a:
+   admin
+4. Verifica que active sea true.
+5. Cierra sesión y vuelve a ingresar en la app.
 
-SEGURIDAD GPS
-- La aplicacion no muestra campos editables de latitud o longitud.
-- Una vez capturada, la ubicacion queda bloqueada dentro del formulario.
-- Las reglas de Firestore rechazan cualquier actualizacion de un parte ya creado.
-- El servidor registra la hora de creacion y la hora de captura mediante serverTimestamp.
-- Como en cualquier aplicacion web, un dispositivo con software de falsificacion de GPS puede alterar la senal que entrega el sistema operativo. Para controles antifraude avanzados se requiere una app nativa con validaciones adicionales.
+Los demás usuarios deben conservar:
+- role: operador
+- active: true
+
+ESTRUCTURA DE FIRESTORE
+-----------------------
+usuarios/{uid}
+partes/{parteId}
+chats/{chatId}
+chats/{chatId}/mensajes/{mensajeId}
+
+ALCANCE DE ESTA VERSIÓN
+-----------------------
+Incluye solamente chat de texto dentro de la aplicación.
+No incluye fotografías, archivos, audio, grupos ni notificaciones push con la app cerrada.

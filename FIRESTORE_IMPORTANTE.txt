@@ -1,15 +1,6 @@
-IMPORTANTE - SEGURIDAD DE FIRESTORE
-===================================
+IMPORTANTE
+==========
+El archivo firestore.rules incluido en el ZIP no se publica automáticamente por subirlo a GitHub.
+Debes copiar su contenido en Firebase > Firestore Database > Reglas y presionar Publicar.
 
-Esta version utiliza Firebase Authentication y una lista de usuarios habilitados.
-Antes de publicarla debes reemplazar las reglas de modo de prueba por el archivo firestore.rules incluido.
-
-Las reglas nuevas:
-- Exigen que el usuario haya iniciado sesion.
-- Exigen que el perfil del usuario tenga active: true.
-- Exigen GPS en cada parte nuevo.
-- Asocian el parte al UID y correo autenticados.
-- No permiten editar ningun parte ya creado.
-- Solo permiten que el autor elimine su propio parte.
-
-Consulta FIREBASE_PASOS.txt para completar la configuracion.
+Para que la cuenta principal vea todos los usuarios en el chat, cambia su campo role a admin en la colección usuarios.
