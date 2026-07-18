@@ -128,3 +128,23 @@ body{
  body{background:#f4f6f4}.app-shell{display:block}.sidebar{transform:translateX(-105%);transition:.22s ease;width:278px}.sidebar.open{transform:none}.main{padding:0 13px 92px}.topbar{min-height:68px;margin:0 -13px 15px;padding:10px 14px}.menu-btn{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--brand-800)}.topbar-title p{display:none}.topbar-title h1{font-size:16px}.network-pill,.user div:last-child,.install-btn{display:none}.user{border:0;padding:0}.hero{display:block;min-height:auto}.hero-copy{padding:25px 22px}.hero h2{font-size:30px}.hero-art{min-height:150px}.hero-stat{left:18px;right:18px;bottom:16px;width:auto}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.kpi-card{min-height:116px;padding:15px;display:block}.kpi-icon{width:38px;height:38px;border-radius:11px;margin-bottom:10px}.kpi-card strong{font-size:22px}.dashboard-grid,.charts-grid{grid-template-columns:1fr}.panel.span-2{grid-column:auto}.section-top{display:block}.section-top .btn{margin-top:14px}.section-top h2{font-size:28px}.step-chip{margin-top:15px;width:max-content}.stepper b{display:none}.step{padding:12px}.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:auto}#parteForm{padding:18px}.charts-filter-card{grid-template-columns:1fr}.chart-summary-grid,.location-summary-grid{grid-template-columns:repeat(2,1fr)}.toolbar{display:grid}.history-actions{display:flex;gap:8px;margin-top:14px}.mobile-nav{position:fixed;z-index:35;left:10px;right:10px;bottom:10px;display:grid;grid-template-columns:repeat(5,1fr);padding:7px;border:1px solid rgba(255,255,255,.1);border-radius:17px;background:rgba(6,36,25,.96);box-shadow:0 15px 35px rgba(0,0,0,.25);backdrop-filter:blur(14px)}.mobile-nav button{border:0;background:transparent;color:rgba(255,255,255,.58);font-size:9px;padding:6px 2px;border-radius:10px}.mobile-nav span{display:block;font-size:18px;margin-bottom:3px}.mobile-nav button.active{color:#fff;background:rgba(255,255,255,.11)}.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:34;display:none}.sidebar-overlay.active{display:block}.gps-actions{display:grid}.form-actions{display:grid;grid-template-columns:repeat(2,1fr)}.form-actions .btn{width:100%}
 }
 @media(max-width:420px){.kpi-grid,.chart-summary-grid,.location-summary-grid{grid-template-columns:1fr}.hero-actions{display:grid}.topbar-actions{gap:4px}.chart-summary-grid article{min-height:92px}}
+
+/* V8.1 - validación móvil y GPS no bloqueante */
+.field-error input,
+.field-error select,
+.field-error .segmented {
+  outline: 2px solid #c9362b;
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+.message.error {
+  display: block;
+  color: #9f2118;
+  background: #fff1ef;
+  border: 1px solid #f2b9b3;
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin: 14px 0 0;
+  font-weight: 600;
+}
+.gps-help strong { color: #0f6a3a; }

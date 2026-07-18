@@ -1,14 +1,32 @@
 const STORAGE_KEY='lubayd_partes_v3';
 const LEGACY_KEYS=['lubayd_partes_v2','lubayd_partes'];
 let step=1, deferredInstall=null, waitingWorker=null;
-let currentGps=null;
+let currentGps=null, gpsInProgress=false;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 function loadRecords(){let data=localStorage.getItem(STORAGE_KEY);if(!data){for(const k of LEGACY_KEYS){data=localStorage.getItem(k);if(data){localStorage.setItem(STORAGE_KEY,data);break}}}try{return JSON.parse(data||'[]')}catch{return[]}}
 const state={get records(){return loadRecords()},save(v){localStorage.setItem(STORAGE_KEY,JSON.stringify(v))}};
 function showView(id){$$('.view').forEach(v=>v.classList.toggle('active',v.id===id));$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));const titles={dashboard:'Panel operativo',nuevo:'Nuevo parte',historial:'Historial de partes',graficos:'Gráficos operativos',ubicaciones:'Ubicaciones GPS'};$('#pageTitle').textContent=titles[id]||'Gestión Forestal';if(id==='nuevo'){step=1;updateStep();if(!$('#fecha').value)$('#fecha').value=new Date().toISOString().slice(0,10);setTimeout(captureGps,250)}if(id==='historial')renderHistory();if(id==='graficos'&&typeof window.renderCharts==='function')window.renderCharts();if(id==='ubicaciones')renderLocations();closeSidebar();window.scrollTo({top:0,behavior:'smooth'})}
 $$('[data-view], [data-view-link]').forEach(el=>el.addEventListener('click',()=>showView(el.dataset.view||el.dataset.viewLink)));$('#heroNewBtn').addEventListener('click',()=>showView('nuevo'));
 function updateStep(){$$('.form-page').forEach(p=>p.classList.toggle('active',+p.dataset.step===step));$$('.step').forEach((s,i)=>s.classList.toggle('active',i+1<=step));$('#stepNumber').textContent=step;$('#stepText').textContent=['Datos generales','Producción','Chequeo'][step-1];$('#prevBtn').classList.toggle('hidden',step===1);$('#nextBtn').classList.toggle('hidden',step===3);$('#saveBtn').classList.toggle('hidden',step!==3);if(step===3)fillReview()}
-function validateStep(){const page=$(`.form-page[data-step="${step}"]`);for(const input of page.querySelectorAll('input[required],select[required]')){if(!input.checkValidity()){input.reportValidity();return false}}if(step===2&&num('#horometroFinal')<num('#horometroInicio')){alert('El horómetro final no puede ser menor que el inicial.');return false}if(step===2&&num('#arbolesFinales')<num('#arbolesIniciales')){alert('Los árboles finales no pueden ser menores que los iniciales.');return false}return true}
+function validateStep(){
+  const page=$(`.form-page[data-step="${step}"]`);
+  const message=$('#message');
+  if(message){message.textContent='';message.className='message'}
+  page.querySelectorAll('.field-error').forEach(el=>el.classList.remove('field-error'));
+  for(const input of page.querySelectorAll('input[required],select[required]')){
+    if(!input.checkValidity()){
+      const field=input.closest('label,fieldset');
+      field?.classList.add('field-error');
+      if(message){message.textContent='Completa los campos obligatorios marcados antes de continuar. La ubicación GPS es opcional.';message.className='message error'}
+      input.scrollIntoView({behavior:'smooth',block:'center'});
+      setTimeout(()=>input.reportValidity(),250);
+      return false;
+    }
+  }
+  if(step===2&&num('#horometroFinal')<num('#horometroInicio')){alert('El horómetro final no puede ser menor que el inicial.');return false}
+  if(step===2&&num('#arbolesFinales')<num('#arbolesIniciales')){alert('Los árboles finales no pueden ser menores que los iniciales.');return false}
+  return true
+}
 $('#nextBtn').addEventListener('click',()=>{if(validateStep()){step++;updateStep();window.scrollTo({top:0,behavior:'smooth'})}});$('#prevBtn').addEventListener('click',()=>{step--;updateStep()});$('#cancelBtn').addEventListener('click',()=>showView('dashboard'));
 const num=id=>Number($(id).value)||0;const radio=name=>document.querySelector(`input[name="${name}"]:checked`)?.value||'';
 function recalc(){const h=Math.max(0,num('#horometroFinal')-num('#horometroInicio'));const a=Math.max(0,num('#arbolesFinales')-num('#arbolesIniciales'));$('#calcHoras').textContent=h.toLocaleString('es-UY',{maximumFractionDigits:1})+' h';$('#calcArboles').textContent=a.toLocaleString('es-UY');$('#calcRendimiento').textContent=(h?a/h:0).toLocaleString('es-UY',{maximumFractionDigits:1})+' árb/h'}
@@ -47,18 +65,23 @@ function renderGpsState(message){
 }
 function captureGps(){
   const btn=$('#gpsCaptureBtn');
-  if(!navigator.geolocation){renderGpsState('Este dispositivo no admite GPS');return}
+  if(gpsInProgress)return;
+  if(!navigator.geolocation){renderGpsState('Este dispositivo no admite GPS');updateGpsSystem(false);return}
+  gpsInProgress=true;
   if(btn){btn.disabled=true;btn.textContent='⌖ Obteniendo ubicación…'}
-  const box=$('#gpsState');if(box){box.className='gps-state loading';box.innerHTML='<span class="gps-pulse"></span><div><strong>Buscando señal GPS…</strong><small>Espera unos segundos y mantén la app abierta.</small></div>'}
+  const box=$('#gpsState');
+  if(box){box.className='gps-state loading';box.innerHTML='<span class="gps-pulse"></span><div><strong>Buscando señal GPS…</strong><small>Puedes completar el parte y continuar mientras se obtiene.</small></div>'}
+  const finish=()=>{
+    gpsInProgress=false;
+    if(btn){btn.disabled=false;btn.textContent=currentGps?'↻ Actualizar ubicación':'⌖ Reintentar ubicación'}
+  };
   navigator.geolocation.getCurrentPosition(pos=>{
     currentGps={latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy:pos.coords.accuracy,altitude:pos.coords.altitude,heading:pos.coords.heading,speed:pos.coords.speed,capturedAt:new Date().toISOString()};
-    renderGpsState();updateGpsSystem(true);
-    if(btn){btn.disabled=false;btn.textContent='↻ Actualizar ubicación'}
+    renderGpsState();updateGpsSystem(true);finish();
   },err=>{
     const messages={1:'Permiso de ubicación denegado',2:'No se pudo determinar la ubicación',3:'La búsqueda de GPS demoró demasiado'};
-    renderGpsState(messages[err.code]||'No se pudo obtener la ubicación');updateGpsSystem(false);
-    if(btn){btn.disabled=false;btn.textContent='⌖ Reintentar ubicación'}
-  },{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+    renderGpsState(messages[err.code]||'No se pudo obtener la ubicación');updateGpsSystem(false);finish();
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
 }
 function updateGpsSystem(ok){const txt=$('#gpsSystemStatus'),dot=$('#gpsStatusDot');if(!txt||!dot)return;txt.textContent=ok?'Disponible':'Revisar permiso';dot.classList.toggle('ok',ok)}
 function renderLocations(){

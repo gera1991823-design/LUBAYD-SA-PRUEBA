@@ -38,7 +38,7 @@
         <span class="live-dot"></span>
         <div><strong>Sistema disponible</strong><small>Datos guardados en el dispositivo</small></div>
       </div>
-      <div class="sidebar-version">Versión 8.0 · Corporate</div>
+      <div class="sidebar-version">Versión 8.1 · GPS corregido</div>
     </aside>
 
     <main class="main">
@@ -125,6 +125,7 @@
                 <label><span>Operador *</span><input id="operador" required placeholder="Nombre y apellido"></label>
                 <label><span>Especie *</span><select id="especie" required><option value="">Seleccionar</option><option>Eucalyptus</option><option>Pino</option><option>Otra</option></select></label>
                 <label><span>Largo (m) *</span><input id="largo" type="number" min="0" step="0.01" required placeholder="0,00"></label>
+                <fieldset class="full"><legend>Turno *</legend><div class="segmented"><label><input type="radio" name="turno" value="Diurno" required><span>☀ Diurno</span></label><label><input type="radio" name="turno" value="Nocturno"><span>☾ Nocturno</span></label></div></fieldset>
 
               <div class="gps-card full" id="gpsCard">
                 <div class="gps-card-head">
@@ -137,9 +138,8 @@
                   <button type="button" class="btn gps-btn" id="gpsCaptureBtn">⌖ Obtener ubicación</button>
                   <a id="gpsPreviewLink" class="btn ghost hidden" target="_blank" rel="noopener">Ver en el mapa</a>
                 </div>
-                <p class="gps-help">El teléfono solicitará permiso. Funciona mejor al aire libre y con la ubicación activada.</p>
+                <p class="gps-help"><strong>El GPS es opcional:</strong> puedes continuar aunque la señal tarde o no esté disponible.</p>
               </div>
-                <fieldset class="full"><legend>Turno *</legend><div class="segmented"><label><input type="radio" name="turno" value="Diurno" required><span>☀ Diurno</span></label><label><input type="radio" name="turno" value="Nocturno"><span>☾ Nocturno</span></label></div></fieldset>
               </div>
             </div>
 
