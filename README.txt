@@ -1,39 +1,44 @@
-LUBAYD SA - GESTION FORESTAL V10 FUTURE
+GESTION FORESTAL LUBAYD SA - VERSION 11 SECURE
+================================================
 
-CONTENIDO
-- Diseno moderno, amigable y adaptable a PC, iPhone y Android.
-- Formulario guiado en 5 pasos.
-- Borrador guardado automaticamente.
-- GPS opcional que no bloquea el formulario.
-- Graficos por operador, dia, semana y mes.
-- Sincronizacion entre dispositivos con Firebase Firestore.
-- Funcionamiento PWA y copia local para trabajar sin conexion.
+MEJORAS INCLUIDAS
+- Inicio de sesion con correo y contrasena mediante Firebase Authentication.
+- Alta de usuarios desde la pantalla de acceso.
+- Aprobacion obligatoria del usuario antes de acceder a los datos.
+- Recuperacion de contrasena por correo.
+- El operador se completa automaticamente con el usuario conectado.
+- GPS obligatorio, capturado con maximumAge=0 y bloqueado despues de obtenerse.
+- Los partes son inmutables en Firestore: no se permite modificar la ubicacion ni otros datos.
+- Filtro exacto por dia en el historial.
+- Sincronizacion entre celular y PC mediante Cloud Firestore.
+- Funcionamiento PWA y cache sin conexion.
 
-PUBLICAR EN GITHUB
-1. Descomprime este ZIP.
-2. Abre el repositorio LUBAYD-SA.
-3. Selecciona Add file > Upload files.
-4. Sube TODOS los archivos y la carpeta assets.
-5. Reemplaza los archivos anteriores y confirma con Commit changes.
-6. Espera entre 1 y 3 minutos.
-7. Cierra la app en el telefono y vuelve a abrirla.
-8. Si aparece una actualizacion, pulsa Actualizar.
+PASOS OBLIGATORIOS EN FIREBASE
+1. Ve a Authentication > Sign-in method.
+2. Habilita el proveedor "Correo electronico/contrasena".
+3. Ve a Authentication > Settings > Authorized domains.
+4. Agrega: gera1991823-design.github.io
+5. Ve a Firestore Database > Rules.
+6. Copia todo el contenido de firestore.rules y presiona Publicar.
 
-FIREBASE
-- Proyecto: lubayd-sa
-- Coleccion: partes
-- Los registros se sincronizan entre PC y celular.
-- La configuracion actual esta en firebase-init.js.
+COMO HABILITAR UN USUARIO
+1. La persona crea su cuenta desde la aplicacion.
+2. En Firestore aparecera la coleccion usuarios.
+3. Abre el documento del usuario correspondiente.
+4. Cambia el campo active de false a true.
+5. La proxima vez que inicie sesion tendra acceso.
 
-SEGURIDAD IMPORTANTE
-La base de datos se creo en modo de prueba. Antes de usarla con informacion
-real durante un periodo prolongado, agrega Firebase Authentication y reglas
-de seguridad. El modo de prueba permite acceso temporal demasiado amplio.
+PUBLICACION EN GITHUB
+1. Sube todos los archivos y la carpeta assets al repositorio LUBAYD-SA.
+2. Reemplaza los archivos anteriores.
+3. Haz Commit changes.
+4. Espera entre 1 y 3 minutos.
+5. Cierra completamente la app del celular y vuelve a abrirla.
+6. Si aparece "Nueva version disponible", presiona Actualizar.
 
-ARCHIVOS PRINCIPALES
-- index.html: estructura de la aplicacion.
-- style.css: todo el diseno responsive.
-- app.js: formulario, historial, GPS, borradores y sincronizacion.
-- charts.js: graficos y ranking de operadores.
-- firebase-init.js: conexion con Firestore.
-- service-worker.js: instalacion y funcionamiento PWA.
+SEGURIDAD GPS
+- La aplicacion no muestra campos editables de latitud o longitud.
+- Una vez capturada, la ubicacion queda bloqueada dentro del formulario.
+- Las reglas de Firestore rechazan cualquier actualizacion de un parte ya creado.
+- El servidor registra la hora de creacion y la hora de captura mediante serverTimestamp.
+- Como en cualquier aplicacion web, un dispositivo con software de falsificacion de GPS puede alterar la senal que entrega el sistema operativo. Para controles antifraude avanzados se requiere una app nativa con validaciones adicionales.

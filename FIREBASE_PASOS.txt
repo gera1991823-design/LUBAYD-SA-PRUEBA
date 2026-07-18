@@ -1,0 +1,17 @@
+CONFIGURACION RAPIDA DE FIREBASE
+================================
+
+A) HABILITAR USUARIOS
+Firebase Console > Authentication > Comenzar > Sign-in method > Correo electronico/contrasena > Habilitar > Guardar.
+
+B) AUTORIZAR GITHUB PAGES
+Authentication > Settings > Authorized domains > Add domain > gera1991823-design.github.io
+
+C) PUBLICAR REGLAS
+Firestore Database > Rules > reemplazar por el contenido de firestore.rules > Publicar.
+
+D) CREAR Y HABILITAR USUARIOS
+1. El usuario selecciona "Crear usuario" en la aplicacion.
+2. La aplicacion crea su cuenta y un documento en la coleccion usuarios.
+3. En Firestore > usuarios, abre el documento y cambia active: false por active: true.
+4. El usuario ya puede iniciar sesion.

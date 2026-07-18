@@ -2,7 +2,7 @@
 
 const STORAGE_KEY = 'lubayd_partes_v3';
 const LEGACY_KEYS = ['lubayd_partes_v2', 'lubayd_partes'];
-const DRAFT_KEY = 'lubayd_parte_draft_v10';
+const DRAFT_KEY = 'lubayd_parte_draft_v11';
 const TOTAL_STEPS = 5;
 const CHECK_IDS = ['agua', 'aceite', 'valvulina', 'giro', 'chequeoGral', 'cabezal', 'grua'];
 const CHECK_LABELS = {
@@ -31,6 +31,9 @@ let cloudUnsubscribe = null;
 let draftTimer = null;
 let toastTimer = null;
 let formInitialized = false;
+let authenticatedUser = null;
+let authenticatedProfile = null;
+let authChangeSequence = 0;
 let currentCloudStatus = {
   text: 'Conectando…',
   ok: false,
@@ -84,7 +87,10 @@ const state = {
         setCloudStatus('Sincronizado', true, `Actualizado ${formatTime(new Date())}`);
       } catch (error) {
         console.error('Guardar en Firestore:', error);
-        setCloudStatus('Pendiente', false, 'Se guardó una copia local');
+        this.save(this.records.filter(item => item.id !== record.id));
+        renderAll();
+        setCloudStatus('Error al guardar', false, 'El parte no fue confirmado por Firebase');
+        throw error;
       }
     } else {
       setCloudStatus('Solo local', false, 'Firebase no está disponible');
@@ -110,6 +116,179 @@ const state = {
 window.AppState = state;
 window.escapeHtml = escapeHtml;
 
+function currentUser() {
+  return authenticatedUser;
+}
+
+function userDisplayName(user = currentUser()) {
+  if (!user) return 'Usuario';
+  return String(authenticatedProfile?.nombre || user.displayName || user.email?.split('@')[0] || 'Usuario').trim();
+}
+
+function userInitials(user = currentUser()) {
+  const name = userDisplayName(user);
+  const parts = name.split(/\s+/).filter(Boolean);
+  return (parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : name.slice(0, 2)).toUpperCase();
+}
+
+function enforceAuthenticatedOperator() {
+  const input = $('#operador');
+  if (!input) return;
+  input.value = currentUser() ? userDisplayName() : '';
+  input.readOnly = true;
+}
+
+function updateUserInterface(user) {
+  const name = userDisplayName(user);
+  const email = user?.email || 'Sesión segura';
+  const initials = userInitials(user);
+  ['#sidebarUserName', '#topbarUserName'].forEach(selector => { if ($(selector)) $(selector).textContent = name; });
+  ['#sidebarUserEmail', '#topbarUserEmail'].forEach(selector => { if ($(selector)) $(selector).textContent = email; });
+  ['#sidebarAvatar', '#topbarAvatar'].forEach(selector => { if ($(selector)) $(selector).textContent = initials; });
+  enforceAuthenticatedOperator();
+  updateGreeting();
+}
+
+function setAuthMessage(text = '', type = '') {
+  const message = $('#authMessage');
+  if (!message) return;
+  message.textContent = text;
+  message.className = `auth-message ${type}`.trim();
+}
+
+function setAuthBusy(form, busy, label) {
+  const button = form?.querySelector('button[type="submit"]');
+  if (!button) return;
+  if (!button.dataset.originalHtml) button.dataset.originalHtml = button.innerHTML;
+  button.disabled = busy;
+  button.innerHTML = busy ? `${escapeHtml(label)}…` : button.dataset.originalHtml;
+}
+
+function showAuthTab(tab) {
+  $$('[data-auth-tab]').forEach(button => button.classList.toggle('active', button.dataset.authTab === tab));
+  $('#loginForm')?.classList.toggle('active', tab === 'login');
+  $('#registerForm')?.classList.toggle('active', tab === 'register');
+  setAuthMessage('');
+}
+
+$$('[data-auth-tab]').forEach(button => button.addEventListener('click', () => showAuthTab(button.dataset.authTab)));
+
+$('#loginForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  setAuthBusy(form, true, 'Ingresando');
+  setAuthMessage('');
+  try {
+    await window.LubaydAuth.login($('#loginEmail').value, $('#loginPassword').value);
+  } catch (error) {
+    setAuthMessage(window.LubaydAuth?.errorMessage?.(error) || 'No se pudo iniciar sesión.');
+  } finally {
+    setAuthBusy(form, false, 'Ingresando');
+  }
+});
+
+$('#registerForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  if ($('#registerPassword').value !== $('#registerConfirm').value) {
+    setAuthMessage('Las contraseñas no coinciden.');
+    $('#registerConfirm').focus();
+    return;
+  }
+  setAuthBusy(form, true, 'Creando usuario');
+  setAuthMessage('');
+  try {
+    await window.LubaydAuth.register($('#registerName').value, $('#registerEmail').value, $('#registerPassword').value);
+  } catch (error) {
+    setAuthMessage(window.LubaydAuth?.errorMessage?.(error) || 'No se pudo crear el usuario.');
+  } finally {
+    setAuthBusy(form, false, 'Creando usuario');
+  }
+});
+
+$('#resetPasswordBtn')?.addEventListener('click', async () => {
+  const email = $('#loginEmail').value.trim();
+  if (!email) {
+    setAuthMessage('Escribe tu correo para enviarte el enlace de recuperación.');
+    $('#loginEmail').focus();
+    return;
+  }
+  try {
+    await window.LubaydAuth.resetPassword(email);
+    setAuthMessage('Te enviamos un correo para restablecer la contraseña.', 'success');
+  } catch (error) {
+    setAuthMessage(window.LubaydAuth?.errorMessage?.(error) || 'No se pudo enviar el correo.');
+  }
+});
+
+async function logout() {
+  if (!window.LubaydAuth?.available) return;
+  if (!confirm('¿Cerrar la sesión actual?')) return;
+  await window.LubaydAuth.logout();
+}
+
+$('#logoutBtn')?.addEventListener('click', logout);
+
+async function handleAuthChange(user) {
+  const sequence = ++authChangeSequence;
+  cloudUnsubscribe?.();
+  cloudUnsubscribe = null;
+  authenticatedUser = null;
+  authenticatedProfile = null;
+
+  if (!user) {
+    document.body.classList.remove('auth-ready');
+    document.body.classList.add('auth-pending');
+    setCloudStatus('Sesión cerrada', false, 'Inicia sesión para sincronizar');
+    showAuthTab('login');
+    window.setTimeout(() => $('#loginEmail')?.focus(), 120);
+    return;
+  }
+
+  document.body.classList.remove('auth-ready');
+  document.body.classList.add('auth-pending');
+  setAuthMessage('Verificando autorización…', 'success');
+
+  try {
+    const profile = await window.LubaydAuth.getProfile(user);
+    if (sequence !== authChangeSequence) return;
+
+    if (!profile?.active) {
+      await window.LubaydAuth.logout();
+      window.setTimeout(() => {
+        showAuthTab('login');
+        $('#loginEmail').value = user.email || '';
+        setAuthMessage('La cuenta fue creada, pero todavía debe ser habilitada por el administrador en Firebase.');
+      }, 80);
+      return;
+    }
+
+    authenticatedUser = user;
+    authenticatedProfile = profile;
+    document.body.classList.remove('auth-pending');
+    document.body.classList.add('auth-ready');
+    setAuthMessage('');
+    updateUserInterface(user);
+    initializeForm();
+    renderAll();
+    startCloudSync();
+  } catch (error) {
+    console.error('Verificación de usuario:', error);
+    await window.LubaydAuth.logout().catch(() => {});
+    window.setTimeout(() => setAuthMessage('No se pudo verificar la autorización del usuario. Revisa Firestore y vuelve a intentar.'), 80);
+  }
+}
+
+window.addEventListener('lubayd-auth-changed', event => handleAuthChange(event.detail?.user || null));
+
 const viewMeta = {
   dashboard: ['Centro de operaciones', 'Panel operativo'],
   nuevo: ['Registro guiado', 'Nuevo parte diario'],
@@ -119,6 +298,7 @@ const viewMeta = {
 };
 
 function showView(id) {
+  if (!currentUser()) return;
   if (!document.getElementById(id)) return;
 
   $$('.view').forEach(view => view.classList.toggle('active', view.id === id));
@@ -148,6 +328,7 @@ $('#heroNewBtn')?.addEventListener('click', () => showView('nuevo'));
 function initializeForm() {
   if (formInitialized) {
     if (!$('#fecha').value) $('#fecha').value = todayKey();
+    enforceAuthenticatedOperator();
     return;
   }
 
@@ -155,6 +336,7 @@ function initializeForm() {
   if (!restoreDraft()) {
     $('#fecha').value = todayKey();
   }
+  enforceAuthenticatedOperator();
   recalculateProduction();
   updateCheckCards();
   renderGpsState();
@@ -238,6 +420,23 @@ function validateStep(stepNumber, options = {}) {
       showFormMessage('Los árboles finales no pueden ser menores que los iniciales.', 'error');
       $('#arbolesFinales').closest('.field')?.classList.add('field-error');
       if (!options.silent) $('#arbolesFinales').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+  }
+
+  if (stepNumber === 4) {
+    if (!currentGps) {
+      if (!options.silent) {
+        showFormMessage('Debes obtener la ubicación actual antes de continuar.', 'error');
+        captureGps(false);
+      }
+      return false;
+    }
+    const captured = new Date(currentGps.capturedAt || currentGps.positionTimestamp || 0).getTime();
+    if (!captured || Date.now() - captured > 15 * 60 * 1000) {
+      currentGps = null;
+      renderGpsState('La ubicación venció. Obtén una nueva captura.');
+      if (!options.silent) showFormMessage('La ubicación debe ser reciente. Vuelve a obtenerla.', 'error');
       return false;
     }
   }
@@ -337,13 +536,16 @@ function recordFromForm() {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    version: 10,
+    version: 11,
     createdAt: now,
     updatedAt: now,
     monte: $('#monte').value.trim(),
     fecha: $('#fecha').value,
     maquina: $('#maquina').value.trim(),
-    operador: $('#operador').value.trim(),
+    operador: userDisplayName(),
+    createdByUid: currentUser()?.uid || '',
+    createdByEmail: currentUser()?.email || '',
+    createdByName: userDisplayName(),
     turno: radioValue('turno'),
     especie: $('#especie').value,
     largo: numberValue('#largo'),
@@ -415,6 +617,10 @@ function reviewItem(label, value) {
 
 $('#parteForm')?.addEventListener('submit', async event => {
   event.preventDefault();
+  if (!currentUser()) {
+    showFormMessage('Tu sesión terminó. Vuelve a ingresar.', 'error');
+    return;
+  }
   if (!validateAllSteps()) return;
 
   const saveButton = $('#saveBtn');
@@ -444,6 +650,7 @@ function resetForm({ clearDraft = false } = {}) {
   gpsAttemptedThisForm = false;
   step = 1;
   $('#fecha').value = todayKey();
+  enforceAuthenticatedOperator();
   if (clearDraft) localStorage.removeItem(DRAFT_KEY);
   recalculateProduction();
   updateCheckCards();
@@ -464,7 +671,6 @@ function serializeDraft() {
     values,
     turno: radioValue('turno'),
     actividad: radioValue('actividad'),
-    gps: currentGps ? { ...currentGps } : null,
     savedAt: new Date().toISOString()
   };
 }
@@ -500,7 +706,8 @@ function restoreDraft() {
     });
     setRadioValue('turno', draft.turno || '');
     setRadioValue('actividad', draft.actividad || '');
-    currentGps = draft.gps || null;
+    currentGps = null;
+    enforceAuthenticatedOperator();
     updateCheckCards();
     renderGpsState();
     setDraftStatus('Borrador recuperado', draft.savedAt ? `Guardado ${formatDateTime(draft.savedAt)}` : 'Puedes continuar donde lo dejaste');
@@ -530,13 +737,13 @@ $('#useLastRecordBtn')?.addEventListener('click', () => {
 
   $('#monte').value = last.monte || '';
   $('#maquina').value = last.maquina || '';
-  $('#operador').value = last.operador || '';
+  enforceAuthenticatedOperator();
   $('#especie').value = last.especie || '';
   $('#largo').value = last.largo || '';
   setRadioValue('turno', last.turno || '');
   setRadioValue('actividad', last.actividad || '');
   scheduleDraftSave();
-  showToast('Datos reutilizados', 'Se cargaron el monte, la máquina, el operador y otros datos frecuentes.');
+  showToast('Datos reutilizados', 'Se cargaron el monte, la máquina y otros datos frecuentes. El operador corresponde al usuario conectado.');
 });
 
 function setDraftStatus(title, text) {
@@ -618,7 +825,7 @@ function renderAll() {
 function updateGreeting() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
-  $('#greetingTitle').textContent = `${greeting}, Operador`;
+  $('#greetingTitle').textContent = `${greeting}, ${userDisplayName()}`;
   $('#currentDateText').textContent = new Date().toLocaleDateString('es-UY', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
@@ -661,12 +868,16 @@ function refreshOperatorFilters() {
 
 function filteredRecords() {
   const query = $('#historySearch').value.trim().toLowerCase();
+  const date = $('#historyDateFilter').value;
   const activity = $('#activityFilter').value;
   const operator = $('#historyOperatorFilter').value;
   return state.records.filter(record => {
     const matchesQuery = !query || [record.monte, record.maquina, record.operador]
       .some(value => String(value || '').toLowerCase().includes(query));
-    return matchesQuery && (!activity || record.actividad === activity) && (!operator || record.operador === operator);
+    return matchesQuery
+      && (!date || record.fecha === date)
+      && (!activity || record.actividad === activity)
+      && (!operator || record.operador === operator);
   });
 }
 
@@ -677,6 +888,9 @@ function renderHistory() {
   const empty = $('#historyEmpty');
 
   empty.classList.toggle('show', records.length === 0);
+  $('#historyResultCount').textContent = `${formatNumber(records.length)} ${records.length === 1 ? 'registro' : 'registros'}`;
+  const selectedDate = $('#historyDateFilter').value;
+  $('#historyDateLabel').textContent = selectedDate ? `Día: ${formatDate(selectedDate)}` : 'Todos los días';
   body.innerHTML = records.map(record => `
     <tr>
       <td>${formatDate(record.fecha)}</td>
@@ -689,7 +903,7 @@ function renderHistory() {
         <div class="table-actions">
           <button class="table-action" data-detail="${escapeHtml(record.id)}" aria-label="Ver detalle"><svg><use href="#i-eye"></use></svg></button>
           ${record.gps ? `<a class="table-action" href="${mapUrl(record.gps)}" target="_blank" rel="noopener" aria-label="Abrir mapa"><svg><use href="#i-pin"></use></svg></a>` : ''}
-          <button class="table-action danger" data-delete="${escapeHtml(record.id)}" aria-label="Eliminar"><svg><use href="#i-trash"></use></svg></button>
+          ${canDeleteRecord(record) ? `<button class="table-action danger" data-delete="${escapeHtml(record.id)}" aria-label="Eliminar"><svg><use href="#i-trash"></use></svg></button>` : ''}
         </div>
       </td>
     </tr>
@@ -705,7 +919,7 @@ function renderHistory() {
       <div class="history-card-actions">
         <button data-detail="${escapeHtml(record.id)}"><svg><use href="#i-eye"></use></svg>Ver</button>
         ${record.gps ? `<a href="${mapUrl(record.gps)}" target="_blank" rel="noopener"><svg><use href="#i-pin"></use></svg>Mapa</a>` : '<span></span>'}
-        <button class="danger" data-delete="${escapeHtml(record.id)}"><svg><use href="#i-trash"></use></svg>Eliminar</button>
+        ${canDeleteRecord(record) ? `<button class="danger" data-delete="${escapeHtml(record.id)}"><svg><use href="#i-trash"></use></svg>Eliminar</button>` : '<span></span>'}
       </div>
     </article>
   `).join('');
@@ -714,14 +928,27 @@ function renderHistory() {
   bindRecordActions(cards);
 }
 
+function canDeleteRecord(record) {
+  const user = currentUser();
+  return Boolean(user && record?.createdByUid && record.createdByUid === user.uid);
+}
+
 function bindRecordActions(root) {
   root.querySelectorAll('[data-detail]').forEach(button => button.addEventListener('click', () => openDetail(button.dataset.detail)));
   root.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', () => deleteRecord(button.dataset.delete)));
 }
 
 $('#historySearch')?.addEventListener('input', renderHistory);
+$('#historyDateFilter')?.addEventListener('change', renderHistory);
 $('#activityFilter')?.addEventListener('change', renderHistory);
 $('#historyOperatorFilter')?.addEventListener('change', renderHistory);
+$('#clearHistoryFilters')?.addEventListener('click', () => {
+  $('#historySearch').value = '';
+  $('#historyDateFilter').value = '';
+  $('#activityFilter').value = '';
+  $('#historyOperatorFilter').value = '';
+  renderHistory();
+});
 
 async function deleteRecord(id) {
   if (!confirm('¿Eliminar este parte? Esta acción también lo eliminará de los dispositivos sincronizados.')) return;
@@ -796,14 +1023,15 @@ function renderGpsState(message = '') {
   const link = $('#gpsPreviewLink');
   const pin = $('#gpsMapPin');
   const mapText = $('#mapStatusText');
+  const button = $('#gpsCaptureBtn');
   if (!stateBox) return;
 
   stateBox.className = 'gps-state';
   pin?.classList.toggle('active', Boolean(currentGps));
 
   if (currentGps) {
-    stateBox.classList.add('success');
-    stateBox.innerHTML = '<strong>Ubicación obtenida</strong><small>Las coordenadas se guardarán junto con el parte.</small>';
+    stateBox.classList.add('success', 'locked');
+    stateBox.innerHTML = '<strong>Ubicación registrada y bloqueada</strong><small>Estas coordenadas no pueden modificarse dentro del parte.</small>';
     coordinates.classList.remove('hidden');
     coordinates.innerHTML = `
       <div><span>Latitud</span><strong>${currentGps.latitude.toFixed(6)}</strong></div>
@@ -812,17 +1040,31 @@ function renderGpsState(message = '') {
     `;
     link.href = mapUrl(currentGps);
     link.classList.remove('hidden');
-    mapText.textContent = `Ubicación obtenida · ±${Math.round(currentGps.accuracy)} m`;
+    mapText.textContent = `Ubicación bloqueada · ±${Math.round(currentGps.accuracy)} m`;
+    if (button) {
+      button.disabled = true;
+      button.classList.add('gps-locked-button');
+      button.innerHTML = '<svg><use href="#i-lock"></use></svg> Ubicación bloqueada';
+    }
   } else {
     stateBox.classList.add(message ? 'error' : 'idle');
-    stateBox.innerHTML = `<strong>${escapeHtml(message || 'Ubicación pendiente')}</strong><small>${message ? 'Puedes reintentar o continuar sin GPS.' : 'Presiona “Obtener ubicación” o continúa sin GPS.'}</small>`;
+    stateBox.innerHTML = `<strong>${escapeHtml(message || 'Ubicación pendiente')}</strong><small>${message ? 'Revisa el permiso y vuelve a intentarlo.' : 'Debes obtener la ubicación actual para continuar.'}</small>`;
     coordinates.classList.add('hidden');
     link.classList.add('hidden');
     mapText.textContent = message || 'Esperando ubicación';
+    if (button) {
+      button.disabled = gpsInProgress;
+      button.classList.remove('gps-locked-button');
+      if (!gpsInProgress) button.innerHTML = '<svg><use href="#i-pin"></use></svg> Obtener ubicación actual';
+    }
   }
 }
 
 function captureGps(automatic = false) {
+  if (currentGps) {
+    showToast('Ubicación bloqueada', 'La captura ya quedó asociada al parte y no puede modificarse.');
+    return;
+  }
   if (gpsInProgress) return;
   const button = $('#gpsCaptureBtn');
 
@@ -839,30 +1081,26 @@ function captureGps(automatic = false) {
   }
   const stateBox = $('#gpsState');
   stateBox.className = 'gps-state loading';
-  stateBox.innerHTML = `<strong>Buscando señal GPS…</strong><small>${automatic ? 'Puedes seguir completando el parte mientras se obtiene.' : 'Esto puede demorar algunos segundos.'}</small>`;
+  stateBox.innerHTML = `<strong>Buscando ubicación actual…</strong><small>${automatic ? 'Mantén activa la ubicación del teléfono.' : 'Esto puede demorar algunos segundos.'}</small>`;
   $('#mapStatusText').textContent = 'Buscando señal GPS…';
 
   const finish = () => {
     gpsInProgress = false;
-    if (button) {
-      button.disabled = false;
-      button.innerHTML = currentGps
-        ? '<svg><use href="#i-refresh"></use></svg> Actualizar ubicación'
-        : '<svg><use href="#i-pin"></use></svg> Reintentar ubicación';
-    }
+    renderGpsState();
   };
 
   navigator.geolocation.getCurrentPosition(position => {
-    currentGps = {
+    const capturedAt = new Date().toISOString();
+    currentGps = Object.freeze({
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
       accuracy: position.coords.accuracy,
       altitude: position.coords.altitude,
       heading: position.coords.heading,
       speed: position.coords.speed,
-      capturedAt: new Date().toISOString()
-    };
-    renderGpsState();
+      positionTimestamp: new Date(position.timestamp || Date.now()).toISOString(),
+      capturedAt
+    });
     updateGpsSystem(true);
     scheduleDraftSave();
     finish();
@@ -872,13 +1110,13 @@ function captureGps(automatic = false) {
       2: 'No se pudo determinar la ubicación',
       3: 'La búsqueda de GPS demoró demasiado'
     };
+    gpsInProgress = false;
     renderGpsState(messages[error.code] || 'No se pudo obtener la ubicación');
     updateGpsSystem(false);
-    finish();
   }, {
     enableHighAccuracy: true,
-    timeout: 12000,
-    maximumAge: 90000
+    timeout: 20000,
+    maximumAge: 0
   });
 }
 
@@ -1005,19 +1243,17 @@ if ('serviceWorker' in navigator) {
 $('#updateBtn')?.addEventListener('click', () => waitingWorker?.postMessage({ type: 'SKIP_WAITING' }));
 
 async function startCloudSync() {
+  if (!currentUser()) {
+    setCloudStatus('Sesión requerida', false, 'Inicia sesión para sincronizar');
+    return;
+  }
   if (!window.LubaydCloud?.available) {
     setCloudStatus('Solo local', false, 'Firebase no está disponible');
     return;
   }
 
-  setCloudStatus('Conectando…', false, 'Iniciando sincronización');
+  setCloudStatus('Conectando…', false, 'Iniciando sincronización segura');
   try {
-    const migrationKey = 'lubayd_firestore_migrated_v1';
-    if (!localStorage.getItem(migrationKey)) {
-      await window.LubaydCloud.migrate(state.records);
-      localStorage.setItem(migrationKey, new Date().toISOString());
-    }
-
     cloudUnsubscribe?.();
     cloudUnsubscribe = window.LubaydCloud.subscribe((records, metadata) => {
       state.save(records);
@@ -1038,8 +1274,8 @@ async function startCloudSync() {
   }
 }
 
-window.addEventListener('lubayd-cloud-ready', startCloudSync);
-window.addEventListener('lubayd-cloud-error', () => setCloudStatus('Solo local', false, 'Firebase no está disponible'));
+window.addEventListener('lubayd-firebase-ready', () => { if (currentUser()) startCloudSync(); });
+window.addEventListener('lubayd-firebase-error', () => setCloudStatus('Solo local', false, 'Firebase no está disponible'));
 
 function todayKey() {
   const now = new Date();
@@ -1078,9 +1314,13 @@ function escapeHtml(value = '') {
   }[character]));
 }
 
-initializeForm();
-renderAll();
 syncNetworkStatus();
 const initialView = new URLSearchParams(window.location.search).get('view');
-if (initialView && viewMeta[initialView]) showView(initialView);
-if (window.LubaydCloud) startCloudSync();
+let initialViewApplied = false;
+window.addEventListener('lubayd-auth-changed', event => {
+  if (!initialViewApplied && event.detail?.user && initialView && viewMeta[initialView]) {
+    initialViewApplied = true;
+    window.setTimeout(() => showView(initialView), 0);
+  }
+});
+if (window.LubaydCurrentUser) handleAuthChange(window.LubaydCurrentUser);

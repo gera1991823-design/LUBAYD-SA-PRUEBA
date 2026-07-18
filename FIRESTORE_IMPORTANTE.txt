@@ -1,10 +1,15 @@
-La aplicacion funciona actualmente con las reglas de modo de prueba.
+IMPORTANTE - SEGURIDAD DE FIRESTORE
+===================================
 
-No publiques reglas abiertas de forma permanente. El siguiente paso recomendado es:
-1. Activar Firebase Authentication (correo y contrasena).
-2. Crear roles de Administrador, Supervisor y Operador.
-3. Cambiar las reglas para exigir request.auth != null.
+Esta version utiliza Firebase Authentication y una lista de usuarios habilitados.
+Antes de publicarla debes reemplazar las reglas de modo de prueba por el archivo firestore.rules incluido.
 
-Sin Authentication, no existe una forma segura de permitir escritura publica
-solo desde esta pagina. La clave apiKey del proyecto web identifica el proyecto,
-pero no reemplaza las reglas de seguridad.
+Las reglas nuevas:
+- Exigen que el usuario haya iniciado sesion.
+- Exigen que el perfil del usuario tenga active: true.
+- Exigen GPS en cada parte nuevo.
+- Asocian el parte al UID y correo autenticados.
+- No permiten editar ningun parte ya creado.
+- Solo permiten que el autor elimine su propio parte.
+
+Consulta FIREBASE_PASOS.txt para completar la configuracion.
