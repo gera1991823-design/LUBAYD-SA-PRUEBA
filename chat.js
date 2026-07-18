@@ -12,7 +12,8 @@
     conversationsUnsubscribe: null,
     messagesUnsubscribe: null,
     initializedForUid: null,
-    openingPeerUid: null
+    openingPeerUid: null,
+    directoryFilter: 'all'
   };
 
   const $ = selector => document.querySelector(selector);
@@ -107,7 +108,7 @@
         autoOpenForOperator();
       }, error => {
         console.error('Usuarios del chat:', error);
-        showDirectoryNotice('No se pudo cargar la lista de usuarios. Publica las reglas de Firestore incluidas en la versión 12.');
+        showDirectoryNotice('No se pudo cargar la lista de usuarios. Revisa las reglas de Firestore publicadas.');
       });
 
       chatState.conversationsUnsubscribe = window.LubaydChat.subscribeConversations(conversations => {
@@ -147,6 +148,8 @@
   function updateUnreadFromConversations() {
     const total = chatState.conversations.reduce((sum, conversation) => sum + unreadForConversation(conversation), 0);
     setUnreadBadge(total);
+    const filterCount = $('#chatUnreadFilterCount');
+    if (filterCount) filterCount.textContent = total > 99 ? '99+' : String(total);
   }
 
   function setUnreadBadge(total) {
@@ -165,8 +168,11 @@
     const query = String($('#chatSearch')?.value || '').trim().toLowerCase();
     return chatState.users.filter(user => {
       if (!isAdmin() && user.role !== 'admin') return false;
+      const conversation = conversationForPeer(user);
+      if (chatState.directoryFilter === 'unread' && unreadForConversation(conversation) <= 0) return false;
       if (!query) return true;
-      return [user.nombre, user.email].some(value => String(value || '').toLowerCase().includes(query));
+      return [user.nombre, user.email, conversation?.lastMessage]
+        .some(value => String(value || '').toLowerCase().includes(query));
     });
   }
 
@@ -176,11 +182,14 @@
     const users = filteredUsers();
 
     if (!users.length) {
-      const message = isAdmin()
-        ? 'Todavía no hay otros usuarios activos para iniciar una conversación.'
-        : 'No existe una cuenta con rol “admin”. Cambia el campo role del usuario principal a “admin” en Firestore.';
+      const noUnread = chatState.directoryFilter === 'unread';
+      const message = noUnread
+        ? 'No tienes conversaciones con mensajes sin leer.'
+        : isAdmin()
+          ? 'Todavía no hay otros usuarios activos para iniciar una conversación.'
+          : 'No existe una cuenta con rol “admin”. Cambia el campo role del usuario principal a “admin” en Firestore.';
       root.innerHTML = `<div class="chat-list-empty">${escapeHtml(message)}</div>`;
-      showDirectoryNotice(!isAdmin() ? 'Para habilitar el chat, la cuenta principal debe tener role: admin en la colección usuarios.' : '');
+      showDirectoryNotice(!noUnread && !isAdmin() ? 'Para habilitar el chat, la cuenta principal debe tener role: admin en la colección usuarios.' : '');
       return;
     }
 
@@ -193,7 +202,7 @@
       const time = cleanTime(conversation?.lastMessageAtClient || conversation?.createdAtClient);
       return `
         <button type="button" class="chat-conversation ${active ? 'active' : ''}" data-chat-peer="${escapeHtml(peer.uid)}">
-          <span class="chat-user-avatar">${escapeHtml(initials(peer.nombre || peer.email))}</span>
+          <span class="chat-avatar-wrap"><span class="chat-user-avatar">${escapeHtml(initials(peer.nombre || peer.email))}</span><i aria-hidden="true"></i></span>
           <span class="chat-conversation-copy"><strong>${escapeHtml(peer.nombre || peer.email || 'Usuario')}</strong><span>${escapeHtml(lastMessage)}</span></span>
           <span class="chat-conversation-meta">${time ? `<time>${escapeHtml(time)}</time>` : ''}${unread > 0 ? `<b class="chat-conversation-unread">${unread > 99 ? '99+' : unread}</b>` : ''}</span>
         </button>`;
@@ -273,7 +282,8 @@
         : '';
       previousDay = currentDay;
       const own = message.senderId === chatState.user?.uid;
-      return `${separator}<div class="chat-message-row ${own ? 'own' : 'received'}"><div class="chat-message-bubble"><p>${escapeHtml(message.text)}</p><time>${escapeHtml(messageTime(message.createdAtClient || message.createdAt))}</time></div></div>`;
+      const status = own ? '<svg aria-label="Enviado"><use href="#i-check-double"></use></svg>' : '';
+      return `${separator}<div class="chat-message-row ${own ? 'own' : 'received'}"><div class="chat-message-bubble"><p>${escapeHtml(message.text)}</p><span class="chat-message-meta"><time>${escapeHtml(messageTime(message.createdAtClient || message.createdAt))}</time>${status}</span></div></div>`;
     }).join('');
     requestAnimationFrame(() => { root.scrollTop = root.scrollHeight; });
   }
@@ -298,6 +308,13 @@
   }
 
   $('#chatSearch')?.addEventListener('input', renderDirectory);
+  $$('.chat-filter-tabs [data-chat-filter]').forEach(button => {
+    button.addEventListener('click', () => {
+      chatState.directoryFilter = button.dataset.chatFilter || 'all';
+      $$('.chat-filter-tabs [data-chat-filter]').forEach(item => item.classList.toggle('active', item === button));
+      renderDirectory();
+    });
+  });
   $('#chatBackBtn')?.addEventListener('click', closeThread);
 
   const input = $('#chatMessageInput');

@@ -52,6 +52,8 @@
     <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4Z"/><path d="M8 9h8M8 12h5"/></symbol>
     <symbol id="i-send" viewBox="0 0 24 24"><path d="m3 3 18 9-18 9 4-9Z"/><path d="M7 12h14"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M10 7l-5 5 5 5"/></symbol>
+    <symbol id="i-check-double" viewBox="0 0 24 24"><path d="m2 12 4 4L14 8"/><path d="m9 12 4 4 9-9"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
   </svg>
 
 
@@ -111,7 +113,7 @@
         <div><strong id="sidebarUserName">Operador</strong><small id="sidebarUserEmail">Sesión segura</small></div>
         <svg><use href="#i-chevron-left"></use></svg>
       </button>
-      <div class="sidebar-version">V12 Chat · Lubayd SA</div>
+      <div class="sidebar-version">V13 Chat Modern · Lubayd SA</div>
     </aside>
 
     <main class="main">
@@ -318,31 +320,74 @@
       </section>
 
 
-      <section id="chat" class="view">
-        <div class="section-heading-row chat-heading">
-          <div><span class="section-kicker"><svg><use href="#i-chat"></use></svg> COMUNICACIÓN INTERNA</span><h2>Mensajes del equipo</h2><p id="chatIntroText">Conversaciones privadas y sincronizadas en tiempo real.</p></div>
-          <span class="chat-security-pill"><svg><use href="#i-shield"></use></svg> Solo participantes</span>
-        </div>
-        <div class="chat-layout" id="chatLayout">
+      <section id="chat" class="view chat-view">
+        <div class="chat-shell" id="chatLayout">
           <aside class="chat-directory">
-            <div class="chat-directory-head"><div><span>CONVERSACIONES</span><strong id="chatDirectoryTitle">Equipo</strong></div><span id="chatTotalUnread" class="chat-total-badge hidden">0</span></div>
-            <label class="chat-search"><svg><use href="#i-search"></use></svg><input id="chatSearch" placeholder="Buscar usuario"></label>
+            <div class="chat-directory-top">
+              <div>
+                <span class="chat-eyebrow">COMUNICACIÓN INTERNA</span>
+                <h2>Mensajes</h2>
+              </div>
+              <span id="chatTotalUnread" class="chat-total-badge hidden">0</span>
+            </div>
+
+            <label class="chat-search">
+              <svg><use href="#i-search"></use></svg>
+              <input id="chatSearch" type="search" autocomplete="off" placeholder="Buscar conversación">
+            </label>
+
+            <div class="chat-filter-tabs" role="tablist" aria-label="Filtrar conversaciones">
+              <button type="button" class="active" data-chat-filter="all">Todos</button>
+              <button type="button" data-chat-filter="unread">No leídos <span id="chatUnreadFilterCount">0</span></button>
+            </div>
+
             <div id="chatDirectoryNotice" class="chat-directory-notice hidden"></div>
-            <div id="chatConversationList" class="chat-conversation-list"><div class="chat-loading">Cargando conversaciones…</div></div>
+            <div id="chatConversationList" class="chat-conversation-list">
+              <div class="chat-loading"><span></span><span></span><span></span></div>
+            </div>
+
+            <div class="chat-directory-footer">
+              <svg><use href="#i-lock"></use></svg>
+              <span>Conversaciones privadas entre participantes</span>
+            </div>
           </aside>
+
           <article class="chat-thread">
-            <div id="chatEmptyState" class="chat-empty-state"><span class="chat-empty-icon"><svg><use href="#i-chat"></use></svg></span><h3>Selecciona una conversación</h3><p>Elige una persona para comenzar a intercambiar mensajes.</p></div>
+            <div id="chatEmptyState" class="chat-empty-state">
+              <span class="chat-empty-orbit"><svg><use href="#i-chat"></use></svg></span>
+              <h3>Tu comunicación, en un solo lugar</h3>
+              <p>Selecciona una conversación para enviar y recibir mensajes en tiempo real.</p>
+              <span class="chat-empty-security"><svg><use href="#i-shield"></use></svg> Mensajería interna segura</span>
+            </div>
+
             <div id="chatThreadContent" class="chat-thread-content hidden">
               <header class="chat-thread-head">
                 <button type="button" id="chatBackBtn" class="chat-back-button" aria-label="Volver a conversaciones"><svg><use href="#i-back"></use></svg></button>
-                <div class="chat-peer-avatar" id="chatPeerAvatar">US</div>
-                <div class="chat-peer-copy"><strong id="chatPeerName">Usuario</strong><span id="chatPeerEmail">correo</span></div>
+                <div class="chat-peer-avatar-wrap">
+                  <div class="chat-peer-avatar" id="chatPeerAvatar">US</div>
+                  <i aria-hidden="true"></i>
+                </div>
+                <div class="chat-peer-copy">
+                  <strong id="chatPeerName">Usuario</strong>
+                  <span id="chatPeerEmail">correo</span>
+                </div>
                 <span class="chat-online-label"><i></i> Cuenta activa</span>
+                <span class="chat-secure-label"><svg><use href="#i-lock"></use></svg> Privado</span>
               </header>
-              <div id="chatMessages" class="chat-messages" aria-live="polite"><div class="chat-loading">Cargando mensajes…</div></div>
+
+              <div id="chatMessages" class="chat-messages" aria-live="polite">
+                <div class="chat-loading"><span></span><span></span><span></span></div>
+              </div>
+
               <form id="chatForm" class="chat-composer">
-                <textarea id="chatMessageInput" rows="1" maxlength="1000" required placeholder="Escribe un mensaje…"></textarea>
-                <div class="chat-composer-meta"><small><span id="chatCharacterCount">0</span>/1000</small><button type="submit" id="chatSendBtn" class="chat-send-button" aria-label="Enviar mensaje"><svg><use href="#i-send"></use></svg></button></div>
+                <div class="chat-composer-field">
+                  <textarea id="chatMessageInput" rows="1" maxlength="1000" required placeholder="Escribe un mensaje..."></textarea>
+                  <span class="chat-composer-hint">Enter para enviar · Shift + Enter para una nueva línea</span>
+                </div>
+                <div class="chat-composer-actions">
+                  <small><span id="chatCharacterCount">0</span>/1000</small>
+                  <button type="submit" id="chatSendBtn" class="chat-send-button" aria-label="Enviar mensaje"><svg><use href="#i-send"></use></svg></button>
+                </div>
               </form>
             </div>
           </article>
