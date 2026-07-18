@@ -4,7 +4,18 @@ let step=1, deferredInstall=null, waitingWorker=null;
 let currentGps=null, gpsInProgress=false;
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 function loadRecords(){let data=localStorage.getItem(STORAGE_KEY);if(!data){for(const k of LEGACY_KEYS){data=localStorage.getItem(k);if(data){localStorage.setItem(STORAGE_KEY,data);break}}}try{return JSON.parse(data||'[]')}catch{return[]}}
-const state={get records(){return loadRecords()},save(v){localStorage.setItem(STORAGE_KEY,JSON.stringify(v))}};
+const state={
+  get records(){return loadRecords()},
+  save(v){localStorage.setItem(STORAGE_KEY,JSON.stringify(v))},
+  async saveRecord(record){
+    const records=this.records.filter(r=>r.id!==record.id);records.unshift(record);this.save(records);
+    if(window.LubaydCloud?.available){try{await window.LubaydCloud.save(record);setCloudStatus('Sincronizado',true)}catch(err){console.error('Guardar Firestore:',err);setCloudStatus('Pendiente de sincronizar',false)}}
+  },
+  async deleteRecord(id){
+    this.save(this.records.filter(r=>r.id!==id));
+    if(window.LubaydCloud?.available){try{await window.LubaydCloud.remove(id);setCloudStatus('Sincronizado',true)}catch(err){console.error('Eliminar Firestore:',err);setCloudStatus('Pendiente de sincronizar',false)}}
+  }
+};
 function showView(id){$$('.view').forEach(v=>v.classList.toggle('active',v.id===id));$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));const titles={dashboard:'Panel operativo',nuevo:'Nuevo parte',historial:'Historial de partes',graficos:'Gráficos operativos',ubicaciones:'Ubicaciones GPS'};$('#pageTitle').textContent=titles[id]||'Gestión Forestal';if(id==='nuevo'){step=1;updateStep();if(!$('#fecha').value)$('#fecha').value=new Date().toISOString().slice(0,10);setTimeout(captureGps,250)}if(id==='historial')renderHistory();if(id==='graficos'&&typeof window.renderCharts==='function')window.renderCharts();if(id==='ubicaciones')renderLocations();closeSidebar();window.scrollTo({top:0,behavior:'smooth'})}
 $$('[data-view], [data-view-link]').forEach(el=>el.addEventListener('click',()=>showView(el.dataset.view||el.dataset.viewLink)));$('#heroNewBtn').addEventListener('click',()=>showView('nuevo'));
 function updateStep(){$$('.form-page').forEach(p=>p.classList.toggle('active',+p.dataset.step===step));$$('.step').forEach((s,i)=>s.classList.toggle('active',i+1<=step));$('#stepNumber').textContent=step;$('#stepText').textContent=['Datos generales','Producción','Chequeo'][step-1];$('#prevBtn').classList.toggle('hidden',step===1);$('#nextBtn').classList.toggle('hidden',step===3);$('#saveBtn').classList.toggle('hidden',step!==3);if(step===3)fillReview()}
@@ -33,12 +44,12 @@ function recalc(){const h=Math.max(0,num('#horometroFinal')-num('#horometroInici
 ['#horometroInicio','#horometroFinal','#arbolesIniciales','#arbolesFinales'].forEach(id=>$(id).addEventListener('input',recalc));
 function recordFromForm(){const checks=['agua','aceite','valvulina','giro','chequeoGral','cabezal','grua'];return{id:crypto.randomUUID?.()||String(Date.now()),createdAt:new Date().toISOString(),monte:$('#monte').value.trim(),fecha:$('#fecha').value,maquina:$('#maquina').value.trim(),operador:$('#operador').value.trim(),turno:radio('turno'),especie:$('#especie').value,largo:num('#largo'),horometroInicio:num('#horometroInicio'),horometroFinal:num('#horometroFinal'),horas:Math.max(0,num('#horometroFinal')-num('#horometroInicio')),arbolesIniciales:num('#arbolesIniciales'),arbolesFinales:num('#arbolesFinales'),arboles:Math.max(0,num('#arbolesFinales')-num('#arbolesIniciales')),carros:num('#carros'),actividad:radio('actividad'),desde:$('#desde1').value,hasta:$('#hasta1').value,trabajo:$('#trabajo1').value.trim(),mecanico:$('#mecanico1').value.trim(),checks:Object.fromEntries(checks.map(x=>[x,$('#'+x).checked])),observaciones:$('#observaciones').value.trim(),combustible:num('#combustible'),hidraulico:num('#hidraulico'),controlado:$('#controlado').value.trim(),firma:$('#firma').value.trim(),gps:currentGps?{...currentGps}:null}}
 function fillReview(){const r=recordFromForm();$('#reviewContent').innerHTML=`<div class="review-grid"><div><b>Monte</b><br>${esc(r.monte)||'—'}</div><div><b>Fecha</b><br>${formatDate(r.fecha)}</div><div><b>Máquina</b><br>${esc(r.maquina)||'—'}</div><div><b>Operador</b><br>${esc(r.operador)||'—'}</div><div><b>Actividad</b><br>${esc(r.actividad)||'—'}</div><div><b>Producción</b><br>${r.arboles} árboles · ${r.horas.toFixed(1)} h</div><div><b>GPS</b><br>${r.gps?`${r.gps.latitude.toFixed(6)}, ${r.gps.longitude.toFixed(6)}`:'Sin ubicación'}</div></div>`}
-$('#parteForm').addEventListener('submit',e=>{e.preventDefault();if(!validateStep())return;const records=state.records;records.unshift(recordFromForm());state.save(records);e.target.reset();currentGps=null;renderGpsState();step=1;updateStep();recalc();renderAll();showToast();showView('dashboard')});
+$('#parteForm').addEventListener('submit',async e=>{e.preventDefault();if(!validateStep())return;const record=recordFromForm();await state.saveRecord(record);e.target.reset();currentGps=null;renderGpsState();step=1;updateStep();recalc();renderAll();showToast();showView('dashboard')});
 function renderAll(){const rs=state.records,totalTrees=rs.reduce((s,r)=>s+(r.arboles||0),0),totalHours=rs.reduce((s,r)=>s+(r.horas||0),0),complete=rs.filter(r=>r.checks?.agua&&r.checks?.aceite).length;$('#kpiTotal').textContent=rs.length;$('#kpiArboles').textContent=totalTrees.toLocaleString('es-UY');$('#kpiHoras').textContent=totalHours.toLocaleString('es-UY',{maximumFractionDigits:1});$('#kpiChequeos').textContent=(rs.length?Math.round(complete/rs.length*100):0)+'%';$('#avgTrees').textContent=(rs.length?totalTrees/rs.length:0).toLocaleString('es-UY',{maximumFractionDigits:1});$('#avgHours').textContent=(rs.length?totalHours/rs.length:0).toLocaleString('es-UY',{maximumFractionDigits:1})+' h';$('#lastRecord').textContent=rs[0]?formatDate(rs[0].fecha):'—';$('#lastUpdate').textContent=new Date().toLocaleString('es-UY',{dateStyle:'short',timeStyle:'short'});if(typeof window.refreshChartOperators==='function')window.refreshChartOperators();if(typeof window.renderCharts==='function'&&document.getElementById('graficos')?.classList.contains('active'))window.renderCharts();$('#heroDate').textContent=new Date().toLocaleDateString('es-UY',{weekday:'long',day:'numeric',month:'long'});const recent=$('#recentList');if(!rs.length){recent.className='record-list empty-state';recent.textContent='Aquí aparecerán tus últimos partes guardados.'}else{recent.className='record-list';recent.innerHTML=rs.slice(0,5).map(r=>`<div class="record-item"><div class="record-main"><strong>${esc(r.monte)} · ${esc(r.maquina)}</strong><small>${formatDate(r.fecha)} · ${esc(r.operador)} · ${esc(r.actividad)}</small></div><span class="record-badge">${r.arboles} árboles</span></div>`).join('')}}
 function filteredRecords(){const q=$('#historySearch').value.trim().toLowerCase(),act=$('#activityFilter').value;return state.records.filter(r=>(!act||r.actividad===act)&&(!q||[r.monte,r.maquina,r.operador].some(v=>(v||'').toLowerCase().includes(q))))}
 function renderHistory(){const rs=filteredRecords(),body=$('#historyBody');$('#historyEmpty').classList.toggle('hidden',rs.length>0);body.innerHTML=rs.map(r=>`<tr><td>${formatDate(r.fecha)}</td><td>${esc(r.monte)}</td><td>${esc(r.maquina)}</td><td>${esc(r.operador)}</td><td>${esc(r.actividad)}</td><td>${r.arboles}</td><td><div class="table-actions"><button class="table-action" data-detail="${r.id}">Ver</button>${r.gps?`<a class="table-action gps-link" href="${mapUrl(r.gps)}" target="_blank" rel="noopener">Mapa</a>`:''}<button class="table-action danger" data-delete="${r.id}">Eliminar</button></div></td></tr>`).join('');$$('[data-detail]').forEach(b=>b.addEventListener('click',()=>openDetail(b.dataset.detail)));$$('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteRecord(b.dataset.delete)))}
 $('#historySearch').addEventListener('input',renderHistory);$('#activityFilter').addEventListener('change',renderHistory);
-function deleteRecord(id){if(!confirm('¿Eliminar este parte? Esta acción no se puede deshacer.'))return;state.save(state.records.filter(r=>r.id!==id));renderAll();renderHistory()}
+async function deleteRecord(id){if(!confirm('¿Eliminar este parte? Esta acción no se puede deshacer.'))return;await state.deleteRecord(id);renderAll();renderHistory();renderLocations()}
 function openDetail(id){const r=state.records.find(x=>x.id===id);if(!r)return;$('#detailContent').innerHTML=`<span class="eyebrow">DETALLE DEL PARTE</span><h2>${esc(r.monte)} · ${esc(r.maquina)}</h2><div class="detail-grid">${Object.entries({Fecha:formatDate(r.fecha),Operador:r.operador,Turno:r.turno,Especie:r.especie,Actividad:r.actividad,'Horas trabajadas':r.horas+' h','Árboles procesados':r.arboles,Rendimiento:(r.horas?r.arboles/r.horas:0).toFixed(1)+' árb/h',Carros:r.carros,Combustible:r.combustible+' L',Hidráulico:r.hidraulico+' L',Observaciones:r.observaciones||'—',GPS:r.gps?`${r.gps.latitude.toFixed(6)}, ${r.gps.longitude.toFixed(6)} (±${Math.round(r.gps.accuracy)} m)`:'Sin ubicación'}).map(([k,v])=>`<div><span>${k}</span><strong>${esc(String(v))}</strong></div>`).join('')}</div>${r.gps?`<a class="btn gps-btn detail-map-btn" href="${mapUrl(r.gps)}" target="_blank" rel="noopener">⌖ Abrir ubicación en el mapa</a>`:''}`;$('#detailModal').classList.remove('hidden')}
 $('#detailClose').addEventListener('click',()=>$('#detailModal').classList.add('hidden'));$('#detailModal').addEventListener('click',e=>{if(e.target.id==='detailModal')e.currentTarget.classList.add('hidden')});
 $('#exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state.records,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`partes-forestales-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)});
@@ -97,3 +108,36 @@ $('#gpsRefreshBtn')?.addEventListener('click',renderLocations);
 renderGpsState();
 
 renderAll();updateStep();
+
+
+/* ===== Sincronización Firebase ===== */
+let cloudUnsubscribe=null;
+function setCloudStatus(text,ok){
+  const el=$('#networkStatus');if(!el)return;
+  const label=el.querySelector('b');if(label)label.textContent=navigator.onLine?text:'Sin conexión';
+  el.classList.toggle('offline',!ok||!navigator.onLine);
+}
+async function startCloudSync(){
+  if(!window.LubaydCloud?.available){setCloudStatus('Solo local',false);return}
+  setCloudStatus('Conectando…',false);
+  try{
+    const migrationKey='lubayd_firestore_migrated_v1';
+    if(!localStorage.getItem(migrationKey)){
+      await window.LubaydCloud.migrate(state.records);
+      localStorage.setItem(migrationKey,new Date().toISOString());
+    }
+    if(cloudUnsubscribe)cloudUnsubscribe();
+    cloudUnsubscribe=window.LubaydCloud.subscribe((records,meta)=>{
+      // Firestore es la fuente compartida; la copia local permite abrir la app sin conexión.
+      state.save(records);
+      renderAll();
+      if($('#historial')?.classList.contains('active'))renderHistory();
+      if($('#ubicaciones')?.classList.contains('active'))renderLocations();
+      if(typeof window.renderCharts==='function'&&$('#graficos')?.classList.contains('active'))window.renderCharts();
+      setCloudStatus(meta.hasPendingWrites?'Sincronizando…':(meta.fromCache?'Datos locales':'Sincronizado'),!meta.hasPendingWrites);
+    },err=>{console.error('Escucha Firestore:',err);setCloudStatus('Error de sincronización',false)});
+  }catch(err){console.error('Inicio Firestore:',err);setCloudStatus('Pendiente de sincronizar',false)}
+}
+window.addEventListener('lubayd-cloud-ready',startCloudSync);
+window.addEventListener('lubayd-cloud-error',()=>setCloudStatus('Solo local',false));
+if(window.LubaydCloud)startCloudSync();
