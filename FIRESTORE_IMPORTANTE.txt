@@ -1,0 +1,10 @@
+La aplicacion funciona actualmente con las reglas de modo de prueba.
+
+No publiques reglas abiertas de forma permanente. El siguiente paso recomendado es:
+1. Activar Firebase Authentication (correo y contrasena).
+2. Crear roles de Administrador, Supervisor y Operador.
+3. Cambiar las reglas para exigir request.auth != null.
+
+Sin Authentication, no existe una forma segura de permitir escritura publica
+solo desde esta pagina. La clave apiKey del proyecto web identifica el proyecto,
+pero no reemplaza las reglas de seguridad.

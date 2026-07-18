@@ -1,143 +1,1086 @@
-const STORAGE_KEY='lubayd_partes_v3';
-const LEGACY_KEYS=['lubayd_partes_v2','lubayd_partes'];
-let step=1, deferredInstall=null, waitingWorker=null;
-let currentGps=null, gpsInProgress=false;
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-function loadRecords(){let data=localStorage.getItem(STORAGE_KEY);if(!data){for(const k of LEGACY_KEYS){data=localStorage.getItem(k);if(data){localStorage.setItem(STORAGE_KEY,data);break}}}try{return JSON.parse(data||'[]')}catch{return[]}}
-const state={
-  get records(){return loadRecords()},
-  save(v){localStorage.setItem(STORAGE_KEY,JSON.stringify(v))},
-  async saveRecord(record){
-    const records=this.records.filter(r=>r.id!==record.id);records.unshift(record);this.save(records);
-    if(window.LubaydCloud?.available){try{await window.LubaydCloud.save(record);setCloudStatus('Sincronizado',true)}catch(err){console.error('Guardar Firestore:',err);setCloudStatus('Pendiente de sincronizar',false)}}
+'use strict';
+
+const STORAGE_KEY = 'lubayd_partes_v3';
+const LEGACY_KEYS = ['lubayd_partes_v2', 'lubayd_partes'];
+const DRAFT_KEY = 'lubayd_parte_draft_v10';
+const TOTAL_STEPS = 5;
+const CHECK_IDS = ['agua', 'aceite', 'valvulina', 'giro', 'chequeoGral', 'cabezal', 'grua'];
+const CHECK_LABELS = {
+  agua: 'Agua',
+  aceite: 'Aceite',
+  valvulina: 'Valvulina',
+  giro: 'Giro',
+  chequeoGral: 'Chequeo general',
+  cabezal: 'Cabezal',
+  grua: 'Grúa'
+};
+const DRAFT_FIELDS = [
+  'monte', 'fecha', 'maquina', 'operador', 'especie', 'largo',
+  'horometroInicio', 'horometroFinal', 'arbolesIniciales', 'arbolesFinales', 'carros',
+  'desde1', 'hasta1', 'trabajo1', 'mecanico1', 'observaciones', 'combustible',
+  'hidraulico', 'controlado', 'firma', ...CHECK_IDS
+];
+
+let step = 1;
+let currentGps = null;
+let gpsInProgress = false;
+let gpsAttemptedThisForm = false;
+let deferredInstall = null;
+let waitingWorker = null;
+let cloudUnsubscribe = null;
+let draftTimer = null;
+let toastTimer = null;
+let formInitialized = false;
+let currentCloudStatus = {
+  text: 'Conectando…',
+  ok: false,
+  detail: 'Esperando datos'
+};
+
+const $ = selector => document.querySelector(selector);
+const $$ = selector => [...document.querySelectorAll(selector)];
+
+function loadRecords() {
+  let raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    for (const key of LEGACY_KEYS) {
+      raw = localStorage.getItem(key);
+      if (raw) {
+        localStorage.setItem(STORAGE_KEY, raw);
+        break;
+      }
+    }
+  }
+  try {
+    const parsed = JSON.parse(raw || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn('No se pudieron leer los registros locales:', error);
+    return [];
+  }
+}
+
+function sortRecords(records) {
+  return [...records].sort((a, b) => String(b.createdAt || b.fecha || '').localeCompare(String(a.createdAt || a.fecha || '')));
+}
+
+const state = {
+  get records() {
+    return sortRecords(loadRecords());
   },
-  async deleteRecord(id){
-    this.save(this.records.filter(r=>r.id!==id));
-    if(window.LubaydCloud?.available){try{await window.LubaydCloud.remove(id);setCloudStatus('Sincronizado',true)}catch(err){console.error('Eliminar Firestore:',err);setCloudStatus('Pendiente de sincronizar',false)}}
+  save(records) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sortRecords(records)));
+  },
+  async saveRecord(record) {
+    const records = this.records.filter(item => item.id !== record.id);
+    records.unshift(record);
+    this.save(records);
+    renderAll();
+
+    if (window.LubaydCloud?.available) {
+      try {
+        setCloudStatus('Sincronizando…', false, 'Guardando en la nube');
+        await window.LubaydCloud.save(record);
+        setCloudStatus('Sincronizado', true, `Actualizado ${formatTime(new Date())}`);
+      } catch (error) {
+        console.error('Guardar en Firestore:', error);
+        setCloudStatus('Pendiente', false, 'Se guardó una copia local');
+      }
+    } else {
+      setCloudStatus('Solo local', false, 'Firebase no está disponible');
+    }
+  },
+  async deleteRecord(id) {
+    this.save(this.records.filter(item => item.id !== id));
+    renderAll();
+
+    if (window.LubaydCloud?.available) {
+      try {
+        setCloudStatus('Sincronizando…', false, 'Eliminando registro');
+        await window.LubaydCloud.remove(id);
+        setCloudStatus('Sincronizado', true, `Actualizado ${formatTime(new Date())}`);
+      } catch (error) {
+        console.error('Eliminar en Firestore:', error);
+        setCloudStatus('Pendiente', false, 'No se confirmó la eliminación en la nube');
+      }
+    }
   }
 };
-function showView(id){$$('.view').forEach(v=>v.classList.toggle('active',v.id===id));$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));const titles={dashboard:'Panel operativo',nuevo:'Nuevo parte',historial:'Historial de partes',graficos:'Gráficos operativos',ubicaciones:'Ubicaciones GPS'};$('#pageTitle').textContent=titles[id]||'Gestión Forestal';if(id==='nuevo'){step=1;updateStep();if(!$('#fecha').value)$('#fecha').value=new Date().toISOString().slice(0,10);setTimeout(captureGps,250)}if(id==='historial')renderHistory();if(id==='graficos'&&typeof window.renderCharts==='function')window.renderCharts();if(id==='ubicaciones')renderLocations();closeSidebar();window.scrollTo({top:0,behavior:'smooth'})}
-$$('[data-view], [data-view-link]').forEach(el=>el.addEventListener('click',()=>showView(el.dataset.view||el.dataset.viewLink)));$('#heroNewBtn').addEventListener('click',()=>showView('nuevo'));
-function updateStep(){$$('.form-page').forEach(p=>p.classList.toggle('active',+p.dataset.step===step));$$('.step').forEach((s,i)=>s.classList.toggle('active',i+1<=step));$('#stepNumber').textContent=step;$('#stepText').textContent=['Datos generales','Producción','Chequeo'][step-1];$('#prevBtn').classList.toggle('hidden',step===1);$('#nextBtn').classList.toggle('hidden',step===3);$('#saveBtn').classList.toggle('hidden',step!==3);if(step===3)fillReview()}
-function validateStep(){
-  const page=$(`.form-page[data-step="${step}"]`);
-  const message=$('#message');
-  if(message){message.textContent='';message.className='message'}
-  page.querySelectorAll('.field-error').forEach(el=>el.classList.remove('field-error'));
-  for(const input of page.querySelectorAll('input[required],select[required]')){
-    if(!input.checkValidity()){
-      const field=input.closest('label,fieldset');
+
+window.AppState = state;
+window.escapeHtml = escapeHtml;
+
+const viewMeta = {
+  dashboard: ['Centro de operaciones', 'Panel operativo'],
+  nuevo: ['Registro guiado', 'Nuevo parte diario'],
+  historial: ['Registros', 'Historial de partes'],
+  graficos: ['Análisis operativo', 'Gráficos de producción'],
+  ubicaciones: ['Geolocalización', 'Ubicaciones GPS']
+};
+
+function showView(id) {
+  if (!document.getElementById(id)) return;
+
+  $$('.view').forEach(view => view.classList.toggle('active', view.id === id));
+  $$('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === id));
+
+  const [eyebrow, title] = viewMeta[id] || ['Gestión forestal', 'Lubayd SA'];
+  $('#pageEyebrow').textContent = eyebrow;
+  $('#pageTitle').textContent = title;
+
+  if (id === 'nuevo') {
+    initializeForm();
+    updateStep();
+  }
+  if (id === 'historial') renderHistory();
+  if (id === 'ubicaciones') renderLocations();
+  if (id === 'graficos' && typeof window.renderCharts === 'function') window.renderCharts();
+
+  closeSidebar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+$$('[data-view], [data-view-link]').forEach(element => {
+  element.addEventListener('click', () => showView(element.dataset.view || element.dataset.viewLink));
+});
+$('#heroNewBtn')?.addEventListener('click', () => showView('nuevo'));
+
+function initializeForm() {
+  if (formInitialized) {
+    if (!$('#fecha').value) $('#fecha').value = todayKey();
+    return;
+  }
+
+  formInitialized = true;
+  if (!restoreDraft()) {
+    $('#fecha').value = todayKey();
+  }
+  recalculateProduction();
+  updateCheckCards();
+  renderGpsState();
+  refreshSuggestions();
+  updateStep();
+}
+
+function updateStep() {
+  $$('.form-page').forEach(page => page.classList.toggle('active', Number(page.dataset.step) === step));
+  $$('.wizard-step').forEach((item, index) => {
+    const itemStep = index + 1;
+    item.classList.toggle('active', itemStep === step);
+    item.classList.toggle('completed', itemStep < step);
+    const button = item.querySelector('button');
+    button.disabled = itemStep > step;
+    button.setAttribute('aria-current', itemStep === step ? 'step' : 'false');
+  });
+
+  const labels = ['Datos generales', 'Producción', 'Chequeo', 'Ubicación', 'Resumen'];
+  $('#mobileStepLabel').textContent = `Paso ${step} de ${TOTAL_STEPS}`;
+  $('#stepText').textContent = labels[step - 1];
+  $('#stepProgressBar').style.width = `${(step / TOTAL_STEPS) * 100}%`;
+  $('#prevBtn').classList.toggle('hidden', step === 1);
+  $('#nextBtn').classList.toggle('hidden', step === TOTAL_STEPS);
+  $('#saveBtn').classList.toggle('hidden', step !== TOTAL_STEPS);
+  clearFormMessage();
+
+  if (step === 4 && !currentGps && !gpsInProgress && !gpsAttemptedThisForm) {
+    gpsAttemptedThisForm = true;
+    window.setTimeout(() => captureGps(true), 350);
+  }
+  if (step === 5) fillReview();
+}
+
+$$('.wizard-step').forEach(item => {
+  item.querySelector('button')?.addEventListener('click', () => {
+    const target = Number(item.dataset.stepTarget);
+    if (target < step) {
+      step = target;
+      updateStep();
+      scrollFormTop();
+    }
+  });
+});
+
+function scrollFormTop() {
+  const shell = $('.wizard-shell');
+  if (!shell) return;
+  const offset = window.innerWidth <= 900 ? 82 : 96;
+  window.scrollTo({ top: Math.max(0, shell.getBoundingClientRect().top + window.scrollY - offset), behavior: 'smooth' });
+}
+
+function validateStep(stepNumber, options = {}) {
+  const page = $(`.form-page[data-step="${stepNumber}"]`);
+  if (!page) return true;
+
+  page.querySelectorAll('.field-error').forEach(field => field.classList.remove('field-error'));
+  const required = [...page.querySelectorAll('input[required], select[required], textarea[required]')];
+
+  for (const input of required) {
+    if (!input.checkValidity()) {
+      const field = input.closest('.field, .field-group') || input.parentElement;
       field?.classList.add('field-error');
-      if(message){message.textContent='Completa los campos obligatorios marcados antes de continuar. La ubicación GPS es opcional.';message.className='message error'}
-      input.scrollIntoView({behavior:'smooth',block:'center'});
-      setTimeout(()=>input.reportValidity(),250);
+      if (!options.silent) {
+        showFormMessage('Completa los campos obligatorios marcados antes de continuar.', 'error');
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.setTimeout(() => input.focus({ preventScroll: true }), 260);
+      }
       return false;
     }
   }
-  if(step===2&&num('#horometroFinal')<num('#horometroInicio')){alert('El horómetro final no puede ser menor que el inicial.');return false}
-  if(step===2&&num('#arbolesFinales')<num('#arbolesIniciales')){alert('Los árboles finales no pueden ser menores que los iniciales.');return false}
-  return true
-}
-$('#nextBtn').addEventListener('click',()=>{if(validateStep()){step++;updateStep();window.scrollTo({top:0,behavior:'smooth'})}});$('#prevBtn').addEventListener('click',()=>{step--;updateStep()});$('#cancelBtn').addEventListener('click',()=>showView('dashboard'));
-const num=id=>Number($(id).value)||0;const radio=name=>document.querySelector(`input[name="${name}"]:checked`)?.value||'';
-function recalc(){const h=Math.max(0,num('#horometroFinal')-num('#horometroInicio'));const a=Math.max(0,num('#arbolesFinales')-num('#arbolesIniciales'));$('#calcHoras').textContent=h.toLocaleString('es-UY',{maximumFractionDigits:1})+' h';$('#calcArboles').textContent=a.toLocaleString('es-UY');$('#calcRendimiento').textContent=(h?a/h:0).toLocaleString('es-UY',{maximumFractionDigits:1})+' árb/h'}
-['#horometroInicio','#horometroFinal','#arbolesIniciales','#arbolesFinales'].forEach(id=>$(id).addEventListener('input',recalc));
-function recordFromForm(){const checks=['agua','aceite','valvulina','giro','chequeoGral','cabezal','grua'];return{id:crypto.randomUUID?.()||String(Date.now()),createdAt:new Date().toISOString(),monte:$('#monte').value.trim(),fecha:$('#fecha').value,maquina:$('#maquina').value.trim(),operador:$('#operador').value.trim(),turno:radio('turno'),especie:$('#especie').value,largo:num('#largo'),horometroInicio:num('#horometroInicio'),horometroFinal:num('#horometroFinal'),horas:Math.max(0,num('#horometroFinal')-num('#horometroInicio')),arbolesIniciales:num('#arbolesIniciales'),arbolesFinales:num('#arbolesFinales'),arboles:Math.max(0,num('#arbolesFinales')-num('#arbolesIniciales')),carros:num('#carros'),actividad:radio('actividad'),desde:$('#desde1').value,hasta:$('#hasta1').value,trabajo:$('#trabajo1').value.trim(),mecanico:$('#mecanico1').value.trim(),checks:Object.fromEntries(checks.map(x=>[x,$('#'+x).checked])),observaciones:$('#observaciones').value.trim(),combustible:num('#combustible'),hidraulico:num('#hidraulico'),controlado:$('#controlado').value.trim(),firma:$('#firma').value.trim(),gps:currentGps?{...currentGps}:null}}
-function fillReview(){const r=recordFromForm();$('#reviewContent').innerHTML=`<div class="review-grid"><div><b>Monte</b><br>${esc(r.monte)||'—'}</div><div><b>Fecha</b><br>${formatDate(r.fecha)}</div><div><b>Máquina</b><br>${esc(r.maquina)||'—'}</div><div><b>Operador</b><br>${esc(r.operador)||'—'}</div><div><b>Actividad</b><br>${esc(r.actividad)||'—'}</div><div><b>Producción</b><br>${r.arboles} árboles · ${r.horas.toFixed(1)} h</div><div><b>GPS</b><br>${r.gps?`${r.gps.latitude.toFixed(6)}, ${r.gps.longitude.toFixed(6)}`:'Sin ubicación'}</div></div>`}
-$('#parteForm').addEventListener('submit',async e=>{e.preventDefault();if(!validateStep())return;const record=recordFromForm();await state.saveRecord(record);e.target.reset();currentGps=null;renderGpsState();step=1;updateStep();recalc();renderAll();showToast();showView('dashboard')});
-function renderAll(){const rs=state.records,totalTrees=rs.reduce((s,r)=>s+(r.arboles||0),0),totalHours=rs.reduce((s,r)=>s+(r.horas||0),0),complete=rs.filter(r=>r.checks?.agua&&r.checks?.aceite).length;$('#kpiTotal').textContent=rs.length;$('#kpiArboles').textContent=totalTrees.toLocaleString('es-UY');$('#kpiHoras').textContent=totalHours.toLocaleString('es-UY',{maximumFractionDigits:1});$('#kpiChequeos').textContent=(rs.length?Math.round(complete/rs.length*100):0)+'%';$('#avgTrees').textContent=(rs.length?totalTrees/rs.length:0).toLocaleString('es-UY',{maximumFractionDigits:1});$('#avgHours').textContent=(rs.length?totalHours/rs.length:0).toLocaleString('es-UY',{maximumFractionDigits:1})+' h';$('#lastRecord').textContent=rs[0]?formatDate(rs[0].fecha):'—';$('#lastUpdate').textContent=new Date().toLocaleString('es-UY',{dateStyle:'short',timeStyle:'short'});if(typeof window.refreshChartOperators==='function')window.refreshChartOperators();if(typeof window.renderCharts==='function'&&document.getElementById('graficos')?.classList.contains('active'))window.renderCharts();$('#heroDate').textContent=new Date().toLocaleDateString('es-UY',{weekday:'long',day:'numeric',month:'long'});const recent=$('#recentList');if(!rs.length){recent.className='record-list empty-state';recent.textContent='Aquí aparecerán tus últimos partes guardados.'}else{recent.className='record-list';recent.innerHTML=rs.slice(0,5).map(r=>`<div class="record-item"><div class="record-main"><strong>${esc(r.monte)} · ${esc(r.maquina)}</strong><small>${formatDate(r.fecha)} · ${esc(r.operador)} · ${esc(r.actividad)}</small></div><span class="record-badge">${r.arboles} árboles</span></div>`).join('')}}
-function filteredRecords(){const q=$('#historySearch').value.trim().toLowerCase(),act=$('#activityFilter').value;return state.records.filter(r=>(!act||r.actividad===act)&&(!q||[r.monte,r.maquina,r.operador].some(v=>(v||'').toLowerCase().includes(q))))}
-function renderHistory(){const rs=filteredRecords(),body=$('#historyBody');$('#historyEmpty').classList.toggle('hidden',rs.length>0);body.innerHTML=rs.map(r=>`<tr><td>${formatDate(r.fecha)}</td><td>${esc(r.monte)}</td><td>${esc(r.maquina)}</td><td>${esc(r.operador)}</td><td>${esc(r.actividad)}</td><td>${r.arboles}</td><td><div class="table-actions"><button class="table-action" data-detail="${r.id}">Ver</button>${r.gps?`<a class="table-action gps-link" href="${mapUrl(r.gps)}" target="_blank" rel="noopener">Mapa</a>`:''}<button class="table-action danger" data-delete="${r.id}">Eliminar</button></div></td></tr>`).join('');$$('[data-detail]').forEach(b=>b.addEventListener('click',()=>openDetail(b.dataset.detail)));$$('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteRecord(b.dataset.delete)))}
-$('#historySearch').addEventListener('input',renderHistory);$('#activityFilter').addEventListener('change',renderHistory);
-async function deleteRecord(id){if(!confirm('¿Eliminar este parte? Esta acción no se puede deshacer.'))return;await state.deleteRecord(id);renderAll();renderHistory();renderLocations()}
-function openDetail(id){const r=state.records.find(x=>x.id===id);if(!r)return;$('#detailContent').innerHTML=`<span class="eyebrow">DETALLE DEL PARTE</span><h2>${esc(r.monte)} · ${esc(r.maquina)}</h2><div class="detail-grid">${Object.entries({Fecha:formatDate(r.fecha),Operador:r.operador,Turno:r.turno,Especie:r.especie,Actividad:r.actividad,'Horas trabajadas':r.horas+' h','Árboles procesados':r.arboles,Rendimiento:(r.horas?r.arboles/r.horas:0).toFixed(1)+' árb/h',Carros:r.carros,Combustible:r.combustible+' L',Hidráulico:r.hidraulico+' L',Observaciones:r.observaciones||'—',GPS:r.gps?`${r.gps.latitude.toFixed(6)}, ${r.gps.longitude.toFixed(6)} (±${Math.round(r.gps.accuracy)} m)`:'Sin ubicación'}).map(([k,v])=>`<div><span>${k}</span><strong>${esc(String(v))}</strong></div>`).join('')}</div>${r.gps?`<a class="btn gps-btn detail-map-btn" href="${mapUrl(r.gps)}" target="_blank" rel="noopener">⌖ Abrir ubicación en el mapa</a>`:''}`;$('#detailModal').classList.remove('hidden')}
-$('#detailClose').addEventListener('click',()=>$('#detailModal').classList.add('hidden'));$('#detailModal').addEventListener('click',e=>{if(e.target.id==='detailModal')e.currentTarget.classList.add('hidden')});
-$('#exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state.records,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`partes-forestales-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)});
-function showToast(){const t=$('#toast');t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),2600)}function formatDate(v){return v?new Date(v+'T12:00:00').toLocaleDateString('es-UY'):'—'}function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function syncNetworkStatus(){const online=navigator.onLine,el=$('#networkStatus');el.classList.toggle('offline',!online);el.querySelector('b').textContent=online?'En línea':'Sin conexión'}window.addEventListener('online',syncNetworkStatus);window.addEventListener('offline',syncNetworkStatus);syncNetworkStatus();
-function closeSidebar(){$('#sidebar').classList.remove('open');$('#sidebarOverlay').classList.remove('show')}$('#menuBtn').addEventListener('click',()=>{$('#sidebar').classList.toggle('open');$('#sidebarOverlay').classList.toggle('show')});$('#sidebarOverlay').addEventListener('click',closeSidebar);
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;$('#installBtn').classList.remove('hidden')});$('#installBtn').addEventListener('click',async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$('#installBtn').classList.add('hidden')});window.addEventListener('appinstalled',()=>$('#installBtn').classList.add('hidden'));
-if('serviceWorker'in navigator){window.addEventListener('load',async()=>{try{const reg=await navigator.serviceWorker.register('./service-worker.js');if(reg.waiting){waitingWorker=reg.waiting;$('#updateBanner').classList.remove('hidden')}reg.addEventListener('updatefound',()=>{const w=reg.installing;w?.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller){waitingWorker=w;$('#updateBanner').classList.remove('hidden')}})})}catch(err){console.error('PWA:',err)}});navigator.serviceWorker.addEventListener('controllerchange',()=>location.reload())}$('#updateBtn').addEventListener('click',()=>waitingWorker?.postMessage({type:'SKIP_WAITING'}));
 
-function mapUrl(gps){return `https://www.google.com/maps/search/?api=1&query=${gps.latitude},${gps.longitude}`}
-function renderGpsState(message){
-  const box=$('#gpsState'), coords=$('#gpsCoordinates'), link=$('#gpsPreviewLink');
-  if(!box)return;
-  box.className='gps-state '+(currentGps?'success':'idle');
-  if(currentGps){
-    box.innerHTML='<span class="gps-check">✓</span><div><strong>Ubicación obtenida</strong><small>Lista para guardar con el parte.</small></div>';
-    coords.classList.remove('hidden');
-    coords.innerHTML=`<div><span>Latitud</span><strong>${currentGps.latitude.toFixed(6)}</strong></div><div><span>Longitud</span><strong>${currentGps.longitude.toFixed(6)}</strong></div><div><span>Precisión</span><strong>±${Math.round(currentGps.accuracy)} m</strong></div>`;
-    link.href=mapUrl(currentGps);link.classList.remove('hidden');
-  }else{
-    box.innerHTML=`<span class="gps-pulse"></span><div><strong>${message||'Ubicación pendiente'}</strong><small>${message?'Puedes volver a intentarlo.':'Presiona el botón para obtenerla.'}</small></div>`;
-    coords.classList.add('hidden');link.classList.add('hidden');
+  if (stepNumber === 2) {
+    if (numberValue('#horometroFinal') < numberValue('#horometroInicio')) {
+      showFormMessage('El horómetro final no puede ser menor que el inicial.', 'error');
+      $('#horometroFinal').closest('.field')?.classList.add('field-error');
+      if (!options.silent) $('#horometroFinal').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+    if (numberValue('#arbolesFinales') < numberValue('#arbolesIniciales')) {
+      showFormMessage('Los árboles finales no pueden ser menores que los iniciales.', 'error');
+      $('#arbolesFinales').closest('.field')?.classList.add('field-error');
+      if (!options.silent) $('#arbolesFinales').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function validateAllSteps() {
+  for (let target = 1; target <= 4; target += 1) {
+    if (!validateStep(target, { silent: true })) {
+      step = target;
+      updateStep();
+      validateStep(target);
+      scrollFormTop();
+      return false;
+    }
+  }
+  return true;
+}
+
+$('#nextBtn')?.addEventListener('click', () => {
+  if (!validateStep(step)) return;
+  step = Math.min(TOTAL_STEPS, step + 1);
+  updateStep();
+  scrollFormTop();
+});
+
+$('#prevBtn')?.addEventListener('click', () => {
+  step = Math.max(1, step - 1);
+  updateStep();
+  scrollFormTop();
+});
+
+$('#cancelBtn')?.addEventListener('click', () => {
+  saveDraft();
+  showToast('Borrador guardado', 'Puedes continuar el parte más tarde.');
+  showView('dashboard');
+});
+
+function numberValue(selector) {
+  return Number($(selector)?.value) || 0;
+}
+
+function radioValue(name) {
+  return document.querySelector(`input[name="${name}"]:checked`)?.value || '';
+}
+
+function setRadioValue(name, value) {
+  $$(`input[name="${name}"]`).forEach(input => {
+    input.checked = input.value === value;
+  });
+}
+
+function recalculateProduction() {
+  const hours = Math.max(0, numberValue('#horometroFinal') - numberValue('#horometroInicio'));
+  const trees = Math.max(0, numberValue('#arbolesFinales') - numberValue('#arbolesIniciales'));
+  const performance = hours > 0 ? trees / hours : 0;
+
+  $('#calcHoras').textContent = `${formatNumber(hours, 1)} h`;
+  $('#calcArboles').textContent = formatNumber(trees);
+  $('#calcRendimiento').textContent = `${formatNumber(performance, 1)} árb/h`;
+}
+
+['#horometroInicio', '#horometroFinal', '#arbolesIniciales', '#arbolesFinales'].forEach(selector => {
+  $(selector)?.addEventListener('input', recalculateProduction);
+});
+
+function updateCheckCards() {
+  CHECK_IDS.forEach(id => {
+    const input = document.getElementById(id);
+    const card = input?.closest('.check-card');
+    const stateLabel = card?.querySelector('.check-state');
+    if (stateLabel) stateLabel.textContent = input.checked ? 'Óptimo' : 'Pendiente';
+  });
+  const checkAllButton = $('#checkAllBtn');
+  if (checkAllButton) {
+    const allChecked = CHECK_IDS.every(id => document.getElementById(id)?.checked);
+    checkAllButton.innerHTML = allChecked
+      ? '<svg><use href="#i-check"></use></svg> Desmarcar todos'
+      : '<svg><use href="#i-check"></use></svg> Marcar todos';
   }
 }
-function captureGps(){
-  const btn=$('#gpsCaptureBtn');
-  if(gpsInProgress)return;
-  if(!navigator.geolocation){renderGpsState('Este dispositivo no admite GPS');updateGpsSystem(false);return}
-  gpsInProgress=true;
-  if(btn){btn.disabled=true;btn.textContent='⌖ Obteniendo ubicación…'}
-  const box=$('#gpsState');
-  if(box){box.className='gps-state loading';box.innerHTML='<span class="gps-pulse"></span><div><strong>Buscando señal GPS…</strong><small>Puedes completar el parte y continuar mientras se obtiene.</small></div>'}
-  const finish=()=>{
-    gpsInProgress=false;
-    if(btn){btn.disabled=false;btn.textContent=currentGps?'↻ Actualizar ubicación':'⌖ Reintentar ubicación'}
+
+CHECK_IDS.forEach(id => document.getElementById(id)?.addEventListener('change', updateCheckCards));
+
+$('#checkAllBtn')?.addEventListener('click', () => {
+  const shouldCheck = CHECK_IDS.some(id => !document.getElementById(id).checked);
+  CHECK_IDS.forEach(id => { document.getElementById(id).checked = shouldCheck; });
+  updateCheckCards();
+  scheduleDraftSave();
+  $('#checkAllBtn').innerHTML = shouldCheck
+    ? '<svg><use href="#i-check"></use></svg> Desmarcar todos'
+    : '<svg><use href="#i-check"></use></svg> Marcar todos';
+});
+
+function recordFromForm() {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    version: 10,
+    createdAt: now,
+    updatedAt: now,
+    monte: $('#monte').value.trim(),
+    fecha: $('#fecha').value,
+    maquina: $('#maquina').value.trim(),
+    operador: $('#operador').value.trim(),
+    turno: radioValue('turno'),
+    especie: $('#especie').value,
+    largo: numberValue('#largo'),
+    horometroInicio: numberValue('#horometroInicio'),
+    horometroFinal: numberValue('#horometroFinal'),
+    horas: Math.max(0, numberValue('#horometroFinal') - numberValue('#horometroInicio')),
+    arbolesIniciales: numberValue('#arbolesIniciales'),
+    arbolesFinales: numberValue('#arbolesFinales'),
+    arboles: Math.max(0, numberValue('#arbolesFinales') - numberValue('#arbolesIniciales')),
+    carros: numberValue('#carros'),
+    actividad: radioValue('actividad'),
+    desde: $('#desde1').value,
+    hasta: $('#hasta1').value,
+    trabajo: $('#trabajo1').value.trim(),
+    mecanico: $('#mecanico1').value.trim(),
+    checks: Object.fromEntries(CHECK_IDS.map(id => [id, document.getElementById(id).checked])),
+    observaciones: $('#observaciones').value.trim(),
+    combustible: numberValue('#combustible'),
+    hidraulico: numberValue('#hidraulico'),
+    controlado: $('#controlado').value.trim(),
+    firma: $('#firma').value.trim(),
+    gps: currentGps ? { ...currentGps } : null
   };
-  navigator.geolocation.getCurrentPosition(pos=>{
-    currentGps={latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy:pos.coords.accuracy,altitude:pos.coords.altitude,heading:pos.coords.heading,speed:pos.coords.speed,capturedAt:new Date().toISOString()};
-    renderGpsState();updateGpsSystem(true);finish();
-  },err=>{
-    const messages={1:'Permiso de ubicación denegado',2:'No se pudo determinar la ubicación',3:'La búsqueda de GPS demoró demasiado'};
-    renderGpsState(messages[err.code]||'No se pudo obtener la ubicación');updateGpsSystem(false);finish();
-  },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
 }
-function updateGpsSystem(ok){const txt=$('#gpsSystemStatus'),dot=$('#gpsStatusDot');if(!txt||!dot)return;txt.textContent=ok?'Disponible':'Revisar permiso';dot.classList.toggle('ok',ok)}
-function renderLocations(){
-  const rs=state.records.filter(r=>r.gps), list=$('#locationList');
-  $('#gpsRecordCount').textContent=rs.length;
-  $('#gpsAverageAccuracy').textContent=rs.length?`±${Math.round(rs.reduce((s,r)=>s+(r.gps.accuracy||0),0)/rs.length)} m`:'—';
-  $('#gpsLastCapture').textContent=rs[0]?.gps?.capturedAt?new Date(rs[0].gps.capturedAt).toLocaleString('es-UY',{dateStyle:'short',timeStyle:'short'}):'—';
-  if(!rs.length){list.innerHTML='<div class="empty-state">Todavía no hay partes con ubicación GPS.</div>';return}
-  list.innerHTML=rs.map(r=>`<article class="location-item"><div class="location-pin">⌖</div><div class="location-copy"><strong>${esc(r.monte)} · ${esc(r.maquina)}</strong><span>${formatDate(r.fecha)} · ${esc(r.operador)}</span><small>${r.gps.latitude.toFixed(6)}, ${r.gps.longitude.toFixed(6)} · ±${Math.round(r.gps.accuracy)} m</small></div><a class="btn gps-btn" href="${mapUrl(r.gps)}" target="_blank" rel="noopener">Abrir mapa</a></article>`).join('');
+
+function fillReview() {
+  const record = recordFromForm();
+  const completedChecks = CHECK_IDS.filter(id => record.checks[id]);
+  const gpsText = record.gps
+    ? `${record.gps.latitude.toFixed(5)}, ${record.gps.longitude.toFixed(5)} · ±${Math.round(record.gps.accuracy)} m`
+    : 'Sin ubicación GPS';
+
+  $('#reviewContent').innerHTML = `
+    <div class="review-hero">
+      <div>
+        <span>PARTE LISTO PARA GUARDAR</span>
+        <h4>${escapeHtml(record.monte) || 'Monte sin definir'}</h4>
+        <p>${escapeHtml(record.operador)} · ${escapeHtml(record.maquina)} · ${formatDate(record.fecha)}</p>
+      </div>
+      <div class="review-production">
+        <div><strong>${formatNumber(record.arboles)}</strong><small>Árboles</small></div>
+        <div><strong>${formatNumber(record.horas, 1)} h</strong><small>Horas</small></div>
+      </div>
+    </div>
+    <div class="review-grid">
+      ${reviewItem('Fecha', formatDate(record.fecha))}
+      ${reviewItem('Turno', record.turno || '—')}
+      ${reviewItem('Especie', record.especie || '—')}
+      ${reviewItem('Actividad', record.actividad || '—')}
+      ${reviewItem('Carros', formatNumber(record.carros))}
+      ${reviewItem('Rendimiento', `${formatNumber(record.horas ? record.arboles / record.horas : 0, 1)} árb/h`)}
+      ${reviewItem('Combustible', `${formatNumber(record.combustible, 1)} L`)}
+      ${reviewItem('Hidráulico', `${formatNumber(record.hidraulico, 1)} L`)}
+      ${reviewItem('Ubicación', gpsText)}
+    </div>
+    <div class="review-checks">
+      <span>Chequeos confirmados: ${completedChecks.length} de ${CHECK_IDS.length}</span>
+      <div class="review-check-list">
+        ${CHECK_IDS.map(id => `<b class="${record.checks[id] ? 'ok' : ''}">${record.checks[id] ? '✓' : '○'} ${CHECK_LABELS[id]}</b>`).join('')}
+      </div>
+    </div>
+    ${record.observaciones ? `<div class="review-checks"><span>Observaciones</span><p style="margin:0;color:#425466;font-size:11px;white-space:pre-wrap">${escapeHtml(record.observaciones)}</p></div>` : ''}
+  `;
 }
-$('#gpsCaptureBtn')?.addEventListener('click',captureGps);
-$('#gpsRefreshBtn')?.addEventListener('click',renderLocations);
-renderGpsState();
 
-renderAll();updateStep();
-
-
-/* ===== Sincronización Firebase ===== */
-let cloudUnsubscribe=null;
-function setCloudStatus(text,ok){
-  const el=$('#networkStatus');if(!el)return;
-  const label=el.querySelector('b');if(label)label.textContent=navigator.onLine?text:'Sin conexión';
-  el.classList.toggle('offline',!ok||!navigator.onLine);
+function reviewItem(label, value) {
+  return `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`;
 }
-async function startCloudSync(){
-  if(!window.LubaydCloud?.available){setCloudStatus('Solo local',false);return}
-  setCloudStatus('Conectando…',false);
-  try{
-    const migrationKey='lubayd_firestore_migrated_v1';
-    if(!localStorage.getItem(migrationKey)){
-      await window.LubaydCloud.migrate(state.records);
-      localStorage.setItem(migrationKey,new Date().toISOString());
+
+$('#parteForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!validateAllSteps()) return;
+
+  const saveButton = $('#saveBtn');
+  const original = saveButton.innerHTML;
+  saveButton.disabled = true;
+  saveButton.innerHTML = '<svg><use href="#i-cloud"></use></svg> Guardando…';
+
+  try {
+    const record = recordFromForm();
+    await state.saveRecord(record);
+    resetForm({ clearDraft: true });
+    showToast('Parte guardado', 'El registro quedó disponible en los dispositivos sincronizados.');
+    showView('dashboard');
+  } catch (error) {
+    console.error('Guardar parte:', error);
+    showFormMessage('No se pudo guardar el parte. Revisa la conexión e inténtalo nuevamente.', 'error');
+  } finally {
+    saveButton.disabled = false;
+    saveButton.innerHTML = original;
+  }
+});
+
+function resetForm({ clearDraft = false } = {}) {
+  $('#parteForm').reset();
+  currentGps = null;
+  gpsInProgress = false;
+  gpsAttemptedThisForm = false;
+  step = 1;
+  $('#fecha').value = todayKey();
+  if (clearDraft) localStorage.removeItem(DRAFT_KEY);
+  recalculateProduction();
+  updateCheckCards();
+  renderGpsState();
+  updateStep();
+  setDraftStatus('Guardado automático', 'Comienza a completar el nuevo parte');
+}
+
+function serializeDraft() {
+  const values = {};
+  DRAFT_FIELDS.forEach(id => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    values[id] = element.type === 'checkbox' ? element.checked : element.value;
+  });
+
+  return {
+    values,
+    turno: radioValue('turno'),
+    actividad: radioValue('actividad'),
+    gps: currentGps ? { ...currentGps } : null,
+    savedAt: new Date().toISOString()
+  };
+}
+
+function saveDraft() {
+  if (!formInitialized) return;
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(serializeDraft()));
+    setDraftStatus('Borrador guardado', `Actualizado ${formatTime(new Date())}`);
+  } catch (error) {
+    console.warn('No se pudo guardar el borrador:', error);
+    setDraftStatus('Borrador no guardado', 'El almacenamiento del navegador no está disponible');
+  }
+}
+
+function scheduleDraftSave() {
+  window.clearTimeout(draftTimer);
+  setDraftStatus('Guardando…', 'Conservando los cambios en este dispositivo');
+  draftTimer = window.setTimeout(saveDraft, 380);
+}
+
+function restoreDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return false;
+
+  try {
+    const draft = JSON.parse(raw);
+    Object.entries(draft.values || {}).forEach(([id, value]) => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      if (element.type === 'checkbox') element.checked = Boolean(value);
+      else element.value = value ?? '';
+    });
+    setRadioValue('turno', draft.turno || '');
+    setRadioValue('actividad', draft.actividad || '');
+    currentGps = draft.gps || null;
+    updateCheckCards();
+    renderGpsState();
+    setDraftStatus('Borrador recuperado', draft.savedAt ? `Guardado ${formatDateTime(draft.savedAt)}` : 'Puedes continuar donde lo dejaste');
+    return true;
+  } catch (error) {
+    console.warn('No se pudo restaurar el borrador:', error);
+    localStorage.removeItem(DRAFT_KEY);
+    return false;
+  }
+}
+
+$('#parteForm')?.addEventListener('input', scheduleDraftSave);
+$('#parteForm')?.addEventListener('change', scheduleDraftSave);
+
+$('#clearDraftBtn')?.addEventListener('click', () => {
+  if (!confirm('¿Limpiar todos los campos del parte actual?')) return;
+  resetForm({ clearDraft: true });
+  showToast('Formulario limpio', 'El borrador anterior fue eliminado.');
+});
+
+$('#useLastRecordBtn')?.addEventListener('click', () => {
+  const last = state.records[0];
+  if (!last) {
+    showToast('Sin registros anteriores', 'Guarda un parte para poder reutilizar sus datos frecuentes.');
+    return;
+  }
+
+  $('#monte').value = last.monte || '';
+  $('#maquina').value = last.maquina || '';
+  $('#operador').value = last.operador || '';
+  $('#especie').value = last.especie || '';
+  $('#largo').value = last.largo || '';
+  setRadioValue('turno', last.turno || '');
+  setRadioValue('actividad', last.actividad || '');
+  scheduleDraftSave();
+  showToast('Datos reutilizados', 'Se cargaron el monte, la máquina, el operador y otros datos frecuentes.');
+});
+
+function setDraftStatus(title, text) {
+  $('#draftStatusTitle').textContent = title;
+  $('#draftStatusText').textContent = text;
+}
+
+function showFormMessage(text, type = '') {
+  const message = $('#message');
+  message.textContent = text;
+  message.className = `form-message ${type}`.trim();
+}
+
+function clearFormMessage() {
+  const message = $('#message');
+  message.textContent = '';
+  message.className = 'form-message';
+}
+
+function refreshSuggestions() {
+  const records = state.records;
+  fillDatalist('#monteOptions', records.map(record => record.monte));
+  fillDatalist('#maquinaOptions', records.map(record => record.maquina));
+  fillDatalist('#operadorOptions', records.map(record => record.operador));
+}
+
+function fillDatalist(selector, values) {
+  const unique = [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  $(selector).innerHTML = unique.map(value => `<option value="${escapeHtml(value)}"></option>`).join('');
+}
+
+function renderAll() {
+  const records = state.records;
+  const totalTrees = records.reduce((sum, record) => sum + (Number(record.arboles) || 0), 0);
+  const totalHours = records.reduce((sum, record) => sum + (Number(record.horas) || 0), 0);
+  const complete = records.filter(record => CHECK_IDS.every(id => Boolean(record.checks?.[id]))).length;
+  const today = todayKey();
+  const todayRecords = records.filter(record => record.fecha === today);
+  const todayTrees = todayRecords.reduce((sum, record) => sum + (Number(record.arboles) || 0), 0);
+  const todayHours = todayRecords.reduce((sum, record) => sum + (Number(record.horas) || 0), 0);
+  const lastSevenCutoff = new Date();
+  lastSevenCutoff.setHours(0, 0, 0, 0);
+  lastSevenCutoff.setDate(lastSevenCutoff.getDate() - 6);
+  const lastSeven = records.filter(record => {
+    const date = parseRecordDate(record.fecha);
+    return date && date >= lastSevenCutoff;
+  });
+  const sevenTrees = lastSeven.reduce((sum, record) => sum + (Number(record.arboles) || 0), 0);
+  const sevenHours = lastSeven.reduce((sum, record) => sum + (Number(record.horas) || 0), 0);
+
+  $('#kpiTotal').textContent = formatNumber(records.length);
+  $('#kpiArboles').textContent = formatNumber(totalTrees);
+  $('#kpiHoras').textContent = formatNumber(totalHours, 1);
+  $('#kpiChequeos').textContent = `${records.length ? Math.round((complete / records.length) * 100) : 0}%`;
+  $('#kpiTotalDelta').textContent = `${formatNumber(todayRecords.length)} hoy`;
+  $('#kpiTreesDelta').textContent = `${formatNumber(todayTrees)} hoy`;
+  $('#kpiHoursDelta').textContent = `${formatNumber(todayHours, 1)} h hoy`;
+  $('#kpiChecksDelta').textContent = records.length ? `${complete} de ${records.length} completos` : 'Sin registros';
+  $('#dashboardTrees7').textContent = formatNumber(sevenTrees);
+  $('#dashboardHours7').textContent = `${formatNumber(sevenHours, 1)} h`;
+  $('#dashboardAverage7').textContent = formatNumber(lastSeven.length ? sevenTrees / lastSeven.length : 0, 1);
+  $('#lastUpdate').textContent = formatDateTime(new Date().toISOString());
+
+  updateGreeting();
+  renderRecent(records);
+  refreshSuggestions();
+  refreshOperatorFilters();
+
+  if (typeof window.refreshChartOperators === 'function') window.refreshChartOperators();
+  if (typeof window.renderDashboardTrend === 'function') window.renderDashboardTrend();
+  if (typeof window.renderCharts === 'function' && $('#graficos')?.classList.contains('active')) window.renderCharts();
+  if ($('#historial')?.classList.contains('active')) renderHistory();
+  if ($('#ubicaciones')?.classList.contains('active')) renderLocations();
+
+  window.dispatchEvent(new CustomEvent('lubayd-records-updated'));
+}
+
+function updateGreeting() {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
+  $('#greetingTitle').textContent = `${greeting}, Operador`;
+  $('#currentDateText').textContent = new Date().toLocaleDateString('es-UY', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+}
+
+function renderRecent(records) {
+  const root = $('#recentList');
+  if (!records.length) {
+    root.className = 'recent-list empty-state';
+    root.textContent = 'Todavía no hay partes guardados.';
+    return;
+  }
+
+  root.className = 'recent-list';
+  root.innerHTML = records.slice(0, 5).map(record => `
+    <article class="recent-item" data-detail="${escapeHtml(record.id)}" tabindex="0">
+      <span class="recent-icon"><svg><use href="#i-tree"></use></svg></span>
+      <div class="recent-copy"><strong>${escapeHtml(record.monte)} · ${escapeHtml(record.maquina)}</strong><span>${formatDate(record.fecha)} · ${escapeHtml(record.operador)} · ${escapeHtml(record.actividad || 'Sin actividad')}</span></div>
+      <div class="recent-value"><strong>${formatNumber(record.arboles)}</strong><small>árboles</small></div>
+      <svg><use href="#i-arrow"></use></svg>
+    </article>
+  `).join('');
+
+  root.querySelectorAll('[data-detail]').forEach(item => {
+    item.addEventListener('click', () => openDetail(item.dataset.detail));
+    item.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') openDetail(item.dataset.detail);
+    });
+  });
+}
+
+function refreshOperatorFilters() {
+  const operators = [...new Set(state.records.map(record => String(record.operador || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  const select = $('#historyOperatorFilter');
+  const current = select.value;
+  select.innerHTML = '<option value="">Todos los operadores</option>' + operators.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+  if (operators.includes(current)) select.value = current;
+}
+
+function filteredRecords() {
+  const query = $('#historySearch').value.trim().toLowerCase();
+  const activity = $('#activityFilter').value;
+  const operator = $('#historyOperatorFilter').value;
+  return state.records.filter(record => {
+    const matchesQuery = !query || [record.monte, record.maquina, record.operador]
+      .some(value => String(value || '').toLowerCase().includes(query));
+    return matchesQuery && (!activity || record.actividad === activity) && (!operator || record.operador === operator);
+  });
+}
+
+function renderHistory() {
+  const records = filteredRecords();
+  const body = $('#historyBody');
+  const cards = $('#historyCards');
+  const empty = $('#historyEmpty');
+
+  empty.classList.toggle('show', records.length === 0);
+  body.innerHTML = records.map(record => `
+    <tr>
+      <td>${formatDate(record.fecha)}</td>
+      <td><strong>${escapeHtml(record.monte)}</strong></td>
+      <td>${escapeHtml(record.maquina)}</td>
+      <td>${escapeHtml(record.operador)}</td>
+      <td>${escapeHtml(record.actividad || '—')}</td>
+      <td><strong>${formatNumber(record.arboles)}</strong></td>
+      <td>
+        <div class="table-actions">
+          <button class="table-action" data-detail="${escapeHtml(record.id)}" aria-label="Ver detalle"><svg><use href="#i-eye"></use></svg></button>
+          ${record.gps ? `<a class="table-action" href="${mapUrl(record.gps)}" target="_blank" rel="noopener" aria-label="Abrir mapa"><svg><use href="#i-pin"></use></svg></a>` : ''}
+          <button class="table-action danger" data-delete="${escapeHtml(record.id)}" aria-label="Eliminar"><svg><use href="#i-trash"></use></svg></button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  cards.innerHTML = records.map(record => `
+    <article class="history-card">
+      <div class="history-card-head">
+        <div><strong>${escapeHtml(record.monte)} · ${escapeHtml(record.maquina)}</strong><span>${formatDate(record.fecha)} · ${escapeHtml(record.operador)}</span></div>
+        <div class="history-card-value"><b>${formatNumber(record.arboles)}</b><small>árboles</small></div>
+      </div>
+      <div class="history-card-meta"><span>${escapeHtml(record.actividad || 'Sin actividad')}</span><span>${formatNumber(record.horas, 1)} h</span><span>${formatNumber(record.combustible, 1)} L</span></div>
+      <div class="history-card-actions">
+        <button data-detail="${escapeHtml(record.id)}"><svg><use href="#i-eye"></use></svg>Ver</button>
+        ${record.gps ? `<a href="${mapUrl(record.gps)}" target="_blank" rel="noopener"><svg><use href="#i-pin"></use></svg>Mapa</a>` : '<span></span>'}
+        <button class="danger" data-delete="${escapeHtml(record.id)}"><svg><use href="#i-trash"></use></svg>Eliminar</button>
+      </div>
+    </article>
+  `).join('');
+
+  bindRecordActions(body);
+  bindRecordActions(cards);
+}
+
+function bindRecordActions(root) {
+  root.querySelectorAll('[data-detail]').forEach(button => button.addEventListener('click', () => openDetail(button.dataset.detail)));
+  root.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', () => deleteRecord(button.dataset.delete)));
+}
+
+$('#historySearch')?.addEventListener('input', renderHistory);
+$('#activityFilter')?.addEventListener('change', renderHistory);
+$('#historyOperatorFilter')?.addEventListener('change', renderHistory);
+
+async function deleteRecord(id) {
+  if (!confirm('¿Eliminar este parte? Esta acción también lo eliminará de los dispositivos sincronizados.')) return;
+  await state.deleteRecord(id);
+  renderHistory();
+  renderLocations();
+  showToast('Parte eliminado', 'El registro fue retirado del historial.');
+}
+
+function openDetail(id) {
+  const record = state.records.find(item => item.id === id);
+  if (!record) return;
+
+  const fields = {
+    Fecha: formatDate(record.fecha),
+    Operador: record.operador || '—',
+    Máquina: record.maquina || '—',
+    Turno: record.turno || '—',
+    Especie: record.especie || '—',
+    Actividad: record.actividad || '—',
+    'Horas trabajadas': `${formatNumber(record.horas, 1)} h`,
+    'Árboles procesados': formatNumber(record.arboles),
+    Rendimiento: `${formatNumber(record.horas ? record.arboles / record.horas : 0, 1)} árb/h`,
+    Carros: formatNumber(record.carros),
+    Combustible: `${formatNumber(record.combustible, 1)} L`,
+    Hidráulico: `${formatNumber(record.hidraulico, 1)} L`,
+    GPS: record.gps ? `${record.gps.latitude.toFixed(6)}, ${record.gps.longitude.toFixed(6)} (±${Math.round(record.gps.accuracy)} m)` : 'Sin ubicación',
+    Observaciones: record.observaciones || 'Sin observaciones'
+  };
+
+  $('#detailContent').innerHTML = `
+    <span class="detail-eyebrow">DETALLE DEL PARTE</span>
+    <h2 class="detail-title">${escapeHtml(record.monte)} · ${escapeHtml(record.maquina)}</h2>
+    <p class="detail-subtitle">Registrado ${formatDateTime(record.createdAt)} por ${escapeHtml(record.operador || 'Operador')}.</p>
+    <div class="detail-grid">${Object.entries(fields).map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`).join('')}</div>
+    ${record.gps ? `<a class="btn btn-primary detail-map" href="${mapUrl(record.gps)}" target="_blank" rel="noopener"><svg><use href="#i-pin"></use></svg> Abrir ubicación en el mapa</a>` : ''}
+  `;
+  $('#detailModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail() {
+  $('#detailModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+$('#detailClose')?.addEventListener('click', closeDetail);
+$('#detailModal')?.addEventListener('click', event => {
+  if (event.target.id === 'detailModal') closeDetail();
+});
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('#detailModal').classList.contains('hidden')) closeDetail();
+});
+
+$('#exportBtn')?.addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state.records, null, 2)], { type: 'application/json' });
+  const anchor = document.createElement('a');
+  anchor.href = URL.createObjectURL(blob);
+  anchor.download = `partes-forestales-${todayKey()}.json`;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(anchor.href), 700);
+  showToast('Archivo preparado', 'Se descargó una copia JSON del historial.');
+});
+
+function mapUrl(gps) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${gps.latitude},${gps.longitude}`)}`;
+}
+
+function renderGpsState(message = '') {
+  const stateBox = $('#gpsState');
+  const coordinates = $('#gpsCoordinates');
+  const link = $('#gpsPreviewLink');
+  const pin = $('#gpsMapPin');
+  const mapText = $('#mapStatusText');
+  if (!stateBox) return;
+
+  stateBox.className = 'gps-state';
+  pin?.classList.toggle('active', Boolean(currentGps));
+
+  if (currentGps) {
+    stateBox.classList.add('success');
+    stateBox.innerHTML = '<strong>Ubicación obtenida</strong><small>Las coordenadas se guardarán junto con el parte.</small>';
+    coordinates.classList.remove('hidden');
+    coordinates.innerHTML = `
+      <div><span>Latitud</span><strong>${currentGps.latitude.toFixed(6)}</strong></div>
+      <div><span>Longitud</span><strong>${currentGps.longitude.toFixed(6)}</strong></div>
+      <div><span>Precisión</span><strong>±${Math.round(currentGps.accuracy)} m</strong></div>
+    `;
+    link.href = mapUrl(currentGps);
+    link.classList.remove('hidden');
+    mapText.textContent = `Ubicación obtenida · ±${Math.round(currentGps.accuracy)} m`;
+  } else {
+    stateBox.classList.add(message ? 'error' : 'idle');
+    stateBox.innerHTML = `<strong>${escapeHtml(message || 'Ubicación pendiente')}</strong><small>${message ? 'Puedes reintentar o continuar sin GPS.' : 'Presiona “Obtener ubicación” o continúa sin GPS.'}</small>`;
+    coordinates.classList.add('hidden');
+    link.classList.add('hidden');
+    mapText.textContent = message || 'Esperando ubicación';
+  }
+}
+
+function captureGps(automatic = false) {
+  if (gpsInProgress) return;
+  const button = $('#gpsCaptureBtn');
+
+  if (!navigator.geolocation) {
+    renderGpsState('Este dispositivo no admite ubicación GPS');
+    updateGpsSystem(false);
+    return;
+  }
+
+  gpsInProgress = true;
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = '<svg><use href="#i-refresh"></use></svg> Buscando ubicación…';
+  }
+  const stateBox = $('#gpsState');
+  stateBox.className = 'gps-state loading';
+  stateBox.innerHTML = `<strong>Buscando señal GPS…</strong><small>${automatic ? 'Puedes seguir completando el parte mientras se obtiene.' : 'Esto puede demorar algunos segundos.'}</small>`;
+  $('#mapStatusText').textContent = 'Buscando señal GPS…';
+
+  const finish = () => {
+    gpsInProgress = false;
+    if (button) {
+      button.disabled = false;
+      button.innerHTML = currentGps
+        ? '<svg><use href="#i-refresh"></use></svg> Actualizar ubicación'
+        : '<svg><use href="#i-pin"></use></svg> Reintentar ubicación';
     }
-    if(cloudUnsubscribe)cloudUnsubscribe();
-    cloudUnsubscribe=window.LubaydCloud.subscribe((records,meta)=>{
-      // Firestore es la fuente compartida; la copia local permite abrir la app sin conexión.
+  };
+
+  navigator.geolocation.getCurrentPosition(position => {
+    currentGps = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      altitude: position.coords.altitude,
+      heading: position.coords.heading,
+      speed: position.coords.speed,
+      capturedAt: new Date().toISOString()
+    };
+    renderGpsState();
+    updateGpsSystem(true);
+    scheduleDraftSave();
+    finish();
+  }, error => {
+    const messages = {
+      1: 'Permiso de ubicación denegado',
+      2: 'No se pudo determinar la ubicación',
+      3: 'La búsqueda de GPS demoró demasiado'
+    };
+    renderGpsState(messages[error.code] || 'No se pudo obtener la ubicación');
+    updateGpsSystem(false);
+    finish();
+  }, {
+    enableHighAccuracy: true,
+    timeout: 12000,
+    maximumAge: 90000
+  });
+}
+
+function updateGpsSystem(ok) {
+  $('#gpsSystemStatus').textContent = ok ? 'Disponible' : 'Revisar permiso';
+  $('#gpsStatusDot').classList.toggle('ok', ok);
+}
+
+$('#gpsCaptureBtn')?.addEventListener('click', () => captureGps(false));
+
+function renderLocations() {
+  const records = state.records.filter(record => record.gps);
+  const list = $('#locationList');
+  $('#gpsRecordCount').textContent = formatNumber(records.length);
+  $('#gpsAverageAccuracy').textContent = records.length
+    ? `±${Math.round(records.reduce((sum, record) => sum + (Number(record.gps.accuracy) || 0), 0) / records.length)} m`
+    : '—';
+  $('#gpsLastCapture').textContent = records[0]?.gps?.capturedAt ? formatDateTime(records[0].gps.capturedAt) : '—';
+
+  if (!records.length) {
+    list.innerHTML = '<div class="empty-state">Todavía no hay partes con ubicación GPS.</div>';
+    return;
+  }
+
+  list.innerHTML = records.map(record => `
+    <article class="location-item">
+      <span class="location-pin"><svg><use href="#i-pin"></use></svg></span>
+      <div class="location-copy"><strong>${escapeHtml(record.monte)} · ${escapeHtml(record.maquina)}</strong><span>${formatDate(record.fecha)} · ${escapeHtml(record.operador)}</span><small>${record.gps.latitude.toFixed(6)}, ${record.gps.longitude.toFixed(6)} · ±${Math.round(record.gps.accuracy)} m</small></div>
+      <a class="btn btn-soft" href="${mapUrl(record.gps)}" target="_blank" rel="noopener"><svg><use href="#i-external"></use></svg> Abrir mapa</a>
+    </article>
+  `).join('');
+}
+
+$('#gpsRefreshBtn')?.addEventListener('click', renderLocations);
+
+function showToast(title, text) {
+  window.clearTimeout(toastTimer);
+  $('#toastTitle').textContent = title;
+  $('#toastText').textContent = text;
+  $('#toast').classList.remove('hidden');
+  toastTimer = window.setTimeout(() => $('#toast').classList.add('hidden'), 3200);
+}
+
+function syncNetworkStatus() {
+  if (!navigator.onLine) {
+    applyCloudStatus('Sin conexión', false, 'Trabajando con datos locales');
+  } else {
+    applyCloudStatus(currentCloudStatus.text, currentCloudStatus.ok, currentCloudStatus.detail);
+  }
+}
+
+function setCloudStatus(text, ok, detail = '') {
+  currentCloudStatus = { text, ok, detail: detail || (ok ? 'Datos actualizados' : 'Revisando conexión') };
+  syncNetworkStatus();
+}
+
+function applyCloudStatus(text, ok, detail) {
+  const network = $('#networkStatus');
+  network.classList.toggle('offline', !ok || !navigator.onLine);
+  network.querySelector('b').textContent = text;
+  $('#lastSyncLabel').textContent = detail;
+  $('#sidebarSyncTitle').textContent = navigator.onLine ? text : 'Sin conexión';
+  $('#sidebarSyncText').textContent = navigator.onLine ? detail : 'Los cambios quedarán pendientes';
+  $('#cloudSystemStatus').textContent = text;
+}
+
+window.addEventListener('online', () => {
+  syncNetworkStatus();
+  if (window.LubaydCloud?.available && !cloudUnsubscribe) startCloudSync();
+});
+window.addEventListener('offline', syncNetworkStatus);
+
+function closeSidebar() {
+  $('#sidebar').classList.remove('open');
+  $('#sidebarOverlay').classList.remove('show');
+}
+
+$('#menuBtn')?.addEventListener('click', () => {
+  $('#sidebar').classList.toggle('open');
+  $('#sidebarOverlay').classList.toggle('show');
+});
+$('#sidebarOverlay')?.addEventListener('click', closeSidebar);
+
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstall = event;
+  $('#installBtn').classList.remove('hidden');
+});
+
+$('#installBtn')?.addEventListener('click', async () => {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  await deferredInstall.userChoice;
+  deferredInstall = null;
+  $('#installBtn').classList.add('hidden');
+});
+
+window.addEventListener('appinstalled', () => $('#installBtn').classList.add('hidden'));
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('./service-worker.js');
+      if (registration.waiting) {
+        waitingWorker = registration.waiting;
+        $('#updateBanner').classList.remove('hidden');
+      }
+      registration.addEventListener('updatefound', () => {
+        const worker = registration.installing;
+        worker?.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            waitingWorker = worker;
+            $('#updateBanner').classList.remove('hidden');
+          }
+        });
+      });
+    } catch (error) {
+      console.error('Registro PWA:', error);
+    }
+  });
+  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+}
+
+$('#updateBtn')?.addEventListener('click', () => waitingWorker?.postMessage({ type: 'SKIP_WAITING' }));
+
+async function startCloudSync() {
+  if (!window.LubaydCloud?.available) {
+    setCloudStatus('Solo local', false, 'Firebase no está disponible');
+    return;
+  }
+
+  setCloudStatus('Conectando…', false, 'Iniciando sincronización');
+  try {
+    const migrationKey = 'lubayd_firestore_migrated_v1';
+    if (!localStorage.getItem(migrationKey)) {
+      await window.LubaydCloud.migrate(state.records);
+      localStorage.setItem(migrationKey, new Date().toISOString());
+    }
+
+    cloudUnsubscribe?.();
+    cloudUnsubscribe = window.LubaydCloud.subscribe((records, metadata) => {
       state.save(records);
       renderAll();
-      if($('#historial')?.classList.contains('active'))renderHistory();
-      if($('#ubicaciones')?.classList.contains('active'))renderLocations();
-      if(typeof window.renderCharts==='function'&&$('#graficos')?.classList.contains('active'))window.renderCharts();
-      setCloudStatus(meta.hasPendingWrites?'Sincronizando…':(meta.fromCache?'Datos locales':'Sincronizado'),!meta.hasPendingWrites);
-    },err=>{console.error('Escucha Firestore:',err);setCloudStatus('Error de sincronización',false)});
-  }catch(err){console.error('Inicio Firestore:',err);setCloudStatus('Pendiente de sincronizar',false)}
+      if ($('#historial')?.classList.contains('active')) renderHistory();
+      if ($('#ubicaciones')?.classList.contains('active')) renderLocations();
+      if (typeof window.renderCharts === 'function' && $('#graficos')?.classList.contains('active')) window.renderCharts();
+
+      const detail = metadata.fromCache ? 'Mostrando caché local' : `Actualizado ${formatTime(new Date())}`;
+      setCloudStatus(metadata.hasPendingWrites ? 'Sincronizando…' : (metadata.fromCache ? 'Datos locales' : 'Sincronizado'), !metadata.hasPendingWrites, detail);
+    }, error => {
+      console.error('Escucha Firestore:', error);
+      setCloudStatus('Error de sincronización', false, 'Los datos locales siguen disponibles');
+    });
+  } catch (error) {
+    console.error('Inicio Firestore:', error);
+    setCloudStatus('Pendiente', false, 'No se pudo iniciar la nube');
+  }
 }
-window.addEventListener('lubayd-cloud-ready',startCloudSync);
-window.addEventListener('lubayd-cloud-error',()=>setCloudStatus('Solo local',false));
-if(window.LubaydCloud)startCloudSync();
+
+window.addEventListener('lubayd-cloud-ready', startCloudSync);
+window.addEventListener('lubayd-cloud-error', () => setCloudStatus('Solo local', false, 'Firebase no está disponible'));
+
+function todayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function parseRecordDate(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDate(value) {
+  const date = parseRecordDate(value);
+  return date ? date.toLocaleDateString('es-UY') : '—';
+}
+
+function formatDateTime(value) {
+  if (!value) return '—';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('es-UY', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function formatTime(date) {
+  return date.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatNumber(value, digits = 0) {
+  return Number(value || 0).toLocaleString('es-UY', { maximumFractionDigits: digits, minimumFractionDigits: digits > 0 ? 0 : 0 });
+}
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>'"]/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  }[character]));
+}
+
+initializeForm();
+renderAll();
+syncNetworkStatus();
+const initialView = new URLSearchParams(window.location.search).get('view');
+if (initialView && viewMeta[initialView]) showView(initialView);
+if (window.LubaydCloud) startCloudSync();
