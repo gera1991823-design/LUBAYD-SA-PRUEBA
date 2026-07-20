@@ -1,0 +1,433 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/usuarios/$(uid);
+    }
+
+    function userExists(uid) {
+      return exists(userPath(uid));
+    }
+
+    function userData(uid) {
+      return get(userPath(uid)).data;
+    }
+
+    function activeUser() {
+      return signedIn()
+        && userExists(request.auth.uid)
+        && userData(request.auth.uid).active == true;
+    }
+
+    function adminUser() {
+      return activeUser() && userData(request.auth.uid).role == 'admin';
+    }
+
+    function supervisorUser() {
+      return activeUser() && userData(request.auth.uid).role in ['admin', 'supervisor'];
+    }
+
+    function attendancePhotoPath(photoId) {
+      return /databases/$(database)/documents/asistencia_fotos/$(photoId);
+    }
+
+    function validAttendanceGps(gps) {
+      return gps is map
+        && gps.keys().hasAll(['latitude', 'longitude', 'accuracy', 'capturedAtClient'])
+        && gps.latitude is number
+        && gps.latitude >= -90
+        && gps.latitude <= 90
+        && gps.longitude is number
+        && gps.longitude >= -180
+        && gps.longitude <= 180
+        && gps.accuracy is number
+        && gps.accuracy >= 0
+        && gps.capturedAtClient is string;
+    }
+
+    function validOptionalSignature() {
+      return !request.resource.data.keys().hasAny(['firmaDigital'])
+        || request.resource.data.firmaDigital == ''
+        || (
+          request.resource.data.firmaDigital is string
+          && request.resource.data.firmaDigital.size() < 500000
+          && request.resource.data.firmaDigital.matches('^data:image/png;base64,.*$')
+        );
+    }
+
+    function validLockedGps() {
+      return request.resource.data.gps is map
+        && request.resource.data.gps.keys().hasAll([
+          'latitude',
+          'longitude',
+          'accuracy',
+          'capturedAt',
+          'capturedAtServer'
+        ])
+        && request.resource.data.gps.latitude is number
+        && request.resource.data.gps.latitude >= -90
+        && request.resource.data.gps.latitude <= 90
+        && request.resource.data.gps.longitude is number
+        && request.resource.data.gps.longitude >= -180
+        && request.resource.data.gps.longitude <= 180
+        && request.resource.data.gps.accuracy is number
+        && request.resource.data.gps.accuracy >= 0
+        && request.resource.data.gps.capturedAt is string
+        && request.resource.data.gps.capturedAtServer == request.time;
+    }
+
+    match /usuarios/{userId} {
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.active == true
+        && request.resource.data.role == 'operador'
+        && request.resource.data.email == request.auth.token.email;
+
+      allow read: if signedIn() && (
+        request.auth.uid == userId
+        || (activeUser() && (adminUser() || resource.data.role == 'admin'))
+      );
+
+      allow update: if adminUser()
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'active',
+          'role',
+          'updatedAt',
+          'updatedByUid'
+        ])
+        && request.resource.data.role in ['admin', 'supervisor', 'operador']
+        && request.resource.data.active is bool
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedByUid == request.auth.uid;
+
+      allow delete: if false;
+    }
+
+    match /partes/{parteId} {
+      allow read: if activeUser();
+
+      allow create: if activeUser()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.createdByEmail == request.auth.token.email
+        && request.resource.data.createdAtServer == request.time
+        && (
+          !request.resource.data.keys().hasAny(['gps'])
+          || request.resource.data.gps == null
+          || validLockedGps()
+        )
+        && validOptionalSignature();
+
+      allow update: if adminUser()
+        && request.resource.data.gps == resource.data.gps
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByEmail == resource.data.createdByEmail
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'workflowStatus',
+          'workflowNote',
+          'reviewedByUid',
+          'reviewedAt',
+          'reviewedAtClient'
+        ])
+        && request.resource.data.workflowStatus in ['enviado', 'revisado', 'aprobado', 'devuelto']
+        && request.resource.data.reviewedByUid == request.auth.uid
+        && request.resource.data.reviewedAt == request.time;
+
+      allow delete: if activeUser() && (
+        adminUser() || resource.data.createdByUid == request.auth.uid
+      );
+    }
+
+    match /maquinas/{machineId} {
+      allow read: if activeUser();
+      allow create, update, delete: if adminUser();
+    }
+
+    match /montes/{monteId} {
+      allow read: if activeUser();
+      allow create, update, delete: if adminUser();
+    }
+
+    match /incidencias/{incidentId} {
+      allow read: if activeUser();
+
+      allow create: if activeUser()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.createdByEmail == request.auth.token.email
+        && request.resource.data.status == 'abierta'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 100
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 1200
+        && request.resource.data.priority in ['baja', 'media', 'alta', 'critica'];
+
+      allow update: if activeUser()
+        && (adminUser() || resource.data.createdByUid == request.auth.uid)
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByEmail == resource.data.createdByEmail
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'assignedTo',
+          'resolution',
+          'priority',
+          'updatedAt',
+          'updatedAtClient',
+          'updatedByUid'
+        ])
+        && request.resource.data.status in ['abierta', 'en_proceso', 'resuelta']
+        && request.resource.data.priority in ['baja', 'media', 'alta', 'critica']
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedByUid == request.auth.uid;
+
+      allow delete: if adminUser();
+    }
+
+
+    match /asistencias/{attendanceId} {
+      allow read: if activeUser() && (
+        resource.data.userId == request.auth.uid
+        || supervisorUser()
+      );
+
+      allow create: if activeUser()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userEmail == request.auth.token.email
+        && request.resource.data.dateKey is string
+        && request.resource.data.dateKey.size() == 10
+        && request.resource.data.status == 'trabajando'
+        && request.resource.data.entryAt == request.time
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.entryPhotoId is string
+        && existsAfter(attendancePhotoPath(request.resource.data.entryPhotoId))
+        && getAfter(attendancePhotoPath(request.resource.data.entryPhotoId)).data.ownerId == request.auth.uid
+        && getAfter(attendancePhotoPath(request.resource.data.entryPhotoId)).data.attendanceId == attendanceId
+        && getAfter(attendancePhotoPath(request.resource.data.entryPhotoId)).data.kind == 'entry'
+        && validAttendanceGps(request.resource.data.entryGps)
+        && !request.resource.data.keys().hasAny([
+          'exitAt', 'exitAtClient', 'exitPhotoId', 'exitGps'
+        ]);
+
+      allow update: if (
+        activeUser()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.userName == resource.data.userName
+        && request.resource.data.userEmail == resource.data.userEmail
+        && request.resource.data.dateKey == resource.data.dateKey
+        && request.resource.data.entryAt == resource.data.entryAt
+        && request.resource.data.entryAtClient == resource.data.entryAtClient
+        && request.resource.data.entryPhotoId == resource.data.entryPhotoId
+        && request.resource.data.entryGps == resource.data.entryGps
+        && request.resource.data.createdAt == resource.data.createdAt
+        && !resource.data.keys().hasAny(['exitAt', 'exitPhotoId'])
+        && request.resource.data.status == 'finalizado'
+        && request.resource.data.exitAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.exitPhotoId is string
+        && existsAfter(attendancePhotoPath(request.resource.data.exitPhotoId))
+        && getAfter(attendancePhotoPath(request.resource.data.exitPhotoId)).data.ownerId == request.auth.uid
+        && getAfter(attendancePhotoPath(request.resource.data.exitPhotoId)).data.attendanceId == attendanceId
+        && getAfter(attendancePhotoPath(request.resource.data.exitPhotoId)).data.kind == 'exit'
+        && validAttendanceGps(request.resource.data.exitGps)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'exitAt',
+          'exitAtClient',
+          'exitPhotoId',
+          'exitGps',
+          'updatedAt'
+        ])
+      ) || (
+        adminUser()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'entryAt',
+          'entryAtClient',
+          'exitAt',
+          'exitAtClient',
+          'status',
+          'updatedAt',
+          'correctedAt',
+          'correctedAtClient',
+          'correctedByUid',
+          'correctedByName',
+          'correctionReason'
+        ])
+        && request.resource.data.entryAt is timestamp
+        && request.resource.data.entryAtClient is string
+        && request.resource.data.status in ['trabajando', 'finalizado']
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.correctedAt == request.time
+        && request.resource.data.correctedAtClient is string
+        && request.resource.data.correctedByUid == request.auth.uid
+        && request.resource.data.correctedByName is string
+        && request.resource.data.correctionReason is string
+        && request.resource.data.correctionReason.size() > 0
+        && request.resource.data.correctionReason.size() <= 300
+        && (
+          (
+            request.resource.data.status == 'trabajando'
+            && !request.resource.data.keys().hasAny(['exitAt', 'exitAtClient'])
+          )
+          || (
+            request.resource.data.status == 'finalizado'
+            && request.resource.data.exitAt is timestamp
+            && request.resource.data.exitAtClient is string
+            && request.resource.data.exitAt > request.resource.data.entryAt
+          )
+        )
+      );
+
+      allow delete: if adminUser();
+    }
+
+
+    match /asistencia_fotos/{photoId} {
+      allow read: if activeUser() && (
+        resource.data.ownerId == request.auth.uid
+        || supervisorUser()
+      );
+
+      allow create: if activeUser()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.attendanceId is string
+        && request.resource.data.kind in ['entry', 'exit']
+        && request.resource.data.mimeType == 'image/jpeg'
+        && request.resource.data.imageData is string
+        && request.resource.data.imageData.size() > 100
+        && request.resource.data.imageData.size() < 700000
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if false;
+      allow delete: if adminUser();
+    }
+
+    match /asistencia_auditoria/{auditId} {
+      allow read: if supervisorUser();
+
+      allow create: if adminUser()
+        && request.resource.data.action in ['update', 'delete']
+        && request.resource.data.attendanceId is string
+        && request.resource.data.userId is string
+        && request.resource.data.dateKey is string
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 300
+        && request.resource.data.performedByUid == request.auth.uid
+        && request.resource.data.performedByName is string
+        && request.resource.data.performedAt == request.time
+        && request.resource.data.performedAtClient is string;
+
+      allow update, delete: if false;
+    }
+
+    match /push_tokens/{tokenId} {
+      allow create: if activeUser()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.token is string
+        && request.resource.data.token.size() > 20
+        && request.resource.data.token.size() <= 2000
+        && request.resource.data.active == true
+        && request.resource.data.platform is string
+        && request.resource.data.updatedAt == request.time;
+
+      allow read: if activeUser()
+        && resource.data.userId == request.auth.uid;
+
+      allow update: if activeUser()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.token == resource.data.token
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'active', 'platform', 'installedPwa', 'userAgent', 'language', 'appUrl',
+          'userEmail', 'updatedAt', 'updatedAtClient'
+        ])
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if activeUser()
+        && resource.data.userId == request.auth.uid;
+    }
+
+    match /chats/{chatId} {
+      function isParticipant(data) {
+        return activeUser()
+          && data.participants is list
+          && request.auth.uid in data.participants;
+      }
+
+      function validParticipants(data) {
+        return data.participants is list
+          && data.participants.size() == 2
+          && data.adminUid in data.participants
+          && data.operatorUid in data.participants
+          && data.adminUid != data.operatorUid
+          && userExists(data.adminUid)
+          && userExists(data.operatorUid)
+          && userData(data.adminUid).active == true
+          && userData(data.adminUid).role == 'admin'
+          && userData(data.operatorUid).active == true;
+      }
+
+      allow read: if isParticipant(resource.data);
+
+      allow create: if isParticipant(request.resource.data)
+        && validParticipants(request.resource.data)
+        && request.resource.data.unreadByAdmin == 0
+        && request.resource.data.unreadByOperator == 0
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if isParticipant(resource.data)
+        && validParticipants(request.resource.data)
+        && request.resource.data.participants == resource.data.participants
+        && request.resource.data.adminUid == resource.data.adminUid
+        && request.resource.data.operatorUid == resource.data.operatorUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'lastMessage',
+          'lastMessageAt',
+          'lastMessageAtClient',
+          'lastSenderId',
+          'unreadByAdmin',
+          'unreadByOperator'
+        ])
+        && request.resource.data.unreadByAdmin is int
+        && request.resource.data.unreadByAdmin >= 0
+        && request.resource.data.unreadByOperator is int
+        && request.resource.data.unreadByOperator >= 0;
+
+      allow delete: if false;
+
+      match /mensajes/{messageId} {
+        function parentChat() {
+          return get(/databases/$(database)/documents/chats/$(chatId)).data;
+        }
+
+        allow read: if activeUser()
+          && request.auth.uid in parentChat().participants;
+
+        allow create: if activeUser()
+          && request.auth.uid in parentChat().participants
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.receiverId in parentChat().participants
+          && request.resource.data.receiverId != request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.createdAtClient is string;
+
+        allow update, delete: if false;
+      }
+    }
+  }
+}
