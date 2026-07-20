@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b7a45">
   <meta name="description" content="Gestión de partes diarios, producción y ubicaciones forestales de Lubayd SA">
-  <title>Lubayd SA | Gestión Forestal y Chat</title>
+  <title>Lubayd SA | Centro de Operaciones Forestales</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./assets/icon-192.png">
   <link rel="apple-touch-icon" href="./assets/icon-192.png">
@@ -14,12 +14,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Gestión Forestal">
   <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./operations.css">
+  <link rel="stylesheet" href="./attendance.css">
 
   <script>
     window.LubaydLogoFallback = function (img) {
       if (img.dataset.fallbackTried !== '1') {
         img.dataset.fallbackTried = '1';
-        img.src = './assets/logo.png?v=13.1.0';
+        img.src = './assets/logo.png?v=15.0.0';
         return;
       }
       img.onerror = null;
@@ -67,18 +69,32 @@
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M10 7l-5 5 5 5"/></symbol>
     <symbol id="i-check-double" viewBox="0 0 24 24"><path d="m2 12 4 4L14 8"/><path d="m9 12 4 4 9-9"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20a6 6 0 0 1 12 0M14 19a5 5 0 0 1 7 0"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19Z"/><path d="M12 9v5M12 17h.01"/></symbol>
+    <symbol id="i-report" viewBox="0 0 24 24"><path d="M5 3h14v18H5z"/><path d="M8 16v-4M12 16V8M16 16v-6"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14 6a5 5 0 0 0-6.5 6.5L2 18l4 4 5.5-5.5A5 5 0 0 0 18 10l-3 3-4-4Z"/></symbol>
+    <symbol id="i-mountain" viewBox="0 0 24 24"><path d="m2 20 7-12 4 7 3-5 6 10Z"/><path d="m7 11 2-3 2 3"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1L7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9A1.7 1.7 0 0 0 21 10h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol>
+    <symbol id="i-clipboard-check" viewBox="0 0 24 24"><path d="M9 4h6l1 3H8Z"/><path d="M6 6H4v16h16V6h-2"/><path d="m8 14 3 3 6-7"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4v13H4Z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-log-in" viewBox="0 0 24 24"><path d="M14 3h6v18h-6"/><path d="M10 17l5-5-5-5M15 12H3"/></symbol>
+    <symbol id="i-log-out" viewBox="0 0 24 24"><path d="M10 3H4v18h6"/><path d="m14 17 5-5-5-5M19 12H7"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+    <symbol id="i-trend-up" viewBox="0 0 24 24"><path d="m3 17 6-6 4 4 8-9"/><path d="M15 6h6v6"/></symbol>
   </svg>
 
 
   <div class="auth-gate" id="authGate">
     <section class="auth-visual" aria-hidden="true">
-      <div class="auth-brand"><img src="./assets/logo-transparent.png?v=13.1.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt=""><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
+      <div class="auth-brand"><img src="./assets/logo-transparent.png?v=15.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt=""><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
       <div class="auth-copy"><span>PLATAFORMA OPERATIVA SEGURA</span><h1>Gestión forestal conectada, clara y en tiempo real.</h1><p>Registra partes, consulta ubicaciones y comunícate con el equipo desde una única plataforma.</p></div>
       <div class="auth-feature-list"><span><svg><use href="#i-shield"></use></svg> Acceso protegido</span><span><svg><use href="#i-cloud"></use></svg> Datos sincronizados</span><span><svg><use href="#i-chat"></use></svg> Chat interno</span></div>
     </section>
     <section class="auth-panel">
       <div class="auth-card">
-        <div class="auth-mobile-brand"><img src="./assets/logo-transparent.png?v=13.1.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
+        <div class="auth-mobile-brand"><img src="./assets/logo-transparent.png?v=15.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
         <div class="auth-tabs" role="tablist"><button type="button" class="active" data-auth-tab="login">Ingresar</button><button type="button" data-auth-tab="register">Crear cuenta</button></div>
         <form id="loginForm" class="auth-form active">
           <div class="auth-heading"><span>ACCESO AL SISTEMA</span><h2>Bienvenido</h2><p>Ingresa con tu correo y contraseña.</p></div>
@@ -103,17 +119,26 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <div class="brand-mark"><img src="./assets/logo-transparent.png?v=13.1.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div>
+        <div class="brand-mark"><img src="./assets/logo-transparent.png?v=15.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div>
         <div class="brand-copy"><strong>Lubayd SA</strong><span>Gestión Forestal</span></div>
       </div>
 
       <nav class="side-nav" aria-label="Navegación principal">
         <button class="nav-item active" data-view="dashboard"><svg><use href="#i-home"></use></svg><span>Inicio</span></button>
+        <button class="nav-item" data-view="asistencia"><svg><use href="#i-clock"></use></svg><span>Asistencia</span></button>
         <button class="nav-item" data-view="nuevo"><svg><use href="#i-plus"></use></svg><span>Nuevo parte</span></button>
         <button class="nav-item" data-view="historial"><svg><use href="#i-file"></use></svg><span>Historial</span></button>
         <button class="nav-item" data-view="chat"><svg><use href="#i-chat"></use></svg><span>Mensajes</span><span class="nav-badge chat-unread-badge hidden">0</span></button>
         <button class="nav-item" data-view="graficos"><svg><use href="#i-chart"></use></svg><span>Gráficos</span></button>
         <button class="nav-item" data-view="ubicaciones"><svg><use href="#i-pin"></use></svg><span>Ubicaciones</span></button>
+        <button class="nav-item" data-view="incidencias"><svg><use href="#i-alert"></use></svg><span>Incidencias</span><span class="nav-badge ops-alert-badge hidden">0</span></button>
+        <div class="nav-divider admin-only"><span>ADMINISTRACIÓN</span></div>
+        <button class="nav-item admin-only" data-view="maquinas"><svg><use href="#i-machine"></use></svg><span>Máquinas</span></button>
+        <button class="nav-item admin-only" data-view="montes"><svg><use href="#i-mountain"></use></svg><span>Montes</span></button>
+        <button class="nav-item admin-only" data-view="usuarios"><svg><use href="#i-users"></use></svg><span>Usuarios</span></button>
+        <button class="nav-item admin-only" data-view="reportes"><svg><use href="#i-report"></use></svg><span>Reportes</span></button>
+        <button class="nav-item admin-only" data-view="sincronizacion"><svg><use href="#i-database"></use></svg><span>Sincronización</span></button>
+        <button class="nav-item admin-only" data-view="configuracion"><svg><use href="#i-settings"></use></svg><span>Configuración</span></button>
       </nav>
 
       <div class="sidebar-spacer"></div>
@@ -126,7 +151,7 @@
         <div><strong id="sidebarUserName">Operador</strong><small id="sidebarUserEmail">Sesión segura</small></div>
         <svg><use href="#i-chevron-left"></use></svg>
       </button>
-      <div class="sidebar-version">V13 Chat Modern · Lubayd SA</div>
+      <div class="sidebar-version">V15 Asistencia · Lubayd SA</div>
     </aside>
 
     <main class="main">
@@ -144,66 +169,87 @@
       </header>
 
       <section id="dashboard" class="view active">
-        <div class="welcome-row">
-          <div><span class="section-kicker"><svg><use href="#i-spark"></use></svg> RESUMEN OPERATIVO</span><h2 id="greetingTitle">Buenos días, Operador</h2><p id="currentDateText">Actividad actual de la operación forestal.</p></div>
-          <button class="btn btn-primary btn-lg" id="heroNewBtn"><svg><use href="#i-plus"></use></svg> Nuevo parte</button>
+        <div id="operatorDashboard" class="role-dashboard operator-dashboard">
+          <div class="welcome-row">
+            <div><span class="section-kicker"><svg><use href="#i-spark"></use></svg> RESUMEN OPERATIVO</span><h2 id="greetingTitle">Buenos días, Operador</h2><p id="currentDateText">Actividad actual de la operación forestal.</p></div>
+            <button class="btn btn-primary btn-lg" id="heroNewBtn"><svg><use href="#i-plus"></use></svg> Nuevo parte</button>
+          </div>
+          <div class="operator-weather-card">
+            <div class="operator-welcome-avatar" id="operatorWelcomeAvatar">OP</div>
+            <div><span>Tu jornada</span><strong id="operatorStatusTitle">Todo listo para comenzar</strong><small id="operatorStatusText">Registra tu primer parte del día.</small></div>
+            <div class="operator-mini-actions"><button data-view-link="nuevo"><svg><use href="#i-plus"></use></svg> Nuevo parte</button><button id="continueDraftBtn"><svg><use href="#i-file"></use></svg> Continuar borrador</button></div>
+          </div>
+          <div class="kpi-grid">
+            <article class="kpi-card kpi-parts"><div class="kpi-icon"><svg><use href="#i-file"></use></svg></div><div class="kpi-body"><span>Partes registrados</span><strong id="kpiTotal">0</strong><small id="kpiTotalDelta">0 hoy</small></div></article>
+            <article class="kpi-card kpi-trees"><div class="kpi-icon"><svg><use href="#i-tree"></use></svg></div><div class="kpi-body"><span>Árboles procesados</span><strong id="kpiArboles">0</strong><small id="kpiTreesDelta">0 hoy</small></div></article>
+            <article class="kpi-card kpi-hours"><div class="kpi-icon"><svg><use href="#i-clock"></use></svg></div><div class="kpi-body"><span>Horas trabajadas</span><strong id="kpiHoras">0,0</strong><small id="kpiHoursDelta">0 h hoy</small></div></article>
+            <article class="kpi-card kpi-checks"><div class="kpi-icon"><svg><use href="#i-shield"></use></svg></div><div class="kpi-body"><span>Chequeos completos</span><strong id="kpiChequeos">0%</strong><small id="kpiChecksDelta">Sin registros</small></div></article>
+          </div>
+          <div class="dashboard-grid">
+            <article class="panel recent-panel"><div class="panel-header"><div><span class="panel-kicker">ACTIVIDAD</span><h3>Últimos partes</h3><p>Registros recientes sincronizados entre los dispositivos.</p></div><button class="text-button" data-view-link="historial">Ver todos <svg><use href="#i-arrow"></use></svg></button></div><div id="recentList" class="recent-list empty-state">Todavía no hay partes guardados.</div></article>
+            <article class="panel trend-panel"><div class="panel-header"><div><span class="panel-kicker">PRODUCCIÓN</span><h3>Resumen de la jornada</h3><p>Actividad durante los últimos siete días.</p></div><select id="dashboardTrendMetric" class="compact-select"><option value="arboles">Árboles</option><option value="horas">Horas</option><option value="combustible">Combustible</option></select></div><div class="trend-chart-wrap"><canvas id="dashboardTrendChart"></canvas><div id="dashboardTrendEmpty" class="chart-placeholder hidden">No hay datos para mostrar.</div></div><div class="trend-stats"><div><span>Árboles</span><strong id="dashboardTrees7">0</strong></div><div><span>Horas</span><strong id="dashboardHours7">0 h</strong></div><div><span>Promedio/parte</span><strong id="dashboardAverage7">0</strong></div></div></article>
+          </div>
+          <div class="dashboard-lower-grid">
+            <article class="panel quick-panel"><div class="panel-header"><div><span class="panel-kicker">ACCESOS RÁPIDOS</span><h3>¿Qué quieres hacer?</h3></div></div><div class="quick-actions"><button data-view-link="nuevo"><span class="quick-icon green"><svg><use href="#i-plus"></use></svg></span><div><strong>Crear un parte</strong><small>Registro guiado en cinco pasos</small></div><svg class="quick-arrow"><use href="#i-arrow"></use></svg></button><button data-view-link="asistencia"><span class="quick-icon amber"><svg><use href="#i-camera"></use></svg></span><div><strong>Marcar asistencia</strong><small>Llegada o salida con foto y GPS</small></div><svg class="quick-arrow"><use href="#i-arrow"></use></svg></button><button data-view-link="incidencias"><span class="quick-icon red"><svg><use href="#i-alert"></use></svg></span><div><strong>Reportar una incidencia</strong><small>Falla, detención o novedad de campo</small></div><svg class="quick-arrow"><use href="#i-arrow"></use></svg></button><button data-view-link="chat"><span class="quick-icon blue"><svg><use href="#i-chat"></use></svg></span><div><strong>Contactar administración</strong><small>Mensajería interna en tiempo real</small></div><svg class="quick-arrow"><use href="#i-arrow"></use></svg></button></div></article>
+            <article class="panel system-panel"><div class="panel-header"><div><span class="panel-kicker">ESTADO DEL SISTEMA</span><h3>Todo bajo control</h3></div><div class="system-shield"><svg><use href="#i-shield"></use></svg></div></div><div class="system-list"><div><span><i class="status-dot ok"></i>Base de datos</span><strong id="cloudSystemStatus">Conectando</strong></div><div><span><i class="status-dot ok"></i>Modo sin conexión</span><strong>Disponible</strong></div><div><span><i class="status-dot" id="gpsStatusDot"></i>Ubicación GPS</span><strong id="gpsSystemStatus">Sin comprobar</strong></div><div><span><i class="status-dot ok"></i>Última actualización</span><strong id="lastUpdate">—</strong></div></div></article>
+          </div>
         </div>
 
-        <div class="kpi-grid">
-          <article class="kpi-card kpi-parts">
-            <div class="kpi-icon"><svg><use href="#i-file"></use></svg></div>
-            <div class="kpi-body"><span>Partes registrados</span><strong id="kpiTotal">0</strong><small id="kpiTotalDelta">0 hoy</small></div>
-          </article>
-          <article class="kpi-card kpi-trees">
-            <div class="kpi-icon"><svg><use href="#i-tree"></use></svg></div>
-            <div class="kpi-body"><span>Árboles procesados</span><strong id="kpiArboles">0</strong><small id="kpiTreesDelta">0 hoy</small></div>
-          </article>
-          <article class="kpi-card kpi-hours">
-            <div class="kpi-icon"><svg><use href="#i-clock"></use></svg></div>
-            <div class="kpi-body"><span>Horas trabajadas</span><strong id="kpiHoras">0,0</strong><small id="kpiHoursDelta">0 h hoy</small></div>
-          </article>
-          <article class="kpi-card kpi-checks">
-            <div class="kpi-icon"><svg><use href="#i-shield"></use></svg></div>
-            <div class="kpi-body"><span>Chequeos completos</span><strong id="kpiChequeos">0%</strong><small id="kpiChecksDelta">Sin registros</small></div>
-          </article>
+        <div id="adminDashboard" class="role-dashboard admin-dashboard hidden">
+          <div class="admin-dashboard-header">
+            <div><span class="section-kicker"><svg><use href="#i-shield"></use></svg> CENTRO DE CONTROL</span><h2>Dashboard administrador</h2><p>Producción, equipo, incidencias y actividad en una sola vista.</p></div>
+            <div class="admin-dashboard-actions"><label class="date-chip"><svg><use href="#i-calendar"></use></svg><input id="adminDashboardDate" type="date"></label><button class="btn btn-soft" id="adminDashboardRefresh"><svg><use href="#i-refresh"></use></svg> Actualizar</button><button class="btn btn-primary" data-view-link="nuevo"><svg><use href="#i-plus"></use></svg> Nuevo parte</button></div>
+          </div>
+          <div class="admin-kpi-grid">
+            <article><span>Partes hoy</span><strong id="adminKpiParts">0</strong><small id="adminKpiPartsDelta">Sin comparación</small><i><svg><use href="#i-file"></use></svg></i></article>
+            <article><span>Operadores activos</span><strong id="adminKpiOperators">0</strong><small>Usuarios habilitados</small><i><svg><use href="#i-users"></use></svg></i></article>
+            <article><span>Máquinas activas</span><strong id="adminKpiMachines">0</strong><small id="adminKpiMachinesMeta">Catálogo operativo</small><i><svg><use href="#i-machine"></use></svg></i></article>
+            <article><span>Árboles hoy</span><strong id="adminKpiTrees">0</strong><small id="adminKpiTreesDelta">Sin comparación</small><i><svg><use href="#i-tree"></use></svg></i></article>
+            <article><span>Combustible hoy</span><strong id="adminKpiFuel">0 L</strong><small id="adminKpiFuelDelta">Consumo registrado</small><i><svg><use href="#i-fuel"></use></svg></i></article>
+          </div>
+          <div class="admin-analytics-grid">
+            <article class="ops-card production-monte-card"><div class="ops-card-head"><div><span>PRODUCCIÓN</span><h3>Producción por monte</h3></div><button data-view-link="reportes">Ver reporte</button></div><div class="donut-layout"><canvas id="adminMonteChart"></canvas><div id="adminMonteLegend" class="donut-legend"></div></div></article>
+            <article class="ops-card performance-card"><div class="ops-card-head"><div><span>RENDIMIENTO</span><h3>Árboles por hora</h3></div><strong id="adminPerformanceValue">0 árb/h</strong></div><div class="admin-chart-wrap"><canvas id="adminPerformanceChart"></canvas></div></article>
+            <article class="ops-card machine-hours-card"><div class="ops-card-head"><div><span>MÁQUINAS</span><h3>Horas por máquina</h3></div><button data-view-link="maquinas">Gestionar</button></div><div id="adminMachineHours" class="horizontal-bars"><div class="empty-state">Sin datos de máquinas.</div></div></article>
+            <article class="ops-card admin-map-card"><div class="ops-card-head"><div><span>GEOLOCALIZACIÓN</span><h3>Ubicación de la operación</h3></div><button data-view-link="ubicaciones">Abrir mapa</button></div><div id="adminLocationMap" class="abstract-map"><div class="map-grid"></div><div class="map-empty">Los últimos registros GPS aparecerán aquí.</div></div><div class="map-status-legend"><span><i class="green"></i>Activa</span><span><i class="amber"></i>Incidencia</span><span><i class="blue"></i>Último parte</span></div></article>
+            <article class="ops-card alerts-card"><div class="ops-card-head"><div><span>ALERTAS</span><h3>Incidencias abiertas</h3></div><button data-view-link="incidencias">Ver todas</button></div><div id="adminAlertList" class="admin-alert-list"><div class="empty-state">No hay incidencias abiertas.</div></div></article>
+            <article class="ops-card activity-card"><div class="ops-card-head"><div><span>ACTIVIDAD</span><h3>Actividad reciente</h3></div><button data-view-link="historial">Ver historial</button></div><div id="adminActivityList" class="admin-activity-list"><div class="empty-state">No hay actividad reciente.</div></div></article>
+          </div>
+        </div>
+      </section>
+
+
+      <section id="asistencia" class="view attendance-view">
+        <div class="section-heading-row attendance-heading">
+          <div><span class="section-kicker"><svg><use href="#i-clock"></use></svg> CONTROL HORARIO</span><h2>Asistencia del equipo</h2><p>Registra llegada y salida con una fotografía nueva, ubicación GPS y hora confirmada por Firebase.</p></div>
+          <div id="attendanceOnlineNotice" class="attendance-online-notice"><i></i><span><strong>Comprobando conexión</strong><small>La marcación requiere internet.</small></span></div>
         </div>
 
-        <div class="dashboard-grid">
-          <article class="panel recent-panel">
-            <div class="panel-header"><div><span class="panel-kicker">ACTIVIDAD</span><h3>Últimos partes</h3><p>Registros recientes sincronizados entre los dispositivos.</p></div><button class="text-button" data-view-link="historial">Ver todos <svg><use href="#i-arrow"></use></svg></button></div>
-            <div id="recentList" class="recent-list empty-state">Todavía no hay partes guardados.</div>
+        <div class="attendance-personal-grid">
+          <article class="attendance-profile-card">
+            <div class="attendance-profile-top"><div id="attendanceUserAvatar" class="attendance-avatar">OP</div><div><span>JORNADA DE HOY</span><h3 id="attendanceUserName">Operador</h3><p id="attendanceTodayDate">—</p></div><div id="attendanceStatusPill" class="attendance-status pendiente"><i></i>Sin marcar</div></div>
+            <div class="attendance-duration"><span>Tiempo registrado</span><strong id="attendanceLiveDuration">0 h 00 min</strong><small>Se calcula entre la llegada y la salida.</small></div>
+            <div class="attendance-security-note"><svg><use href="#i-shield"></use></svg><div><strong>Registro protegido</strong><small>La foto, ubicación y hora no pueden editarse desde la aplicación.</small></div></div>
           </article>
 
-          <article class="panel trend-panel">
-            <div class="panel-header"><div><span class="panel-kicker">PRODUCCIÓN</span><h3>Resumen de la jornada</h3><p>Árboles procesados durante los últimos siete días.</p></div><select id="dashboardTrendMetric" class="compact-select"><option value="arboles">Árboles</option><option value="horas">Horas</option><option value="combustible">Combustible</option></select></div>
-            <div class="trend-chart-wrap"><canvas id="dashboardTrendChart"></canvas><div id="dashboardTrendEmpty" class="chart-placeholder hidden">No hay datos para mostrar.</div></div>
-            <div class="trend-stats">
-              <div><span>Árboles</span><strong id="dashboardTrees7">0</strong></div>
-              <div><span>Horas</span><strong id="dashboardHours7">0 h</strong></div>
-              <div><span>Promedio/parte</span><strong id="dashboardAverage7">0</strong></div>
-            </div>
-          </article>
+          <article id="attendance-entry-card" class="attendance-mark-card"></article>
+          <article id="attendance-exit-card" class="attendance-mark-card"></article>
         </div>
 
-        <div class="dashboard-lower-grid">
-          <article class="panel quick-panel">
-            <div class="panel-header"><div><span class="panel-kicker">ACCESOS RÁPIDOS</span><h3>¿Qué quieres hacer?</h3></div></div>
-            <div class="quick-actions">
-              <button data-view-link="nuevo"><span class="quick-icon green"><svg><use href="#i-plus"></use></svg></span><div><strong>Crear un parte</strong><small>Registro guiado en cinco pasos</small></div><svg class="quick-arrow"><use href="#i-arrow"></use></svg></button>
-              <button data-view-link="graficos"><span class="quick-icon blue"><svg><use href="#i-chart"></use></svg></span><div><strong>Revisar gráficos</strong><small>Producción y consumo por operador</small></div><svg class="quick-arrow"><use href="#i-arrow"></use></svg></button>
-              <button data-view-link="ubicaciones"><span class="quick-icon amber"><svg><use href="#i-pin"></use></svg></span><div><strong>Ver ubicaciones</strong><small>Partes con coordenadas GPS</small></div><svg class="quick-arrow"><use href="#i-arrow"></use></svg></button>
-            </div>
-          </article>
+        <div class="attendance-action-bar">
+          <div><strong>Marca tu jornada desde el lugar de trabajo</strong><span>La cámara frontal se abrirá y el GPS se capturará automáticamente.</span></div>
+          <div><button id="attendanceEntryBtn" type="button" class="btn btn-primary btn-lg"><svg><use href="#i-camera"></use></svg> Registrar llegada</button><button id="attendanceExitBtn" type="button" class="btn btn-dark btn-lg" disabled><svg><use href="#i-camera"></use></svg> Registrar salida</button></div>
+        </div>
 
-          <article class="panel system-panel">
-            <div class="panel-header"><div><span class="panel-kicker">ESTADO DEL SISTEMA</span><h3>Todo bajo control</h3></div><div class="system-shield"><svg><use href="#i-shield"></use></svg></div></div>
-            <div class="system-list">
-              <div><span><i class="status-dot ok"></i>Base de datos</span><strong id="cloudSystemStatus">Conectando</strong></div>
-              <div><span><i class="status-dot ok"></i>Modo sin conexión</span><strong>Disponible</strong></div>
-              <div><span><i class="status-dot" id="gpsStatusDot"></i>Ubicación GPS</span><strong id="gpsSystemStatus">Sin comprobar</strong></div>
-              <div><span><i class="status-dot ok"></i>Última actualización</span><strong id="lastUpdate">—</strong></div>
-            </div>
-          </article>
+        <article class="ops-card attendance-history-card">
+          <div class="ops-card-head"><div><span>MI HISTORIAL</span><h3>Entradas y salidas recientes</h3></div><small>Últimos 10 registros</small></div>
+          <div id="attendancePersonalHistory" class="attendance-history-list"></div>
+        </article>
+
+        <div id="attendanceAdminPanel" class="attendance-admin-panel hidden">
+          <div class="section-heading-row attendance-admin-heading"><div><span class="section-kicker"><svg><use href="#i-users"></use></svg> SUPERVISIÓN</span><h2>Asistencia del equipo</h2><p>Consulta las marcaciones, fotografías y ubicaciones del personal.</p></div><div class="heading-actions"><label class="date-chip"><svg><use href="#i-calendar"></use></svg><input id="attendanceAdminDate" type="date"></label><button id="attendanceAdminRefresh" class="btn btn-soft" type="button"><svg><use href="#i-refresh"></use></svg> Actualizar</button></div></div>
+          <div class="attendance-summary-grid"><article><span>Marcaciones</span><strong id="attendanceTeamTotal">0</strong><small>Personas registradas</small><i><svg><use href="#i-users"></use></svg></i></article><article><span>Trabajando</span><strong id="attendanceTeamWorking">0</strong><small>Sin salida registrada</small><i><svg><use href="#i-clock"></use></svg></i></article><article><span>Turnos completos</span><strong id="attendanceTeamCompleted">0</strong><small>Entrada y salida</small><i><svg><use href="#i-check"></use></svg></i></article><article><span>Promedio</span><strong id="attendanceTeamAverage">0 h 00 min</strong><small>Duración de jornada</small><i><svg><use href="#i-trend-up"></use></svg></i></article></div>
+          <article class="ops-card attendance-team-card"><div class="table-wrap"><table class="attendance-table"><thead><tr><th>Usuario</th><th>Llegada</th><th>Salida</th><th>Total</th><th>Estado</th><th>Evidencia</th></tr></thead><tbody id="attendanceAdminBody"></tbody></table></div><div id="attendanceAdminEmpty" class="empty-table hidden">No hay marcaciones para la fecha seleccionada.</div></article>
         </div>
       </section>
 
@@ -423,22 +469,75 @@
           <div id="historyEmpty" class="empty-table">No hay registros para mostrar.</div>
         </article>
       </section>
+      <section id="incidencias" class="view">
+        <div class="section-heading-row"><div><span class="section-kicker danger-kicker"><svg><use href="#i-alert"></use></svg> CONTROL DE NOVEDADES</span><h2>Incidencias y alertas</h2><p>Registra fallas, detenciones, riesgos y novedades de campo.</p></div><div class="heading-actions"><button class="btn btn-soft" id="incidentRefreshBtn"><svg><use href="#i-refresh"></use></svg> Actualizar</button><button class="btn btn-primary" id="newIncidentBtn"><svg><use href="#i-plus"></use></svg> Nueva incidencia</button></div></div>
+        <div class="incident-summary-grid"><article><span>Abiertas</span><strong id="incidentOpenCount">0</strong><small>Requieren seguimiento</small></article><article class="warning"><span>Críticas</span><strong id="incidentCriticalCount">0</strong><small>Atención inmediata</small></article><article><span>En proceso</span><strong id="incidentProgressCount">0</strong><small>Con responsable</small></article><article class="success"><span>Resueltas</span><strong id="incidentResolvedCount">0</strong><small>Histórico</small></article></div>
+        <div id="incidentFormPanel" class="ops-form-panel hidden"><div class="ops-form-head"><div><span>NUEVO REGISTRO</span><h3>Reportar una incidencia</h3></div><button class="icon-button" id="closeIncidentForm"><svg><use href="#i-close"></use></svg></button></div><form id="incidentForm" class="ops-form-grid"><label><span>Título *</span><input id="incidentTitle" required maxlength="100" placeholder="Ej.: Falla hidráulica"></label><label><span>Máquina</span><input id="incidentMachine" list="maquinaOptions" placeholder="Seleccionar máquina"></label><label><span>Monte</span><input id="incidentMonte" list="monteOptions" placeholder="Seleccionar monte"></label><label><span>Prioridad *</span><select id="incidentPriority" required><option value="baja">Baja</option><option value="media" selected>Media</option><option value="alta">Alta</option><option value="critica">Crítica</option></select></label><label><span>Tipo *</span><select id="incidentType" required><option value="mecanica">Falla mecánica</option><option value="combustible">Combustible</option><option value="seguridad">Seguridad</option><option value="produccion">Producción</option><option value="otro">Otro</option></select></label><label class="full"><span>Descripción *</span><textarea id="incidentDescription" rows="4" required maxlength="1200" placeholder="Describe lo ocurrido, el impacto y las acciones realizadas."></textarea></label><label class="incident-photo-field"><span>Foto opcional</span><input id="incidentPhoto" type="file" accept="image/*" capture="environment"><small>La primera versión guarda una vista previa comprimida.</small></label><div class="incident-gps-lock"><svg><use href="#i-pin"></use></svg><div><strong>Ubicación automática</strong><small id="incidentGpsLabel">Se usará la última ubicación disponible del dispositivo.</small></div></div><div class="full form-footer"><button type="button" class="btn btn-ghost" id="cancelIncidentBtn">Cancelar</button><button type="submit" class="btn btn-primary"><svg><use href="#i-alert"></use></svg> Guardar incidencia</button></div></form></div>
+        <article class="panel incident-list-panel"><div class="incident-toolbar"><label class="search-control"><svg><use href="#i-search"></use></svg><input id="incidentSearch" placeholder="Buscar incidencia, máquina o monte"></label><select id="incidentStatusFilter"><option value="">Todos los estados</option><option value="abierta">Abiertas</option><option value="en_proceso">En proceso</option><option value="resuelta">Resueltas</option></select><select id="incidentPriorityFilter"><option value="">Todas las prioridades</option><option value="critica">Críticas</option><option value="alta">Altas</option><option value="media">Medias</option><option value="baja">Bajas</option></select></div><div id="incidentList" class="incident-list"><div class="empty-state">Todavía no hay incidencias registradas.</div></div></article>
+      </section>
+
+      <section id="maquinas" class="view admin-view">
+        <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-machine"></use></svg> CATÁLOGO OPERATIVO</span><h2>Máquinas</h2><p>Centraliza los equipos, estado operativo y datos de mantenimiento.</p></div><button class="btn btn-primary" id="newMachineBtn"><svg><use href="#i-plus"></use></svg> Agregar máquina</button></div>
+        <div class="catalog-layout"><article class="panel catalog-form-card"><div class="panel-header"><div><span class="panel-kicker">DATOS DEL EQUIPO</span><h3 id="machineFormTitle">Nueva máquina</h3></div></div><form id="machineForm" class="catalog-form"><input id="machineEditId" type="hidden"><label><span>Número / código *</span><input id="machineCode" required placeholder="Ej.: 848L-01"></label><label><span>Modelo</span><input id="machineModel" placeholder="Ej.: John Deere 848L"></label><label><span>Estado</span><select id="machineStatus"><option value="activa">Activa</option><option value="mantenimiento">Mantenimiento</option><option value="detenida">Detenida</option></select></label><label><span>Horómetro actual</span><input id="machineHours" type="number" min="0" step="0.1"></label><div class="catalog-form-actions"><button type="button" class="btn btn-ghost" id="machineFormReset">Limpiar</button><button type="submit" class="btn btn-primary">Guardar máquina</button></div></form></article><article class="panel catalog-list-card"><div class="panel-header"><div><span class="panel-kicker">FLOTA</span><h3>Equipos registrados</h3></div><label class="search-control small"><svg><use href="#i-search"></use></svg><input id="machineSearch" placeholder="Buscar equipo"></label></div><div id="machineList" class="catalog-list"><div class="empty-state">No hay máquinas registradas.</div></div></article></div>
+      </section>
+
+      <section id="montes" class="view admin-view">
+        <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-mountain"></use></svg> CATÁLOGO DE CAMPO</span><h2>Montes y lotes</h2><p>Define nombres consistentes, superficie y estado de cada zona de trabajo.</p></div><button class="btn btn-primary" id="newMonteBtn"><svg><use href="#i-plus"></use></svg> Agregar monte</button></div>
+        <div class="catalog-layout"><article class="panel catalog-form-card"><div class="panel-header"><div><span class="panel-kicker">DATOS DEL MONTE</span><h3 id="monteFormTitle">Nuevo monte</h3></div></div><form id="monteForm" class="catalog-form"><input id="monteEditId" type="hidden"><label><span>Nombre *</span><input id="monteName" required placeholder="Ej.: Monte 12 - Este"></label><label><span>Superficie (ha)</span><input id="monteArea" type="number" min="0" step="0.1"></label><label><span>Especie</span><select id="monteSpecies"><option value="Eucalyptus">Eucalyptus</option><option value="Pino">Pino</option><option value="Otra">Otra</option></select></label><label><span>Estado</span><select id="monteStatus"><option value="activo">Activo</option><option value="pausado">Pausado</option><option value="finalizado">Finalizado</option></select></label><div class="catalog-form-actions"><button type="button" class="btn btn-ghost" id="monteFormReset">Limpiar</button><button type="submit" class="btn btn-primary">Guardar monte</button></div></form></article><article class="panel catalog-list-card"><div class="panel-header"><div><span class="panel-kicker">ZONAS</span><h3>Montes registrados</h3></div><label class="search-control small"><svg><use href="#i-search"></use></svg><input id="monteSearch" placeholder="Buscar monte"></label></div><div id="monteList" class="catalog-list"><div class="empty-state">No hay montes registrados.</div></div></article></div>
+      </section>
+
+      <section id="usuarios" class="view admin-view">
+        <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-users"></use></svg> ADMINISTRACIÓN</span><h2>Usuarios y permisos</h2><p>Gestiona habilitación, roles y acceso desde la propia aplicación.</p></div><button class="btn btn-soft" id="usersRefreshBtn"><svg><use href="#i-refresh"></use></svg> Actualizar</button></div>
+        <div class="user-admin-summary"><article><span>Total</span><strong id="usersTotalCount">0</strong></article><article><span>Activos</span><strong id="usersActiveCount">0</strong></article><article><span>Administradores</span><strong id="usersAdminCount">0</strong></article><article><span>Operadores</span><strong id="usersOperatorCount">0</strong></article></div>
+        <article class="panel"><div class="history-toolbar"><label class="search-control"><svg><use href="#i-search"></use></svg><input id="usersSearch" placeholder="Buscar por nombre o correo"></label><select id="usersRoleFilter"><option value="">Todos los roles</option><option value="admin">Administradores</option><option value="supervisor">Supervisores</option><option value="operador">Operadores</option></select><select id="usersStatusFilter"><option value="">Todos los estados</option><option value="active">Activos</option><option value="inactive">Desactivados</option></select></div><div id="usersAdminList" class="users-admin-list"><div class="empty-state">Cargando usuarios…</div></div></article>
+      </section>
+
+      <section id="reportes" class="view admin-view">
+        <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-report"></use></svg> INTELIGENCIA OPERATIVA</span><h2>Reportes avanzados</h2><p>Analiza producción, rendimiento y consumo con filtros claros.</p></div><div class="heading-actions"><button class="btn btn-soft" id="reportExportCsv"><svg><use href="#i-download"></use></svg> Exportar Excel/CSV</button><button class="btn btn-primary" id="reportPrintBtn"><svg><use href="#i-report"></use></svg> Imprimir</button></div></div>
+        <div class="report-filter-bar"><label><span>Desde</span><input id="reportDateFrom" type="date"></label><label><span>Hasta</span><input id="reportDateTo" type="date"></label><label><span>Operador</span><select id="reportOperator"><option value="">Todos</option></select></label><label><span>Máquina</span><select id="reportMachine"><option value="">Todas</option></select></label><button class="btn btn-primary" id="applyReportFilters">Aplicar filtros</button></div>
+        <div class="report-kpi-grid"><article><span>Partes</span><strong id="reportKpiParts">0</strong></article><article><span>Árboles</span><strong id="reportKpiTrees">0</strong></article><article><span>Horas</span><strong id="reportKpiHours">0 h</strong></article><article><span>Combustible</span><strong id="reportKpiFuel">0 L</strong></article><article><span>Rendimiento</span><strong id="reportKpiPerformance">0 árb/h</strong></article></div>
+        <div class="report-grid"><article class="ops-card span-2"><div class="ops-card-head"><div><span>TENDENCIA</span><h3>Producción por día</h3></div></div><div class="admin-chart-wrap tall"><canvas id="reportProductionChart"></canvas></div></article><article class="ops-card"><div class="ops-card-head"><div><span>RANKING</span><h3>Rendimiento por operador</h3></div></div><div id="reportOperatorRanking" class="horizontal-bars"><div class="empty-state">Sin datos.</div></div></article><article class="ops-card span-3"><div class="ops-card-head"><div><span>DETALLE</span><h3>Resumen de registros</h3></div></div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Operador</th><th>Máquina</th><th>Monte</th><th>Árboles</th><th>Horas</th><th>Combustible</th><th>Rendimiento</th></tr></thead><tbody id="reportTableBody"></tbody></table></div></article></div>
+      </section>
+
+      <section id="sincronizacion" class="view admin-view">
+        <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-database"></use></svg> CONECTIVIDAD</span><h2>Sincronización y modo offline</h2><p>Comprueba el estado de Firebase y los datos disponibles en el dispositivo.</p></div><button class="btn btn-primary" id="forceSyncBtn"><svg><use href="#i-refresh"></use></svg> Sincronizar ahora</button></div>
+        <div class="sync-hero"><div class="sync-pulse"><span></span></div><div><span id="syncHeroLabel">ESTADO ACTUAL</span><h3 id="syncHeroTitle">Comprobando conexión…</h3><p id="syncHeroText">La aplicación puede seguir trabajando sin señal y sincronizar cuando vuelva internet.</p></div></div>
+        <div class="sync-grid"><article class="ops-card"><div class="ops-card-head"><div><span>DISPOSITIVO</span><h3>Datos locales</h3></div></div><div class="sync-stat-list"><div><span>Partes disponibles</span><strong id="syncLocalParts">0</strong></div><div><span>Última actualización</span><strong id="syncLastUpdate">—</strong></div><div><span>Conexión del navegador</span><strong id="syncBrowserStatus">—</strong></div></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FIREBASE</span><h3>Base de datos</h3></div></div><div class="sync-stat-list"><div><span>Estado</span><strong id="syncCloudStatus">Conectando</strong></div><div><span>Persistencia offline</span><strong>Habilitada</strong></div><div><span>Pestañas sincronizadas</span><strong>Habilitadas</strong></div></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>RECOMENDACIONES</span><h3>Trabajo sin conexión</h3></div></div><div class="offline-tips"><div><svg><use href="#i-file"></use></svg><span><strong>Completa el parte normalmente</strong><small>El registro se guarda en el dispositivo.</small></span></div><div><svg><use href="#i-cloud"></use></svg><span><strong>Recupera la conexión</strong><small>Firestore enviará los cambios pendientes.</small></span></div><div><svg><use href="#i-check"></use></svg><span><strong>Verifica “Sincronizado”</strong><small>No cierres la app hasta ver el estado actualizado.</small></span></div></div></article></div>
+      </section>
+
+      <section id="configuracion" class="view admin-view">
+        <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-settings"></use></svg> PREFERENCIAS</span><h2>Configuración de la aplicación</h2><p>Ajusta apariencia, accesibilidad y comportamiento del sistema.</p></div></div>
+        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=15.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 15.0 Asistencia</span><small>Usuarios, asistencia con foto, GPS bloqueado, chat, incidencias, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
+      </section>
+
     </main>
   </div>
 
-  <nav class="mobile-nav" aria-label="Navegación móvil">
+  <nav class="mobile-nav ops-mobile-nav" aria-label="Navegación móvil">
     <button class="active" data-view="dashboard"><svg><use href="#i-home"></use></svg><span>Inicio</span></button>
-    <button data-view="nuevo"><svg><use href="#i-plus"></use></svg><span>Nuevo</span></button>
-    <button data-view="historial"><svg><use href="#i-file"></use></svg><span>Historial</span></button>
-    <button data-view="chat"><svg><use href="#i-chat"></use></svg><span>Chat</span><span class="mobile-badge chat-unread-badge hidden">0</span></button>
-    <button data-view="graficos"><svg><use href="#i-chart"></use></svg><span>Gráficos</span></button>
-    <button data-view="ubicaciones"><svg><use href="#i-pin"></use></svg><span>GPS</span></button>
+    <button data-view="nuevo"><svg><use href="#i-plus"></use></svg><span>Parte</span></button>
+    <button data-view="asistencia"><svg><use href="#i-clock"></use></svg><span>Asistencia</span></button>
+    <button data-view="chat"><svg><use href="#i-chat"></use></svg><span>Mensajes</span><span class="mobile-badge chat-unread-badge hidden">0</span></button>
+    <button type="button" id="mobileMoreBtn"><svg><use href="#i-more"></use></svg><span>Más</span></button>
   </nav>
+  <div id="mobileMoreSheet" class="mobile-more-sheet hidden"><div class="mobile-more-backdrop"></div><div class="mobile-more-panel"><div class="mobile-more-handle"></div><div class="mobile-more-head"><strong>Más herramientas</strong><button type="button" id="closeMobileMore"><svg><use href="#i-close"></use></svg></button></div><div class="mobile-more-grid"><button data-view-link="incidencias"><svg><use href="#i-alert"></use></svg><span>Incidencias</span></button><button data-view-link="historial"><svg><use href="#i-file"></use></svg><span>Historial</span></button><button data-view-link="graficos"><svg><use href="#i-chart"></use></svg><span>Gráficos</span></button><button data-view-link="ubicaciones"><svg><use href="#i-pin"></use></svg><span>GPS</span></button><button class="admin-only" data-view-link="reportes"><svg><use href="#i-report"></use></svg><span>Reportes</span></button><button class="admin-only" data-view-link="usuarios"><svg><use href="#i-users"></use></svg><span>Usuarios</span></button><button class="admin-only" data-view-link="maquinas"><svg><use href="#i-machine"></use></svg><span>Máquinas</span></button><button class="admin-only" data-view-link="montes"><svg><use href="#i-mountain"></use></svg><span>Montes</span></button><button class="admin-only" data-view-link="sincronizacion"><svg><use href="#i-database"></use></svg><span>Sincronización</span></button><button class="admin-only" data-view-link="configuracion"><svg><use href="#i-settings"></use></svg><span>Configuración</span></button></div></div></div>
 
   <datalist id="monteOptions"></datalist>
   <datalist id="maquinaOptions"></datalist>
   <datalist id="operadorOptions"></datalist>
   <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+  <div id="attendanceCameraModal" class="attendance-camera-modal hidden" role="dialog" aria-modal="true" aria-labelledby="attendanceCameraTitle">
+    <div class="attendance-camera-backdrop"></div>
+    <div class="attendance-camera-panel">
+      <div class="attendance-camera-head"><div><span>CONTROL HORARIO SEGURO</span><h2 id="attendanceCameraTitle">Registrar asistencia</h2><p id="attendanceCameraSubtitle">Foto y ubicación obtenidas en este momento</p></div><button id="attendanceCloseCamera" type="button" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button></div>
+      <div class="attendance-camera-stage"><video id="attendanceCameraVideo" autoplay muted playsinline></video><img id="attendanceCameraPreview" class="hidden" alt="Vista previa de la fotografía"><canvas id="attendanceCameraCanvas" class="hidden"></canvas><div class="camera-guide"><span></span></div><div class="camera-live-badge"><i></i> CAPTURA EN VIVO</div></div>
+      <div id="attendanceCameraState" class="camera-state loading"><span class="camera-state-icon"><svg><use href="#i-camera"></use></svg></span><div><strong>Preparando cámara</strong><small>Permite el acceso a la cámara frontal.</small></div></div>
+      <div class="attendance-camera-privacy"><svg><use href="#i-shield"></use></svg><span>La imagen se usa únicamente como comprobante de asistencia y se guarda de forma privada en Firebase.</span></div>
+      <div class="attendance-camera-actions"><button id="attendanceCancelCamera" type="button" class="btn btn-ghost">Cancelar</button><button id="attendanceRetakeBtn" type="button" class="btn btn-soft hidden"><svg><use href="#i-refresh"></use></svg> Repetir</button><button id="attendanceCaptureBtn" type="button" class="btn btn-primary btn-lg" disabled><svg><use href="#i-camera"></use></svg> Tomar foto</button><button id="attendanceConfirmBtn" type="button" class="btn btn-primary btn-lg hidden"><svg><use href="#i-check"></use></svg> Confirmar registro</button></div>
+    </div>
+  </div>
+  <div id="attendancePhotoModal" class="attendance-photo-modal hidden" role="dialog" aria-modal="true" aria-label="Comprobante fotográfico"><div class="attendance-photo-backdrop"></div><div class="attendance-photo-panel"><button id="attendanceClosePhoto" type="button" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button><div id="attendancePhotoLoading" class="attendance-photo-loading"><span class="button-spinner"></span><strong>Cargando fotografía</strong><span>Verificando permisos…</span></div><img id="attendancePhotoImage" class="hidden" alt="Comprobante de asistencia"></div></div>
   <div id="detailModal" class="modal-overlay hidden"><div class="modal"><button id="detailClose" class="modal-close" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button><div id="detailContent"></div></div></div>
   <div id="toast" class="toast hidden"><span class="toast-icon"><svg><use href="#i-check"></use></svg></span><div><strong id="toastTitle">Listo</strong><small id="toastText">Acción completada correctamente.</small></div></div>
   <div id="updateBanner" class="update-banner hidden"><div><strong>Nueva versión disponible</strong><span>Actualiza para recibir las últimas mejoras.</span></div><button id="updateBtn">Actualizar</button></div>
@@ -450,5 +549,7 @@
   <script src="./app.js"></script>
   <script src="./charts.js"></script>
   <script src="./chat.js"></script>
+  <script src="./attendance.js"></script>
+  <script src="./operations.js"></script>
 </body>
 </html>

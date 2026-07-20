@@ -64,6 +64,8 @@
     const partesCollection = db.collection('partes');
     const usersCollection = db.collection('usuarios');
     const chatsCollection = db.collection('chats');
+    const attendanceCollection = db.collection('asistencias');
+    const attendancePhotosCollection = db.collection('asistencia_fotos');
 
     window.LubaydAuth = {
       available: true,
@@ -306,6 +308,266 @@
       }
     };
 
+
+    function requireAuthenticated() {
+      if (!auth.currentUser) throw new Error('Debes iniciar sesión.');
+      return auth.currentUser;
+    }
+
+    function requireAdmin() {
+      const user = requireAuthenticated();
+      const profile = window.LubaydCurrentProfile || {};
+      if (profile.role !== 'admin') throw new Error('Esta acción requiere permisos de administrador.');
+      return user;
+    }
+
+    function normalizeDocument(doc) {
+      return Object.assign({ id: doc.id }, normalizeFirestoreValue(doc.data() || {}));
+    }
+
+
+    window.LubaydAttendanceData = {
+      available: true,
+      subscribe(profile, onData, onError) {
+        const user = requireAuthenticated();
+        const canSeeTeam = profile?.role === 'admin' || profile?.role === 'supervisor';
+        const query = canSeeTeam
+          ? attendanceCollection
+          : attendanceCollection.where('userId', '==', user.uid);
+        return query.onSnapshot({ includeMetadataChanges: true }, function (snapshot) {
+          const records = snapshot.docs.map(normalizeDocument).sort(function (a, b) {
+            const dateCompare = String(b.dateKey || '').localeCompare(String(a.dateKey || ''));
+            if (dateCompare) return dateCompare;
+            return String(b.entryAtClient || '').localeCompare(String(a.entryAtClient || ''));
+          });
+          onData(records, {
+            fromCache: snapshot.metadata.fromCache,
+            hasPendingWrites: snapshot.metadata.hasPendingWrites,
+            teamMode: canSeeTeam
+          });
+        }, onError);
+      },
+      async getRecord(dateKey) {
+        const user = requireAuthenticated();
+        const snapshot = await attendanceCollection.doc(`${user.uid}_${dateKey}`).get();
+        return snapshot.exists ? normalizeDocument(snapshot) : null;
+      },
+      async getPhotoUrl(photoId) {
+        requireAuthenticated();
+        if (!photoId) throw new Error('La fotografía no está disponible.');
+        const snapshot = await attendancePhotosCollection.doc(photoId).get();
+        if (!snapshot.exists) throw new Error('No se encontró la fotografía.');
+        const data = snapshot.data() || {};
+        if (!data.imageData) throw new Error('La fotografía está vacía.');
+        return data.imageData;
+      },
+      async register(kind, options) {
+        const user = requireAuthenticated();
+        const profile = window.LubaydCurrentProfile || {};
+        const type = kind === 'exit' ? 'exit' : 'entry';
+        const dateKey = String(options?.dateKey || '').trim();
+        const blob = options?.blob;
+        const gps = options?.gps;
+        if (!dateKey) throw new Error('No se pudo determinar la fecha de asistencia.');
+        if (!(blob instanceof Blob) || !blob.size) throw new Error('Debes tomar una fotografía nueva.');
+        if (blob.size > 450000) throw new Error('La fotografía es demasiado grande. Tómala nuevamente.');
+        if (!gps || !Number.isFinite(Number(gps.latitude)) || !Number.isFinite(Number(gps.longitude))) {
+          throw new Error('No se pudo validar la ubicación GPS.');
+        }
+        if (!navigator.onLine) throw new Error('La asistencia requiere conexión a internet.');
+
+        const imageData = await new Promise(function (resolve, reject) {
+          const reader = new FileReader();
+          reader.onload = function () { resolve(String(reader.result || '')); };
+          reader.onerror = function () { reject(new Error('No se pudo procesar la fotografía.')); };
+          reader.readAsDataURL(blob);
+        });
+        if (imageData.length > 700000) throw new Error('La fotografía supera el tamaño permitido. Tómala nuevamente.');
+
+        const documentId = `${user.uid}_${dateKey}`;
+        const documentRef = attendanceCollection.doc(documentId);
+        const photoId = `${documentId}_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const photoRef = attendancePhotosCollection.doc(photoId);
+        const nowClient = new Date().toISOString();
+        const gpsPayload = {
+          latitude: Number(gps.latitude),
+          longitude: Number(gps.longitude),
+          accuracy: Math.max(0, Number(gps.accuracy || 0)),
+          capturedAtClient: String(gps.capturedAtClient || nowClient)
+        };
+
+        await db.runTransaction(async function (transaction) {
+          const snapshot = await transaction.get(documentRef);
+          if (type === 'entry') {
+            if (snapshot.exists) throw new Error('La llegada de hoy ya fue registrada.');
+            transaction.set(photoRef, {
+              ownerId: user.uid,
+              attendanceId: documentId,
+              kind: 'entry',
+              mimeType: 'image/jpeg',
+              imageData: imageData,
+              createdAt: serverTimestamp()
+            });
+            transaction.set(documentRef, {
+              userId: user.uid,
+              userName: safeName(profile, user),
+              userEmail: user.email || '',
+              dateKey: dateKey,
+              status: 'trabajando',
+              entryAt: serverTimestamp(),
+              entryAtClient: nowClient,
+              entryPhotoId: photoId,
+              entryGps: gpsPayload,
+              createdAt: serverTimestamp(),
+              createdAtClient: nowClient,
+              updatedAt: serverTimestamp()
+            });
+          } else {
+            if (!snapshot.exists) throw new Error('Primero debes registrar la llegada.');
+            const data = snapshot.data() || {};
+            if (data.exitAt || data.exitPhotoId) throw new Error('La salida de hoy ya fue registrada.');
+            transaction.set(photoRef, {
+              ownerId: user.uid,
+              attendanceId: documentId,
+              kind: 'exit',
+              mimeType: 'image/jpeg',
+              imageData: imageData,
+              createdAt: serverTimestamp()
+            });
+            transaction.update(documentRef, {
+              status: 'finalizado',
+              exitAt: serverTimestamp(),
+              exitAtClient: nowClient,
+              exitPhotoId: photoId,
+              exitGps: gpsPayload,
+              updatedAt: serverTimestamp()
+            });
+          }
+        });
+        return documentId;
+      }
+    };
+
+    window.LubaydOps = {
+      available: true,
+      subscribeCollection(collectionName, onData, onError, options) {
+        requireAuthenticated();
+        let query = db.collection(collectionName);
+        const opts = options || {};
+        if (opts.where && Array.isArray(opts.where)) {
+          opts.where.forEach(function (condition) {
+            query = query.where(condition[0], condition[1], condition[2]);
+          });
+        }
+        if (opts.orderBy) query = query.orderBy(opts.orderBy, opts.direction || 'desc');
+        return query.onSnapshot({ includeMetadataChanges: true }, function (snapshot) {
+          const docs = snapshot.docs.map(normalizeDocument);
+          onData(docs, {
+            fromCache: snapshot.metadata.fromCache,
+            hasPendingWrites: snapshot.metadata.hasPendingWrites
+          });
+        }, onError);
+      },
+      subscribeUsers(onData, onError) {
+        requireAdmin();
+        return usersCollection.onSnapshot(function (snapshot) {
+          const users = snapshot.docs.map(normalizeDocument).sort(function (a, b) {
+            return String(a.nombre || a.email || '').localeCompare(String(b.nombre || b.email || ''), 'es');
+          });
+          onData(users);
+        }, onError);
+      },
+      async updateUser(uid, patch) {
+        const current = requireAdmin();
+        if (!uid) throw new Error('Usuario no válido.');
+        const allowed = {};
+        if (Object.prototype.hasOwnProperty.call(patch || {}, 'active')) allowed.active = Boolean(patch.active);
+        if (Object.prototype.hasOwnProperty.call(patch || {}, 'role')) {
+          const role = String(patch.role || '').toLowerCase();
+          if (!['admin', 'supervisor', 'operador'].includes(role)) throw new Error('Rol no válido.');
+          allowed.role = role;
+        }
+        allowed.updatedAt = serverTimestamp();
+        allowed.updatedByUid = current.uid;
+        await usersCollection.doc(uid).set(allowed, { merge: true });
+      },
+      async saveCatalog(collectionName, record, id) {
+        requireAdmin();
+        if (!['maquinas', 'montes'].includes(collectionName)) throw new Error('Catálogo no válido.');
+        const reference = id ? db.collection(collectionName).doc(id) : db.collection(collectionName).doc();
+        const payload = Object.assign({}, record, {
+          updatedAt: serverTimestamp(),
+          updatedAtClient: new Date().toISOString(),
+          updatedByUid: auth.currentUser.uid
+        });
+        if (!id) {
+          payload.createdAt = serverTimestamp();
+          payload.createdAtClient = new Date().toISOString();
+          payload.createdByUid = auth.currentUser.uid;
+        }
+        await reference.set(payload, { merge: Boolean(id) });
+        return reference.id;
+      },
+      async deleteCatalog(collectionName, id) {
+        requireAdmin();
+        if (!['maquinas', 'montes'].includes(collectionName)) throw new Error('Catálogo no válido.');
+        await db.collection(collectionName).doc(id).delete();
+      },
+      async createIncident(record) {
+        const user = requireAuthenticated();
+        const reference = db.collection('incidencias').doc();
+        const profile = window.LubaydCurrentProfile || {};
+        const now = new Date().toISOString();
+        await reference.set(Object.assign({}, record, {
+          status: 'abierta',
+          createdByUid: user.uid,
+          createdByName: profile.nombre || user.displayName || user.email || 'Usuario',
+          createdByEmail: user.email || '',
+          createdAt: serverTimestamp(),
+          createdAtClient: now,
+          updatedAt: serverTimestamp(),
+          updatedAtClient: now
+        }));
+        return reference.id;
+      },
+      async updateIncident(id, patch) {
+        const user = requireAuthenticated();
+        if (!id) throw new Error('Incidencia no válida.');
+        const reference = db.collection('incidencias').doc(id);
+        const snapshot = await reference.get();
+        if (!snapshot.exists) throw new Error('La incidencia no existe.');
+        const data = snapshot.data();
+        const profile = window.LubaydCurrentProfile || {};
+        if (profile.role !== 'admin' && data.createdByUid !== user.uid) {
+          throw new Error('No tienes permisos para modificar esta incidencia.');
+        }
+        const allowed = {};
+        ['status', 'assignedTo', 'resolution', 'priority'].forEach(function (field) {
+          if (Object.prototype.hasOwnProperty.call(patch || {}, field)) allowed[field] = patch[field];
+        });
+        allowed.updatedAt = serverTimestamp();
+        allowed.updatedAtClient = new Date().toISOString();
+        allowed.updatedByUid = user.uid;
+        await reference.set(allowed, { merge: true });
+      },
+      async deleteIncident(id) {
+        requireAdmin();
+        await db.collection('incidencias').doc(id).delete();
+      },
+      async updatePartStatus(id, status, note) {
+        const user = requireAdmin();
+        const allowedStatus = ['enviado', 'revisado', 'aprobado', 'devuelto'];
+        if (!allowedStatus.includes(status)) throw new Error('Estado no válido.');
+        await partesCollection.doc(id).set({
+          workflowStatus: status,
+          workflowNote: String(note || '').slice(0, 500),
+          reviewedByUid: user.uid,
+          reviewedAt: serverTimestamp(),
+          reviewedAtClient: new Date().toISOString()
+        }, { merge: true });
+      }
+    };
+
     auth.onAuthStateChanged(function (user) {
       window.LubaydCurrentUser = user || null;
       if (!user) window.LubaydCurrentProfile = null;
@@ -319,6 +581,8 @@
     window.LubaydAuth = { available: false, error: error, errorMessage: authErrorMessage };
     window.LubaydCloud = { available: false, error: error };
     window.LubaydChat = { available: false, error: error };
+    window.LubaydOps = { available: false, error: error };
+    window.LubaydAttendanceData = { available: false, error: error };
     window.dispatchEvent(new CustomEvent('lubayd-firebase-error', { detail: error }));
   }
 })();

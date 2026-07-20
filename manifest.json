@@ -1,7 +1,7 @@
 {
-  "name": "Gestión Forestal y Chat Lubayd SA",
+  "name": "Centro de Operaciones Forestales Lubayd SA",
   "short_name": "Lubayd Forestal",
-  "description": "Registro, sincronización, análisis y chat interno para operaciones forestales",
+  "description": "Plataforma de gestión forestal con asistencia por foto, partes, GPS, chat, incidencias y reportes",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -28,6 +28,13 @@
       "short_name": "Nuevo",
       "description": "Crear un nuevo parte diario",
       "url": "./?view=nuevo",
+      "icons": [{"src":"./assets/icon-192.png","sizes":"192x192"}]
+    },
+    {
+      "name": "Asistencia",
+      "short_name": "Asistencia",
+      "description": "Registrar llegada o salida con fotografía",
+      "url": "./?view=asistencia",
       "icons": [{"src":"./assets/icon-192.png","sizes":"192x192"}]
     },
     {

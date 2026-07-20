@@ -28,6 +28,28 @@ service cloud.firestore {
       return activeUser() && userData(request.auth.uid).role == 'admin';
     }
 
+    function supervisorUser() {
+      return activeUser() && userData(request.auth.uid).role in ['admin', 'supervisor'];
+    }
+
+    function attendancePhotoPath(photoId) {
+      return /databases/$(database)/documents/asistencia_fotos/$(photoId);
+    }
+
+    function validAttendanceGps(gps) {
+      return gps is map
+        && gps.keys().hasAll(['latitude', 'longitude', 'accuracy', 'capturedAtClient'])
+        && gps.latitude is number
+        && gps.latitude >= -90
+        && gps.latitude <= 90
+        && gps.longitude is number
+        && gps.longitude >= -180
+        && gps.longitude <= 180
+        && gps.accuracy is number
+        && gps.accuracy >= 0
+        && gps.capturedAtClient is string;
+    }
+
     function validLockedGps() {
       return request.resource.data.gps is map
         && request.resource.data.gps.keys().hasAll([
@@ -50,22 +72,31 @@ service cloud.firestore {
     }
 
     match /usuarios/{userId} {
-      // Los nuevos usuarios quedan habilitados automáticamente como operadores.
       allow create: if signedIn()
         && request.auth.uid == userId
         && request.resource.data.active == true
         && request.resource.data.role == 'operador'
         && request.resource.data.email == request.auth.token.email;
 
-      // Cada persona lee su propio perfil. Los administradores leen todos los usuarios.
-      // Los operadores pueden leer únicamente los perfiles de administradores para abrir el chat.
       allow read: if signedIn() && (
         request.auth.uid == userId
         || (activeUser() && (adminUser() || resource.data.role == 'admin'))
       );
 
-      // Rol y habilitación se administran desde Firebase Console.
-      allow update, delete: if false;
+      allow update: if adminUser()
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'active',
+          'role',
+          'updatedAt',
+          'updatedByUid'
+        ])
+        && request.resource.data.role in ['admin', 'supervisor', 'operador']
+        && request.resource.data.active is bool
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedByUid == request.auth.uid;
+
+      allow delete: if false;
     }
 
     match /partes/{parteId} {
@@ -77,11 +108,152 @@ service cloud.firestore {
         && request.resource.data.createdAtServer == request.time
         && validLockedGps();
 
-      // Los partes y su GPS quedan inmutables.
-      allow update: if false;
+      allow update: if adminUser()
+        && request.resource.data.gps == resource.data.gps
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByEmail == resource.data.createdByEmail
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'workflowStatus',
+          'workflowNote',
+          'reviewedByUid',
+          'reviewedAt',
+          'reviewedAtClient'
+        ])
+        && request.resource.data.workflowStatus in ['enviado', 'revisado', 'aprobado', 'devuelto']
+        && request.resource.data.reviewedByUid == request.auth.uid
+        && request.resource.data.reviewedAt == request.time;
 
-      allow delete: if activeUser()
-        && resource.data.createdByUid == request.auth.uid;
+      allow delete: if activeUser() && (
+        adminUser() || resource.data.createdByUid == request.auth.uid
+      );
+    }
+
+    match /maquinas/{machineId} {
+      allow read: if activeUser();
+      allow create, update, delete: if adminUser();
+    }
+
+    match /montes/{monteId} {
+      allow read: if activeUser();
+      allow create, update, delete: if adminUser();
+    }
+
+    match /incidencias/{incidentId} {
+      allow read: if activeUser();
+
+      allow create: if activeUser()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.createdByEmail == request.auth.token.email
+        && request.resource.data.status == 'abierta'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 100
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 1200
+        && request.resource.data.priority in ['baja', 'media', 'alta', 'critica'];
+
+      allow update: if activeUser()
+        && (adminUser() || resource.data.createdByUid == request.auth.uid)
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByEmail == resource.data.createdByEmail
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'assignedTo',
+          'resolution',
+          'priority',
+          'updatedAt',
+          'updatedAtClient',
+          'updatedByUid'
+        ])
+        && request.resource.data.status in ['abierta', 'en_proceso', 'resuelta']
+        && request.resource.data.priority in ['baja', 'media', 'alta', 'critica']
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedByUid == request.auth.uid;
+
+      allow delete: if adminUser();
+    }
+
+
+    match /asistencias/{attendanceId} {
+      allow read: if activeUser() && (
+        resource.data.userId == request.auth.uid
+        || supervisorUser()
+      );
+
+      allow create: if activeUser()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userEmail == request.auth.token.email
+        && request.resource.data.dateKey is string
+        && request.resource.data.dateKey.size() == 10
+        && request.resource.data.status == 'trabajando'
+        && request.resource.data.entryAt == request.time
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.entryPhotoId is string
+        && existsAfter(attendancePhotoPath(request.resource.data.entryPhotoId))
+        && getAfter(attendancePhotoPath(request.resource.data.entryPhotoId)).data.ownerId == request.auth.uid
+        && getAfter(attendancePhotoPath(request.resource.data.entryPhotoId)).data.attendanceId == attendanceId
+        && getAfter(attendancePhotoPath(request.resource.data.entryPhotoId)).data.kind == 'entry'
+        && validAttendanceGps(request.resource.data.entryGps)
+        && !request.resource.data.keys().hasAny([
+          'exitAt', 'exitAtClient', 'exitPhotoId', 'exitGps'
+        ]);
+
+      allow update: if activeUser()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.userName == resource.data.userName
+        && request.resource.data.userEmail == resource.data.userEmail
+        && request.resource.data.dateKey == resource.data.dateKey
+        && request.resource.data.entryAt == resource.data.entryAt
+        && request.resource.data.entryAtClient == resource.data.entryAtClient
+        && request.resource.data.entryPhotoId == resource.data.entryPhotoId
+        && request.resource.data.entryGps == resource.data.entryGps
+        && request.resource.data.createdAt == resource.data.createdAt
+        && !resource.data.keys().hasAny(['exitAt', 'exitPhotoId'])
+        && request.resource.data.status == 'finalizado'
+        && request.resource.data.exitAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.exitPhotoId is string
+        && existsAfter(attendancePhotoPath(request.resource.data.exitPhotoId))
+        && getAfter(attendancePhotoPath(request.resource.data.exitPhotoId)).data.ownerId == request.auth.uid
+        && getAfter(attendancePhotoPath(request.resource.data.exitPhotoId)).data.attendanceId == attendanceId
+        && getAfter(attendancePhotoPath(request.resource.data.exitPhotoId)).data.kind == 'exit'
+        && validAttendanceGps(request.resource.data.exitGps)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'exitAt',
+          'exitAtClient',
+          'exitPhotoId',
+          'exitGps',
+          'updatedAt'
+        ]);
+
+      allow delete: if false;
+    }
+
+
+    match /asistencia_fotos/{photoId} {
+      allow read: if activeUser() && (
+        resource.data.ownerId == request.auth.uid
+        || supervisorUser()
+      );
+
+      allow create: if activeUser()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.attendanceId is string
+        && request.resource.data.kind in ['entry', 'exit']
+        && request.resource.data.mimeType == 'image/jpeg'
+        && request.resource.data.imageData is string
+        && request.resource.data.imageData.size() > 100
+        && request.resource.data.imageData.size() < 700000
+        && request.resource.data.createdAt == request.time;
+
+      allow update, delete: if false;
     }
 
     match /chats/{chatId} {
@@ -112,7 +284,6 @@ service cloud.firestore {
         && request.resource.data.unreadByOperator == 0
         && request.resource.data.createdAt == request.time;
 
-      // Los participantes solo pueden actualizar metadatos de último mensaje y contadores.
       allow update: if isParticipant(resource.data)
         && validParticipants(request.resource.data)
         && request.resource.data.participants == resource.data.participants
@@ -153,7 +324,6 @@ service cloud.firestore {
           && request.resource.data.createdAt == request.time
           && request.resource.data.createdAtClient is string;
 
-        // Los mensajes no se editan ni se eliminan.
         allow update, delete: if false;
       }
     }

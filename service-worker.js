@@ -1,11 +1,15 @@
-const CACHE_NAME = 'lubayd-forestal-v13.1.0-logo-fix';
+const CACHE_NAME = 'lubayd-forestal-v15.0.0-asistencia';
 const LOCAL_ASSETS = [
   './',
   './index.html',
   './style.css',
+  './operations.css',
+  './attendance.css',
   './app.js',
   './charts.js',
   './chat.js',
+  './operations.js',
+  './attendance.js',
   './firebase-init.js',
   './manifest.json',
   './assets/logo.png',

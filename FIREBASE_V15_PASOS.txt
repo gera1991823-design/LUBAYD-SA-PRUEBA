@@ -1,0 +1,48 @@
+CONFIGURACION FIREBASE - VERSION 15 ASISTENCIA
+===============================================
+
+1. PUBLICAR REGLAS DE FIRESTORE
+-------------------------------
+- Abre Firebase Console.
+- Entra en Firestore Database.
+- Abre la pestana Reglas.
+- Borra las reglas actuales.
+- Copia todo el contenido del archivo firestore.rules de esta version.
+- Presiona Publicar.
+
+2. VERIFICAR AUTHENTICATION
+---------------------------
+- Authentication > Metodo de acceso.
+- Correo electronico/contrasena debe estar habilitado.
+- Authentication > Configuracion > Dominios autorizados.
+- Agrega el dominio de tu pagina, por ejemplo:
+  gera1991823-design.github.io
+
+3. NO ES NECESARIO ACTIVAR CLOUD STORAGE
+----------------------------------------
+Esta version guarda las fotos comprimidas en la coleccion privada asistencia_fotos de Firestore. Esto evita exigir el plan Blaze solo para almacenar fotografias.
+
+4. ROLES
+--------
+Administrador:
+  active: true
+  role: "admin"
+
+Supervisor:
+  active: true
+  role: "supervisor"
+
+Operador:
+  active: true
+  role: "operador"
+
+5. PRUEBA RECOMENDADA
+---------------------
+- Inicia sesion con un operador.
+- Abre Asistencia.
+- Registra llegada, aceptando camara y GPS.
+- Comprueba en Firestore que se creen:
+  asistencias/{uid_fecha}
+  asistencia_fotos/{id_foto}
+- Registra la salida.
+- Inicia sesion como administrador y filtra el dia para ver la marcacion.

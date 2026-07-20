@@ -144,7 +144,7 @@ function updateUserInterface(user) {
   const initials = userInitials(user);
   ['#sidebarUserName', '#topbarUserName'].forEach(selector => { if ($(selector)) $(selector).textContent = name; });
   ['#sidebarUserEmail', '#topbarUserEmail'].forEach(selector => { if ($(selector)) $(selector).textContent = email; });
-  ['#sidebarAvatar', '#topbarAvatar'].forEach(selector => { if ($(selector)) $(selector).textContent = initials; });
+  ['#sidebarAvatar', '#topbarAvatar', '#operatorWelcomeAvatar'].forEach(selector => { if ($(selector)) $(selector).textContent = initials; });
   enforceAuthenticatedOperator();
   updateGreeting();
 }
@@ -294,16 +294,29 @@ window.addEventListener('lubayd-auth-changed', event => handleAuthChange(event.d
 
 const viewMeta = {
   dashboard: ['Centro de operaciones', 'Panel operativo'],
+  asistencia: ['Control horario', 'Asistencia del equipo'],
   nuevo: ['Registro guiado', 'Nuevo parte diario'],
   historial: ['Registros', 'Historial de partes'],
   graficos: ['Análisis operativo', 'Gráficos de producción'],
   ubicaciones: ['Geolocalización', 'Ubicaciones GPS'],
-  chat: ['Comunicación interna', 'Mensajes del equipo']
+  chat: ['Comunicación interna', 'Mensajes del equipo'],
+  incidencias: ['Control de novedades', 'Incidencias y alertas'],
+  maquinas: ['Catálogo operativo', 'Máquinas'],
+  montes: ['Catálogo de campo', 'Montes y lotes'],
+  usuarios: ['Administración', 'Usuarios y permisos'],
+  reportes: ['Inteligencia operativa', 'Reportes avanzados'],
+  sincronizacion: ['Conectividad', 'Sincronización'],
+  configuracion: ['Preferencias', 'Configuración']
 };
 
 function showView(id) {
   if (!currentUser()) return;
-  if (!document.getElementById(id)) return;
+  const targetView = document.getElementById(id);
+  if (!targetView) return;
+  if (targetView.classList.contains('admin-view') && authenticatedProfile?.role !== 'admin') {
+    showToast('Acceso restringido', 'Esta herramienta está disponible únicamente para administradores.');
+    return;
+  }
 
   $$('.view').forEach(view => view.classList.toggle('active', view.id === id));
   $$('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === id));
@@ -318,17 +331,21 @@ function showView(id) {
   }
   if (id === 'historial') renderHistory();
   if (id === 'ubicaciones') renderLocations();
+  if (id === 'asistencia' && window.LubaydAttendanceUI?.show) window.LubaydAttendanceUI.show();
+  if (typeof window.LubaydOperations?.viewChanged === 'function') window.LubaydOperations.viewChanged(id);
   if (id === 'graficos' && typeof window.renderCharts === 'function') window.renderCharts();
   if (id === 'chat' && window.LubaydChatUI?.show) window.LubaydChatUI.show();
 
   closeSidebar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+window.LubaydShowView = showView;
 
 $$('[data-view], [data-view-link]').forEach(element => {
   element.addEventListener('click', () => showView(element.dataset.view || element.dataset.viewLink));
 });
 $('#heroNewBtn')?.addEventListener('click', () => showView('nuevo'));
+$('#continueDraftBtn')?.addEventListener('click', () => showView('nuevo'));
 
 function initializeForm() {
   if (formInitialized) {
