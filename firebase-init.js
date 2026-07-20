@@ -1,4 +1,4 @@
-/* Lubayd SA V20.2 - Firebase Authentication and Firestore */
+/* Lubayd SA V20.4 - Firebase Authentication and Firestore */
 (function () {
   'use strict';
 

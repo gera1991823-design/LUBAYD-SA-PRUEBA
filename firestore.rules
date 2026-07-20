@@ -17,6 +17,10 @@ service cloud.firestore {
       return activeUser() && myProfile().data.role == 'admin';
     }
 
+    function isOperator() {
+      return activeUser() && myProfile().data.role == 'operador';
+    }
+
     function isManager() {
       return activeUser() && myProfile().data.role in ['admin', 'supervisor'];
     }
@@ -49,7 +53,7 @@ service cloud.firestore {
     }
 
     match /asistencias/{attendanceId} {
-      allow create: if activeUser()
+      allow create: if isOperator()
         && request.resource.data.userId == request.auth.uid
         && attendanceId == request.auth.uid + '_' + request.resource.data.dateKey
         && request.resource.data.entrada is map
@@ -59,7 +63,7 @@ service cloud.firestore {
         && (resource.data.userId == request.auth.uid || isManager());
 
       allow update: if isAdmin()
-        || (activeUser()
+        || (isOperator()
           && resource.data.userId == request.auth.uid
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.dateKey == resource.data.dateKey
@@ -71,7 +75,7 @@ service cloud.firestore {
     }
 
     match /asistencia_fotos/{photoId} {
-      allow create: if activeUser()
+      allow create: if isOperator()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.dataUrl is string
         && request.resource.data.dataUrl.size() < 900000;

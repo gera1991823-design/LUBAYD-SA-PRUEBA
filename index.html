@@ -3,43 +3,52 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0b6b3a">
-  <meta name="description" content="Gestión operativa y asistencia de Lubayd SA">
+  <meta name="theme-color" content="#081411">
+  <meta name="description" content="Gestión forestal, asistencia y trabajo sin conexión de Lubayd SA">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Lubayd SA">
   <title>Lubayd SA | Gestión Forestal</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=20.2.0">
-  <link rel="icon" href="./assets/icon-192.png?v=20.2.0">
-  <link rel="apple-touch-icon" href="./assets/icon-192.png?v=20.2.0">
-  <link rel="stylesheet" href="./styles.css?v=20.2.0">
+  <link rel="manifest" href="./manifest.webmanifest?v=20.4.0">
+  <link rel="icon" href="./assets/icon-192.png?v=20.4.0">
+  <link rel="apple-touch-icon" href="./assets/icon-192.png?v=20.4.0">
+  <link rel="stylesheet" href="./styles.css?v=20.4.0">
 </head>
 <body class="auth-pending">
   <div id="authGate" class="auth-gate">
-    <section class="auth-brand-panel">
-      <img src="./assets/logo.svg" alt="Lubayd SA" class="auth-logo">
-      <div>
-        <span class="eyebrow">PLATAFORMA OPERATIVA</span>
-        <h1>Gestión forestal clara y conectada.</h1>
-        <p>Partes diarios, asistencia, mensajes y administración en una sola aplicación.</p>
+    <section class="auth-visual">
+      <div class="auth-brand">
+        <img src="./assets/logo.svg" alt="Lubayd SA">
+        <div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div>
+      </div>
+      <div class="auth-copy">
+        <span class="eyebrow">PLATAFORMA OPERATIVA SEGURA</span>
+        <h1>El control del campo, incluso sin señal.</h1>
+        <p>Partes diarios, asistencia con foto y GPS, mensajería y administración desde una sola aplicación.</p>
+      </div>
+      <div class="auth-feature-grid">
+        <article><b>01</b><span>Asistencia offline</span></article>
+        <article><b>02</b><span>Sincronización automática</span></article>
+        <article><b>03</b><span>Control administrativo</span></article>
       </div>
     </section>
-    <section class="auth-form-panel">
+
+    <section class="auth-panel">
       <div class="auth-card">
-        <div class="mobile-brand"><img src="./assets/logo.svg" alt="Lubayd SA"><strong>Lubayd SA</strong></div>
+        <div class="mobile-brand"><img src="./assets/logo.svg" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
         <div class="auth-tabs">
           <button type="button" data-auth-tab="login" class="active">Ingresar</button>
           <button type="button" data-auth-tab="register">Crear cuenta</button>
         </div>
         <form id="loginForm" class="auth-form active">
-          <h2>Bienvenido</h2>
-          <label>Correo electrónico<input id="loginEmail" type="email" autocomplete="email" required></label>
-          <label>Contraseña<input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required></label>
+          <div class="form-heading"><span class="eyebrow">ACCESO ONLINE</span><h2>Bienvenido</h2><p>Ingresa con tu correo y contraseña.</p></div>
+          <label>Correo electrónico<input id="loginEmail" type="email" autocomplete="email" required placeholder="nombre@correo.com"></label>
+          <label>Contraseña<input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••"></label>
           <button class="primary-button" type="submit">Ingresar</button>
           <button id="resetPasswordButton" class="link-button" type="button">Olvidé mi contraseña</button>
         </form>
         <form id="registerForm" class="auth-form">
-          <h2>Crear cuenta</h2>
+          <div class="form-heading"><span class="eyebrow">NUEVO USUARIO</span><h2>Crear cuenta</h2><p>El administrador podrá gestionar el rol y el estado.</p></div>
           <label>Nombre y apellido<input id="registerName" autocomplete="name" required></label>
           <label>Correo electrónico<input id="registerEmail" type="email" autocomplete="email" required></label>
           <label>Contraseña<input id="registerPassword" type="password" autocomplete="new-password" minlength="6" required></label>
@@ -47,6 +56,14 @@
           <button class="primary-button" type="submit">Crear usuario</button>
         </form>
         <p id="authMessage" class="form-message" role="alert"></p>
+
+        <div id="offlineAccessPanel" class="offline-login hidden">
+          <div class="offline-login-head"><span class="offline-dot"></span><div><strong>Acceso sin conexión</strong><small>Solo para usuarios preparados previamente</small></div></div>
+          <label>Usuario<select id="offlineProfileSelect"></select></label>
+          <label>PIN offline<input id="offlinePinInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" type="password" placeholder="4 a 6 números"></label>
+          <button id="offlineLoginButton" type="button" class="secondary-button">Abrir modo offline</button>
+          <p id="offlineLoginMessage" class="form-message"></p>
+        </div>
       </div>
     </section>
   </div>
@@ -55,41 +72,47 @@
     <aside class="sidebar">
       <div class="sidebar-brand"><img src="./assets/logo.svg" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
       <nav class="desktop-nav">
-        <button data-view="dashboard" class="active">Inicio</button>
-        <button data-view="partes">Partes diarios</button>
-        <button data-view="attendance">Asistencia</button>
-        <button data-view="chat">Mensajes <span class="unread-badge hidden" data-unread-badge>0</span></button>
-        <button data-view="users" class="manager-only">Usuarios</button>
-        <button data-view="settings">Configuración</button>
+        <button data-view="dashboard" class="active"><i>⌂</i><span>Dashboard</span></button>
+        <button data-view="partes"><i>▤</i><span>Partes</span></button>
+        <button data-view="attendance"><i>◷</i><span>Asistencia</span></button>
+        <button data-view="chat"><i>◌</i><span>Chat</span><em class="unread-badge hidden" data-unread-badge>0</em></button>
+        <div class="nav-divider manager-only">ADMINISTRACIÓN</div>
+        <button data-view="users" class="manager-only"><i>◎</i><span>Usuarios</span></button>
+        <button data-view="settings"><i>⚙</i><span>Configuración</span></button>
       </nav>
-      <div class="sidebar-footer">
-        <div class="user-chip"><span id="sidebarInitials">US</span><div><strong id="sidebarUserName">Usuario</strong><small id="sidebarUserRole">Operador</small></div></div>
-        <button id="logoutButton" class="secondary-button">Cerrar sesión</button>
-        <small>V20.2 Asistencia Móvil</small>
-      </div>
+      <div class="sidebar-spacer"></div>
+      <div class="sync-card"><span class="sync-orbit"></span><div><strong id="sidebarSyncTitle">Comprobando conexión</strong><small id="sidebarSyncText">Preparando el sistema…</small></div></div>
+      <div class="user-chip"><span id="sidebarInitials">US</span><div><strong id="sidebarUserName">Usuario</strong><small id="sidebarUserRole">Operador</small></div></div>
+      <button id="logoutButton" class="sidebar-logout">Cerrar sesión</button>
+      <small class="version-label">V20.4 · Diseño V19 + Offline</small>
     </aside>
 
     <main class="main-content">
       <header class="topbar">
-        <div><span id="pageEyebrow" class="eyebrow">CENTRO DE OPERACIONES</span><h1 id="pageTitle">Inicio</h1></div>
+        <div><span id="pageEyebrow" class="eyebrow">CENTRO DE OPERACIONES</span><h1 id="pageTitle">Dashboard</h1></div>
         <div class="topbar-actions">
           <button id="installButton" class="secondary-button hidden">Instalar</button>
-          <span id="connectionBadge" class="status-pill">Conectando</span>
+          <span id="connectionBadge" class="connection-badge">Conectando</span>
         </div>
       </header>
 
+      <div id="offlineSessionBanner" class="offline-session-banner hidden">
+        <div><strong>Sesión offline activa</strong><span>Las marcas quedan guardadas en este teléfono hasta iniciar sesión online y sincronizar.</span></div>
+        <span id="offlineSessionPending">Pendientes locales</span>
+      </div>
+
       <section id="view-dashboard" class="view active">
-        <div class="welcome-card">
+        <div class="dashboard-hero">
           <div><span class="eyebrow">RESUMEN DEL DÍA</span><h2 id="dashboardGreeting">Hola</h2><p id="dashboardDate"></p></div>
           <button class="primary-button" data-view="attendance">Ver asistencia</button>
         </div>
         <div class="metric-grid">
-          <article><span>Presentes</span><strong id="metricPresent">0</strong><small>Con llegada registrada</small></article>
-          <article><span>Trabajando</span><strong id="metricWorking">0</strong><small>Sin salida registrada</small></article>
-          <article><span>Finalizados</span><strong id="metricFinished">0</strong><small>Con jornada cerrada</small></article>
-          <article><span>Partes de hoy</span><strong id="metricParts">0</strong><small>Registros sincronizados</small></article>
+          <article><span>Presentes</span><strong id="metricPresent">0</strong><small>Con entrada registrada</small></article>
+          <article><span>Trabajando</span><strong id="metricWorking">0</strong><small>Jornada abierta</small></article>
+          <article><span>Finalizados</span><strong id="metricFinished">0</strong><small>Con salida registrada</small></article>
+          <article><span>Partes hoy</span><strong id="metricParts">0</strong><small>Registros operativos</small></article>
         </div>
-        <div class="two-column-grid">
+        <div class="dashboard-grid">
           <article class="panel"><div class="panel-heading"><div><span class="eyebrow">ASISTENCIA</span><h3>Marcas recientes</h3></div><button class="link-button" data-view="attendance">Ver todas</button></div><div id="dashboardAttendance" class="compact-list empty-state">Sin marcas para mostrar.</div></article>
           <article class="panel"><div class="panel-heading"><div><span class="eyebrow">OPERACIÓN</span><h3>Partes recientes</h3></div><button class="link-button" data-view="partes">Ver partes</button></div><div id="dashboardParts" class="compact-list empty-state">Sin partes para mostrar.</div></article>
         </div>
@@ -97,7 +120,7 @@
 
       <section id="view-partes" class="view">
         <div class="section-header"><div><span class="eyebrow">REGISTRO OPERATIVO</span><h2>Partes diarios</h2><p>Registra producción, horas, combustible y ubicación.</p></div></div>
-        <div class="two-column-grid parts-layout">
+        <div class="dashboard-grid parts-layout">
           <form id="partForm" class="panel form-panel">
             <div class="form-grid">
               <label>Fecha<input id="partDate" type="date" required></label>
@@ -120,12 +143,17 @@
       </section>
 
       <section id="view-attendance" class="view">
-        <div class="section-header attendance-title-row"><div><span class="eyebrow">CONTROL HORARIO</span><h2>Asistencia</h2><p>Marcas simples, visibles y fáciles de administrar.</p></div><button id="refreshAttendanceButton" class="secondary-button">Actualizar marcas</button></div>
+        <div class="section-header attendance-title-row"><div><span class="eyebrow">CONTROL HORARIO</span><h2>Asistencia</h2><p id="attendanceRoleDescription">Registra tu entrada y salida con foto y GPS.</p></div><button id="refreshAttendanceButton" class="secondary-button">Actualizar marcas</button></div>
 
         <article id="myAttendancePanel" class="panel personal-attendance">
           <div class="panel-heading"><div><span class="eyebrow">MI JORNADA</span><h3 id="myAttendanceDate">Hoy</h3></div><span id="myAttendanceStatus" class="status-pill neutral">Sin registrar</span></div>
           <div class="personal-time-grid"><div><span>Entrada</span><strong id="myEntryTime">--:--</strong><small id="myEntryMeta">Pendiente</small></div><div><span>Salida</span><strong id="myExitTime">--:--</strong><small id="myExitMeta">Pendiente</small></div><div><span>Total</span><strong id="myTotalTime">0 h 00 min</strong><small>Jornada calculada</small></div></div>
-          <div class="button-row"><button id="registerEntryButton" class="primary-button">Registrar llegada</button><button id="registerExitButton" class="danger-button" disabled>Registrar salida</button></div>
+          <div id="attendanceSyncState" class="sync-state neutral"><span></span><div><strong>Sin marcas pendientes</strong><small>Los registros sincronizados son visibles para administración.</small></div></div>
+          <div class="button-row attendance-actions"><button id="registerEntryButton" class="primary-button">Registrar llegada</button><button id="registerExitButton" class="danger-button" disabled>Registrar salida</button><button id="syncAttendanceButton" class="secondary-button">Sincronizar ahora</button></div>
+        </article>
+
+        <article id="managerInfoPanel" class="panel manager-only admin-readonly-panel">
+          <div class="admin-readonly-icon">✓</div><div><span class="eyebrow">MODO ADMINISTRADOR</span><h3>Consulta y control de marcas</h3><p>El administrador no registra entrada ni salida. Puede visualizar, corregir horarios y eliminar registros. El supervisor solo puede visualizar.</p></div>
         </article>
 
         <div id="managerAttendancePanel" class="manager-only">
@@ -145,7 +173,7 @@
       </section>
 
       <section id="view-chat" class="view">
-        <div class="section-header"><div><span class="eyebrow">COMUNICACIÓN INTERNA</span><h2>Mensajes</h2><p>Conversaciones privadas entre administración y operadores.</p></div></div>
+        <div class="section-header"><div><span class="eyebrow">COMUNICACIÓN INTERNA</span><h2>Chat</h2><p>Conversaciones privadas entre administración y operadores.</p></div></div>
         <div class="chat-layout panel">
           <aside class="chat-contacts"><div class="chat-contact-head"><strong>Contactos</strong><button id="refreshContactsButton" class="icon-button">↻</button></div><div id="chatContacts" class="contact-list empty-state">Cargando usuarios…</div></aside>
           <section class="conversation"><div class="conversation-head"><div><strong id="chatTitle">Selecciona un contacto</strong><small id="chatSubtitle">Sin conversación abierta</small></div></div><div id="chatMessages" class="message-list empty-state">Selecciona un contacto para comenzar.</div><form id="chatForm" class="message-composer"><input id="chatInput" maxlength="1000" placeholder="Escribe un mensaje" disabled><button class="primary-button" type="submit" disabled>Enviar</button></form></section>
@@ -158,21 +186,34 @@
       </section>
 
       <section id="view-settings" class="view">
-        <div class="section-header"><div><span class="eyebrow">PREFERENCIAS</span><h2>Configuración</h2><p>Notificaciones, actualización de la PWA y sesión.</p></div></div>
+        <div class="section-header"><div><span class="eyebrow">PREFERENCIAS</span><h2>Configuración</h2><p>Modo offline, notificaciones, actualización y sesión.</p></div></div>
         <div class="settings-grid">
+          <article class="panel offline-ready-card">
+            <div class="panel-heading"><div><span class="eyebrow">TRABAJO SIN INTERNET</span><h3>Preparar este teléfono</h3></div><span class="status-pill warning">Configuración local</span></div>
+            <p id="offlineReadyText">Comprobando si el dispositivo está preparado…</p>
+            <div class="offline-checks">
+              <div id="offlineCheckApp"><i>○</i><span>Aplicación instalada</span></div>
+              <div id="offlineCheckUser"><i>○</i><span>Perfil descargado</span></div>
+              <div id="offlineCheckPin"><i>○</i><span>PIN offline configurado</span></div>
+              <div id="offlineCheckQueue"><i>○</i><span>Almacenamiento local</span></div>
+            </div>
+            <label>Nuevo PIN offline<input id="offlinePinSetup" inputmode="numeric" pattern="[0-9]*" maxlength="6" type="password" placeholder="4 a 6 números"></label>
+            <div class="button-row"><button id="saveOfflinePinButton" class="primary-button">Guardar PIN</button><button id="removeOfflinePinButton" class="secondary-button">Eliminar PIN</button></div>
+            <small>El PIN funciona únicamente en este dispositivo y para usuarios que ya iniciaron sesión con internet al menos una vez.</small>
+          </article>
           <article class="panel"><h3>Notificaciones push</h3><p id="pushStatusText">Comprobando compatibilidad…</p><div id="iosInstallHint" class="inline-notice hidden">En iPhone, abre esta web en Safari, usa Compartir → Agregar a pantalla de inicio y luego ábrela desde el icono instalado.</div><div class="button-row"><button id="enablePushButton" class="primary-button">Activar notificaciones</button><button id="disablePushButton" class="secondary-button">Desactivar</button></div></article>
           <article class="panel"><h3>Actualizar aplicación</h3><p>Elimina la caché anterior y carga la última versión publicada.</p><button id="forceUpdateButton" class="secondary-button">Actualizar ahora</button></article>
-          <article class="panel"><h3>Sesión y administración</h3><p id="settingsUserText"></p><div class="button-row"><button data-view="users" class="secondary-button">Administrar usuarios</button><button id="settingsLogoutButton" class="danger-button">Cerrar sesión</button></div></article>
+          <article class="panel"><h3>Sesión y administración</h3><p id="settingsUserText"></p><div class="button-row"><button data-view="users" class="secondary-button manager-only">Administrar usuarios</button><button id="settingsLogoutButton" class="danger-button">Cerrar sesión</button></div></article>
         </div>
       </section>
     </main>
 
     <nav class="mobile-nav">
-      <button data-view="dashboard" class="active"><span>⌂</span>Inicio</button>
-      <button data-view="partes"><span>▤</span>Partes</button>
-      <button data-view="attendance"><span>◷</span>Marcas</button>
-      <button data-view="chat"><span>◌</span>Mensajes<i class="unread-badge hidden" data-unread-badge>0</i></button>
-      <button data-view="settings"><span>⚙</span>Más</button>
+      <button data-view="dashboard" class="active"><span>⌂</span><b>Inicio</b></button>
+      <button data-view="partes"><span>▤</span><b>Partes</b></button>
+      <button data-view="attendance"><span>◷</span><b>Asistencia</b></button>
+      <button data-view="chat"><span>◌</span><b>Chat</b><i class="unread-badge hidden" data-unread-badge>0</i></button>
+      <button data-view="settings"><span>⚙</span><b>Más</b></button>
     </nav>
   </div>
 
@@ -194,10 +235,11 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
-  <script src="./firebase-init.js?v=20.2.0"></script>
-  <script src="./push-notifications.js?v=20.2.0"></script>
-  <script src="./attendance.js?v=20.2.0"></script>
-  <script src="./chat.js?v=20.2.0"></script>
-  <script src="./app.js?v=20.2.0"></script>
+  <script src="./firebase-init.js?v=20.4.0"></script>
+  <script src="./offline-store.js?v=20.4.0"></script>
+  <script src="./push-notifications.js?v=20.4.0"></script>
+  <script src="./attendance.js?v=20.4.0"></script>
+  <script src="./chat.js?v=20.4.0"></script>
+  <script src="./app.js?v=20.4.0"></script>
 </body>
 </html>

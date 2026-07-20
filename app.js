@@ -1,8 +1,9 @@
-/* Lubayd SA V20.2 - Aplicación principal */
+/* Lubayd SA V20.4 - diseño V19 con modo offline */
 (function () {
   'use strict';
 
-  const VERSION = '20.2.0';
+  const VERSION = '20.4.0';
+  const TIME_ZONE = 'America/Montevideo';
   const $ = selector => document.querySelector(selector);
   const $$ = selector => Array.from(document.querySelectorAll(selector));
   const state = {
@@ -14,12 +15,18 @@
     currentPartGps: null,
     toastTimer: null,
     deferredInstall: null,
-    waitingWorker: null
+    waitingWorker: null,
+    offlineSession: false,
+    offlineProfiles: []
   };
 
   const db = () => window.LubaydFirebase?.db;
   const FieldValue = () => window.LubaydFirebase?.FieldValue;
-  const localDateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const localDateKey = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+    const values = Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  };
   const todayKey = () => localDateKey(new Date());
   const isManager = () => ['admin', 'supervisor'].includes(state.profile?.role);
   const isAdmin = () => state.profile?.role === 'admin';
@@ -40,7 +47,7 @@
 
   function formatDateTime(value) {
     const date = value?.toDate ? value.toDate() : new Date(value || Date.now());
-    return new Intl.DateTimeFormat('es-UY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date);
+    return new Intl.DateTimeFormat('es-UY', { timeZone: TIME_ZONE, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date);
   }
 
   function initials(name) {
@@ -127,14 +134,152 @@
     });
   }
 
+
+  function setOfflineLoginMessage(text, success) {
+    const element = $('#offlineLoginMessage');
+    if (!element) return;
+    element.textContent = text || '';
+    element.className = `form-message${success ? ' success' : ''}`;
+  }
+
+  async function refreshOfflineAccess() {
+    const panel = $('#offlineAccessPanel');
+    const select = $('#offlineProfileSelect');
+    if (!panel || !select || !window.LubaydOffline?.available) return;
+    try {
+      state.offlineProfiles = await window.LubaydOffline.listProfiles({ onlyWithPin: true });
+      panel.classList.toggle('hidden', !state.offlineProfiles.length);
+      select.innerHTML = state.offlineProfiles.map(profile => `<option value="${escapeHtml(profile.uid)}">${escapeHtml(profile.nombre || profile.email)}${profile.email ? ` · ${escapeHtml(profile.email)}` : ''}</option>`).join('');
+    } catch (error) {
+      panel.classList.add('hidden');
+      console.warn('Acceso offline:', error);
+    }
+  }
+
+  async function offlineLogin() {
+    const uid = $('#offlineProfileSelect')?.value;
+    const pin = $('#offlinePinInput')?.value || '';
+    if (!uid || !pin) return setOfflineLoginMessage('Selecciona un usuario e ingresa su PIN.');
+    const button = $('#offlineLoginButton');
+    button.disabled = true;
+    button.textContent = 'Verificando…';
+    setOfflineLoginMessage('');
+    try {
+      const valid = await window.LubaydOffline.verifyPin(uid, pin);
+      if (!valid) throw new Error('PIN incorrecto.');
+      const profile = await window.LubaydOffline.getProfile(uid);
+      if (!profile || profile.active === false) throw new Error('Este usuario no esta habilitado para acceso offline.');
+      const localUser = { uid, email: profile.email || '', displayName: profile.nombre || '', isOffline: true };
+      $('#offlinePinInput').value = '';
+      window.dispatchEvent(new CustomEvent('lubayd-offline-unlock', { detail: { user: localUser, profile } }));
+    } catch (error) {
+      setOfflineLoginMessage(error.message || String(error));
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Abrir modo offline';
+    }
+  }
+
+  async function updateOfflineReadiness() {
+    if (!window.LubaydOffline?.available) {
+      if ($('#offlineReadyText')) $('#offlineReadyText').textContent = 'Este navegador no dispone de almacenamiento offline compatible.';
+      return;
+    }
+    const uid = state.user?.uid;
+    let profile = null;
+    let hasPin = false;
+    let pending = 0;
+    try {
+      if (uid) {
+        profile = await window.LubaydOffline.getProfile(uid);
+        hasPin = await window.LubaydOffline.hasPin(uid);
+        pending = await window.LubaydOffline.pendingCount(uid);
+      }
+      const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+      const setCheck = (selector, ready, readyText, missingText) => {
+        const element = $(selector);
+        if (!element) return;
+        element.classList.toggle('ready', ready);
+        element.innerHTML = `<i>${ready ? '✓' : '◌'}</i><span>${escapeHtml(ready ? readyText : missingText)}</span>`;
+      };
+      setCheck('#offlineCheckApp', standalone, 'Aplicación instalada', 'Conviene instalar la aplicación');
+      setCheck('#offlineCheckUser', Boolean(profile), 'Perfil descargado', 'Falta descargar el perfil');
+      setCheck('#offlineCheckPin', hasPin, 'PIN offline configurado', 'Falta configurar el PIN');
+      setCheck('#offlineCheckQueue', true, 'Almacenamiento local disponible', 'Almacenamiento local no disponible');
+      if ($('#offlineReadyText')) {
+        $('#offlineReadyText').textContent = profile && hasPin
+          ? `Este dispositivo está preparado. ${pending ? `${pending} marca(s) pendientes.` : 'No hay marcas pendientes.'}`
+          : 'Inicia sesión con internet y configura un PIN para dejar este teléfono preparado.';
+      }
+      if ($('#offlinePinSetup')) $('#offlinePinSetup').disabled = state.offlineSession || !uid;
+      if ($('#saveOfflinePinButton')) $('#saveOfflinePinButton').disabled = state.offlineSession || !uid;
+      if ($('#removeOfflinePinButton')) $('#removeOfflinePinButton').disabled = state.offlineSession || !hasPin;
+    } catch (error) {
+      console.warn('Estado offline:', error);
+    }
+  }
+
+  async function saveOfflinePin() {
+    if (!state.user?.uid || state.offlineSession) return toast('Conexión requerida', 'Inicia sesión normalmente para configurar el PIN offline.');
+    const pin = $('#offlinePinSetup').value.trim();
+    try {
+      await window.LubaydOffline.saveProfile(state.user, state.profile);
+      await window.LubaydOffline.setPin(state.user.uid, pin);
+      $('#offlinePinSetup').value = '';
+      await refreshOfflineAccess();
+      await updateOfflineReadiness();
+      toast('PIN offline guardado', 'Este usuario ya puede abrir la asistencia sin internet en este dispositivo.');
+    } catch (error) {
+      toast('No se pudo guardar el PIN', error.message || String(error));
+    }
+  }
+
+  async function removeOfflinePin() {
+    if (!state.user?.uid || state.offlineSession) return;
+    if (!confirm('¿Eliminar el acceso por PIN de este dispositivo? Las marcas guardadas no se eliminan.')) return;
+    try {
+      await window.LubaydOffline.removePin(state.user.uid);
+      await refreshOfflineAccess();
+      await updateOfflineReadiness();
+      toast('PIN eliminado', 'Para usar el modo offline tendrás que configurarlo nuevamente con internet.');
+    } catch (error) {
+      toast('No se pudo eliminar', error.message || String(error));
+    }
+  }
+
   async function logout() {
-    try { await window.LubaydFirebase.logout(); } catch (error) { toast('No se pudo cerrar sesión', error.message || String(error)); }
+    try {
+      const pending = state.user?.uid && window.LubaydOffline?.available ? await window.LubaydOffline.pendingCount(state.user.uid) : 0;
+      if (pending > 0 && !state.offlineSession) {
+        showView('attendance');
+        toast('No se puede cerrar sesión', `Hay ${pending} marca(s) pendientes. Sincroniza antes de cerrar la sesión online.`);
+        return;
+      }
+      if (state.offlineSession) {
+        state.offlineSession = false;
+        window.LubaydOfflineSession = false;
+        state.user = null;
+        state.profile = null;
+        window.LubaydCurrentProfile = null;
+        document.body.classList.remove('auth-ready', 'offline-session');
+        document.body.classList.add('auth-pending');
+        $('#offlineSessionBanner')?.classList.add('hidden');
+        window.dispatchEvent(new CustomEvent('lubayd-signed-out'));
+        await refreshOfflineAccess();
+        return;
+      }
+      await window.LubaydFirebase.logout();
+    } catch (error) {
+      toast('No se pudo cerrar sesión', error.message || String(error));
+    }
   }
 
   function updateRoleVisibility() {
-    $$('.manager-only').forEach(element => element.classList.toggle('hidden', !isManager()));
-    $$('[data-view="users"]').forEach(element => element.classList.toggle('hidden', !isAdmin()));
-    $('#view-users').classList.toggle('hidden', !isAdmin());
+    const managerVisible = isManager();
+    const onlineAdmin = isAdmin() && !state.offlineSession;
+    $$('.manager-only').forEach(element => element.classList.toggle('hidden', !managerVisible));
+    $$('[data-view="users"]').forEach(element => element.classList.toggle('hidden', !onlineAdmin));
+    $('#view-users')?.classList.toggle('hidden', !onlineAdmin);
   }
 
   function updateUserInterface() {
@@ -144,8 +289,10 @@
     $('#sidebarUserName').textContent = name;
     $('#sidebarUserRole').textContent = roleLabels[state.profile?.role] || state.profile?.role || 'Operador';
     $('#dashboardGreeting').textContent = `Hola, ${name.split(/\s+/)[0]}`;
-    $('#dashboardDate').textContent = new Intl.DateTimeFormat('es-UY', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date());
-    $('#settingsUserText').textContent = `${name} · ${state.user?.email || ''} · ${roleLabels[state.profile?.role] || state.profile?.role}`;
+    $('#dashboardDate').textContent = new Intl.DateTimeFormat('es-UY', { timeZone: TIME_ZONE, weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date());
+    $('#settingsUserText').textContent = `${name} · ${state.user?.email || ''} · ${roleLabels[state.profile?.role] || state.profile?.role}${state.offlineSession ? ' · Sesión offline' : ''}`;
+    if ($('#logoutButton')) $('#logoutButton').textContent = state.offlineSession ? 'Cerrar modo offline' : 'Cerrar sesión';
+    if ($('#settingsLogoutButton')) $('#settingsLogoutButton').textContent = state.offlineSession ? 'Cerrar modo offline' : 'Cerrar sesión';
     updateRoleVisibility();
   }
 
@@ -160,6 +307,10 @@
 
   function showView(name) {
     if (!state.user) return;
+    if (state.offlineSession && !['attendance', 'settings'].includes(name)) {
+      toast('Modo offline', 'En una sesión por PIN solo están disponibles Asistencia y Configuración.');
+      name = 'attendance';
+    }
     if (name === 'users' && !isAdmin()) {
       toast('Acceso restringido', 'Solo el administrador puede gestionar usuarios.');
       return;
@@ -418,18 +569,34 @@
 
   function setConnectionStatus() {
     const badge = $('#connectionBadge');
+    const title = $('#sidebarSyncTitle');
+    const text = $('#sidebarSyncText');
     if (navigator.onLine) {
-      badge.textContent = 'En línea';
-      badge.className = 'status-pill online';
+      if (badge) {
+        badge.textContent = state.offlineSession ? 'Internet disponible' : 'En línea';
+        badge.className = 'status-pill online';
+      }
+      if (title) title.textContent = state.offlineSession ? 'Internet disponible' : 'Sistema en línea';
+      if (text) text.textContent = state.offlineSession ? 'Vuelve a iniciar sesión normal para sincronizar' : 'Firebase conectado';
     } else {
-      badge.textContent = 'Sin conexión';
-      badge.className = 'status-pill warning';
+      if (badge) {
+        badge.textContent = 'Sin conexión';
+        badge.className = 'status-pill warning';
+      }
+      if (title) title.textContent = 'Modo sin conexión';
+      if (text) text.textContent = 'Las marcas se guardan en este teléfono';
     }
+    refreshOfflineAccess();
+    updateOfflineReadiness();
   }
 
   function bindApplicationEvents() {
     $('#logoutButton').addEventListener('click', logout);
     $('#settingsLogoutButton').addEventListener('click', logout);
+    $('#offlineLoginButton')?.addEventListener('click', offlineLogin);
+    $('#offlinePinInput')?.addEventListener('keydown', event => { if (event.key === 'Enter') offlineLogin(); });
+    $('#saveOfflinePinButton')?.addEventListener('click', saveOfflinePin);
+    $('#removeOfflinePinButton')?.addEventListener('click', removeOfflinePin);
     $('#capturePartGpsButton').addEventListener('click', capturePartGps);
     $('#partForm').addEventListener('submit', savePart);
     $('#refreshPartsButton').addEventListener('click', () => { subscribeParts(); toast('Partes actualizados', 'Se volvió a consultar Firestore.'); });
@@ -453,8 +620,12 @@
     });
     window.addEventListener('lubayd-attendance-updated', renderDashboard);
     window.addEventListener('lubayd-push-state', event => updatePushUI(event.detail));
-    window.addEventListener('online', setConnectionStatus);
+    window.addEventListener('online', () => {
+      setConnectionStatus();
+      window.LubaydAttendance?.syncPending?.({ automatic: true });
+    });
     window.addEventListener('offline', setConnectionStatus);
+    window.addEventListener('lubayd-offline-state-changed', updateOfflineReadiness);
     window.addEventListener('beforeinstallprompt', event => {
       event.preventDefault();
       state.deferredInstall = event;
@@ -476,7 +647,8 @@
       return;
     }
     if (!user) {
-      document.body.classList.remove('auth-ready');
+      if (state.offlineSession) return;
+      document.body.classList.remove('auth-ready', 'offline-session');
       document.body.classList.add('auth-pending');
       setAuthMessage('');
       window.dispatchEvent(new CustomEvent('lubayd-signed-out'));
@@ -487,18 +659,45 @@
       setAuthMessage('Esta cuenta está desactivada. Contacta al administrador.');
       return;
     }
+    state.offlineSession = false;
+    window.LubaydOfflineSession = false;
     state.user = user;
     state.profile = profile || { role: 'operador', active: true };
     window.LubaydCurrentProfile = state.profile;
-    document.body.classList.remove('auth-pending');
+    document.body.classList.remove('auth-pending', 'offline-session');
     document.body.classList.add('auth-ready');
+    $('#offlineSessionBanner')?.classList.add('hidden');
     updateUserInterface();
+    await window.LubaydOffline?.saveProfile?.(user, state.profile).catch(error => console.warn('Preparar perfil offline:', error));
+    await refreshOfflineAccess();
+    await updateOfflineReadiness();
     $('#partDate').value = todayKey();
     subscribeParts();
     window.dispatchEvent(new CustomEvent('lubayd-auth-ready', { detail: { user, profile: state.profile } }));
     const requested = new URLSearchParams(location.search).get('view') || 'dashboard';
     showView(requested === 'users' && !isAdmin() ? 'dashboard' : requested);
     updatePushUI(window.LubaydPush?.state?.());
+    window.LubaydAttendance?.syncPending?.({ automatic: true });
+  }
+
+
+  async function handleOfflineUnlock(user, profile) {
+    state.partsUnsubscribe?.();
+    state.partsUnsubscribe = null;
+    state.offlineSession = true;
+    window.LubaydOfflineSession = true;
+    state.user = user;
+    state.profile = profile || { role: 'operador', active: true };
+    window.LubaydCurrentProfile = state.profile;
+    document.body.classList.remove('auth-pending');
+    document.body.classList.add('auth-ready', 'offline-session');
+    $('#offlineSessionBanner')?.classList.remove('hidden');
+    updateUserInterface();
+    await updateOfflineReadiness();
+    window.dispatchEvent(new CustomEvent('lubayd-auth-ready', { detail: { user, profile: state.profile, offline: true } }));
+    showView('attendance');
+    setConnectionStatus();
+    toast('Sesión offline iniciada', 'Las marcas se guardarán en este teléfono. Para enviarlas deberás iniciar sesión normalmente cuando vuelva internet.');
   }
 
   async function registerServiceWorker() {
@@ -534,10 +733,13 @@
   bindApplicationEvents();
   setConnectionStatus();
   registerServiceWorker();
+  refreshOfflineAccess();
+  updateOfflineReadiness();
+  window.addEventListener('lubayd-offline-unlock', event => handleOfflineUnlock(event.detail.user, event.detail.profile));
   window.addEventListener('lubayd-auth-state', event => handleAuthState(event.detail.user, event.detail.profile, event.detail.error));
   if (window.LubaydLastAuthState) {
     const detail = window.LubaydLastAuthState;
     queueMicrotask(() => handleAuthState(detail.user, detail.profile, detail.error));
   }
-  window.LubaydApp = { version: VERSION, showView, renderDashboard, forceUpdate };
+  window.LubaydApp = { version: VERSION, showView, renderDashboard, forceUpdate, isOfflineSession: () => state.offlineSession, currentUser: () => state.user, currentProfile: () => state.profile, refreshOfflineAccess, updateOfflineReadiness };
 })();

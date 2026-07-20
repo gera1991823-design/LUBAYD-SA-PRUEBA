@@ -1,4 +1,4 @@
-/* Lubayd SA V20.2 - Chat interno */
+/* Lubayd SA V20.4 - Chat interno */
 (function () {
   'use strict';
 

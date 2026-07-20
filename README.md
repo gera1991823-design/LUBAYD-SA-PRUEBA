@@ -1,138 +1,145 @@
-# Lubayd SA - V20.2 Asistencia Móvil
+# Lubayd SA V20.4 — Diseño V19 + modo offline
 
-Versión completa para publicar en GitHub Pages y conectar con el proyecto Firebase `lubayd-sa`.
+Versión completa de la PWA para publicar en GitHub Pages y utilizar con el proyecto Firebase `lubayd-sa`.
 
-## Mejoras principales
+## Qué incluye
 
-- Vista de asistencia mediante tarjetas adaptadas al celular.
-- Administrador y supervisor pueden consultar todas las marcas por fecha.
-- Buscador por nombre o correo.
-- Resumen de presentes, trabajando, finalizados y sin registrar.
-- Botón visible **Actualizar marcas**.
-- Mensaje de error visible cuando Firestore rechaza o no completa una consulta.
-- Registro de llegada y salida con cámara, GPS y hora de Firebase.
-- El administrador puede corregir o eliminar una marca con motivo obligatorio y auditoría.
-- Caché PWA V20.2 con estrategia *network first* para HTML, CSS y JavaScript.
-- Instrucción específica para iPhone cuando la web se abre en Safari y todavía no está instalada.
-- Notificaciones FCM con escritura directa en `push_tokens`, sin leer el documento antes de crearlo.
-- Partes diarios, chat interno y administración de usuarios incluidos.
+- Regreso al diseño oscuro y verde de la V19.
+- Asistencia diferenciada por rol:
+  - **Operador:** registra llegada y salida con foto y GPS.
+  - **Supervisor:** visualiza las marcas del equipo.
+  - **Administrador:** visualiza, corrige horarios y elimina marcas. **No registra llegada ni salida.**
+- Seguridad reforzada en `firestore.rules`: solo el rol `operador` puede crear sus propias marcas y fotografías.
+- Modo offline completo para asistencia mediante IndexedDB.
+- Cola local para guardar fotografía, GPS, fecha y hora aunque Firebase no responda.
+- Sincronización automática al recuperar internet y botón **Sincronizar ahora**.
+- Acceso offline mediante PIN de 4 a 6 dígitos para usuarios preparados previamente en ese teléfono.
+- Bloqueo del cierre de sesión cuando quedan marcas pendientes.
+- Horarios visualizados y editados expresamente en la zona `America/Montevideo`.
+- Auditoría obligatoria para cada corrección o eliminación administrativa.
+- PWA con caché nueva V20.4 para reemplazar versiones anteriores.
+- Chat y notificaciones push conservados.
 
-## Archivos que deben subirse a GitHub
+## Funcionamiento sin internet
 
-Sube todo el contenido de esta carpeta a la raíz del repositorio:
+### Preparar cada teléfono
 
-- `index.html`
-- `styles.css`
-- `firebase-init.js`
-- `attendance.js`
-- `chat.js`
-- `push-notifications.js`
-- `app.js`
-- `service-worker.js`
-- `manifest.webmanifest`
-- `firestore.rules`
-- `assets/`
-- `functions/` como respaldo de la Cloud Function
+1. Instala la PWA desde el navegador.
+2. Inicia sesión normalmente mientras haya internet.
+3. Abre **Más → Configuración**.
+4. Crea un PIN offline de 4 a 6 números.
+5. Verifica que el panel muestre perfil descargado, PIN configurado y almacenamiento local disponible.
+6. No borres los datos del navegador ni desinstales la PWA antes del trabajo sin señal.
 
-No subas `functions/node_modules` si luego instalas las dependencias localmente.
+### Durante el período sin señal
+
+- El usuario abre **Acceso sin conexión** y utiliza el PIN.
+- La aplicación permite registrar llegada y salida únicamente al rol `operador`.
+- Cada marca queda guardada en el teléfono con fotografía, GPS y hora de captura.
+- El estado indica cuántas marcas están pendientes.
+
+### Cuando regresa internet
+
+1. Cierra la sesión offline.
+2. Inicia sesión normalmente con correo y contraseña.
+3. Abre **Asistencia**.
+4. Pulsa **Sincronizar ahora** si la sincronización no comenzó automáticamente.
+5. Espera hasta ver **Todo sincronizado**.
+
+El administrador verá las marcas cuando el teléfono del operador haya recuperado internet y terminado la sincronización. Una marca que permanece únicamente en otro celular no puede verse remotamente antes de sincronizar.
+
+## Horarios
+
+- La fecha diaria y todas las horas de asistencia se muestran en horario de Uruguay: `America/Montevideo`.
+- Las marcas offline conservan la hora exacta capturada por el teléfono.
+- Firebase registra además la recepción en el servidor al sincronizar.
+- Al editar, el administrador ingresa la hora en formato `HH:MM` de Uruguay.
+- La salida debe ser posterior a la entrada.
+
+Conviene mantener activada la fecha y hora automáticas del celular. Sin internet, la PWA depende del reloj del dispositivo para determinar la hora de captura.
 
 ## Publicación en GitHub Pages
 
 1. Descomprime el ZIP.
-2. Entra al repositorio que publica la aplicación.
-3. Elimina o reemplaza los archivos anteriores.
-4. Sube todos los archivos y carpetas de V20.2.
-5. Confirma los cambios en la rama configurada para GitHub Pages.
-6. Espera a que el despliegue termine correctamente.
+2. Sube **todo el contenido** de esta carpeta a la raíz del repositorio.
+3. Reemplaza los archivos existentes.
+4. Confirma el cambio en la rama utilizada por GitHub Pages.
+5. Espera a que GitHub Pages finalice el despliegue.
+6. Publica `firestore.rules` en Firebase Console.
+
+Archivos principales:
+
+- `index.html`
+- `styles.css`
+- `app.js`
+- `attendance.js`
+- `offline-store.js`
+- `firebase-init.js`
+- `chat.js`
+- `push-notifications.js`
+- `service-worker.js`
+- `manifest.webmanifest`
+- `firestore.rules`
+- `assets/`
+- `functions/` como respaldo de la función push
 
 ## Publicar las reglas de Firestore
 
-1. Abre Firebase Console.
-2. Entra en **Firestore Database → Reglas**.
-3. Copia todo el contenido de `firestore.rules`.
-4. Presiona **Publicar**.
+Desde Firebase Console:
 
-Sin estas reglas no funcionarán correctamente la asistencia, las fotografías, el chat, los roles ni `push_tokens`.
+1. Abre **Firestore Database → Reglas**.
+2. Reemplaza el contenido por el archivo `firestore.rules` de esta versión.
+3. Pulsa **Publicar**.
 
-## Actualizar el celular
-
-### iPhone
-
-1. Elimina el icono anterior de Lubayd SA de la pantalla de inicio.
-2. Abre la dirección de GitHub Pages en Safari.
-3. Pulsa **Compartir → Agregar a pantalla de inicio**.
-4. Abre Lubayd SA desde el nuevo icono.
-5. Inicia sesión.
-6. Entra en **Más → Configuración**.
-7. Pulsa **Activar notificaciones** y acepta el permiso.
-
-Safari abierto como una pestaña normal puede mostrar que las notificaciones no están disponibles. En iPhone deben activarse dentro de la PWA instalada.
-
-### Android
-
-1. Cierra completamente la versión anterior.
-2. Borra la aplicación instalada si continúa mostrando la versión vieja.
-3. Abre la web en Chrome y vuelve a instalarla.
-4. Revisa que Chrome o Lubayd SA tengan permiso de notificaciones.
-
-## Verificar la asistencia
-
-1. Inicia sesión con un operador.
-2. Entra en **Marcas**.
-3. Registra llegada con foto y GPS.
-4. Inicia sesión con el administrador en el celular.
-5. Entra en **Marcas** y pulsa **Actualizar marcas**.
-6. Selecciona la fecha y busca al operador.
-
-Firestore debe contener:
-
-- `asistencias`
-- `asistencia_fotos`
-- `asistencia_auditoria` cuando un administrador corrige o elimina
-
-## Verificar las notificaciones
-
-Después de activar las notificaciones, Firestore debe crear:
-
-- `push_tokens/{tokenId}`
-
-El documento debe incluir, entre otros campos:
-
-- `active: true`
-- `userId`
-- `token`
-- `platform`
-- `standalone`
-
-Luego minimiza la aplicación y envía un mensaje desde otra cuenta.
-
-## Cloud Function
-
-La función `notifyNewChatMessage` ya estaba desplegada. La carpeta `functions` se incluye como respaldo.
-
-Para volver a desplegarla:
-
-```bash
-npm install -g firebase-tools
-firebase login
-cd functions
-npm install
-cd ..
-firebase deploy --only functions
-```
-
-Para publicar solamente las reglas:
+O desde Firebase CLI:
 
 ```bash
 firebase deploy --only firestore:rules
 ```
 
-## Roles
+## Actualizar los celulares
 
-En `usuarios/{uid}`:
+Debido al cambio de diseño y caché:
 
-- Administrador: `role: "admin"`, `active: true`
-- Supervisor: `role: "supervisor"`, `active: true`
-- Operador: `role: "operador"`, `active: true`
+### iPhone
 
-Solo el administrador puede modificar roles, activar/desactivar usuarios y corregir o eliminar marcas.
+1. Elimina el icono anterior de Lubayd SA.
+2. Abre la dirección de GitHub Pages en Safari.
+3. Usa **Compartir → Agregar a pantalla de inicio**.
+4. Abre la aplicación desde el nuevo icono.
+5. Inicia sesión online y vuelve a configurar el PIN offline.
+6. Activa las notificaciones desde **Más**.
+
+### Android
+
+1. Elimina o actualiza la PWA anterior.
+2. Abre la página en Chrome.
+3. Instálala nuevamente.
+4. Inicia sesión online y configura el PIN offline.
+5. Revisa los permisos de cámara, ubicación y notificaciones.
+
+## Prueba recomendada
+
+1. Inicia sesión como operador con internet.
+2. Configura el PIN offline.
+3. Activa modo avión.
+4. Abre la aplicación mediante el PIN.
+5. Registra llegada con foto y GPS.
+6. Registra salida.
+7. Desactiva modo avión.
+8. Cierra el modo offline e inicia sesión normalmente.
+9. Pulsa **Sincronizar ahora**.
+10. Desde el administrador, abre **Asistencia**, selecciona la fecha y pulsa **Actualizar marcas**.
+11. Comprueba que el administrador no tenga botones de llegada o salida y que sí pueda ver, editar o eliminar.
+
+## Colecciones utilizadas
+
+- `usuarios`
+- `partes`
+- `asistencias`
+- `asistencia_fotos`
+- `asistencia_auditoria`
+- `chats`
+- `push_tokens`
+
+No es necesario crear las colecciones manualmente.

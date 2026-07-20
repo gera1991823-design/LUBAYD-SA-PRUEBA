@@ -1,4 +1,4 @@
-/* Lubayd SA V20.2 - Firebase Cloud Messaging */
+/* Lubayd SA V20.4 - Firebase Cloud Messaging */
 (function () {
   'use strict';
 
