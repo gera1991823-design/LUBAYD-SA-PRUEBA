@@ -1,4 +1,4 @@
-LUBAYD SA V20.5 - VALIDACION TECNICA
+LUBAYD SA V20.5.1 - VALIDACION TECNICA
 ========================================
 
 [OK] Recurso corporativo V20.1 preservado: logo.svg

@@ -1,4 +1,4 @@
-# Lubayd SA V20.5 — Diseño V20.1 + modo offline
+# Lubayd SA V20.5.1 — Diseño V20.1 + modo offline
 
 Esta versión recupera la identidad visual de la línea V20.1/V20.2 y mantiene las mejoras funcionales de asistencia offline.
 

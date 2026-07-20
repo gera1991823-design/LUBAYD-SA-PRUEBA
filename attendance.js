@@ -1,8 +1,8 @@
-/* Lubayd SA V20.5 - asistencia diseño V20.1, horarios Uruguay y cola offline */
+/* Lubayd SA V20.5.1 - asistencia diseño V20.1, horarios Uruguay y cola offline */
 (function () {
   'use strict';
 
-  const VERSION = '20.5.0';
+  const VERSION = '20.5.1';
   const TIME_ZONE = 'America/Montevideo';
   const state = {
     user: null,

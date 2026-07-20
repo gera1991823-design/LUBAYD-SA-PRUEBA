@@ -1,20 +1,20 @@
-/* Lubayd SA V20.5 - PWA diseño V20.1 + modo offline + Firebase Cloud Messaging */
-const CACHE_NAME = 'lubayd-sa-v20.5.0-v20-1-offline';
+/* Lubayd SA V20.5.1 - PWA diseño V20.1 + modo offline + Firebase Cloud Messaging */
+const CACHE_NAME = 'lubayd-sa-v20.5.1-v20-1-offline';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css?v=20.5.0',
-  './firebase-init.js?v=20.5.0',
-  './offline-store.js?v=20.5.0',
-  './push-notifications.js?v=20.5.0',
-  './attendance.js?v=20.5.0',
-  './chat.js?v=20.5.0',
-  './app.js?v=20.5.0',
-  './manifest.webmanifest?v=20.5.0',
+  './styles.css?v=20.5.1',
+  './firebase-init.js?v=20.5.1',
+  './offline-store.js?v=20.5.1',
+  './push-notifications.js?v=20.5.1',
+  './attendance.js?v=20.5.1',
+  './chat.js?v=20.5.1',
+  './app.js?v=20.5.1',
+  './manifest.webmanifest?v=20.5.1',
   './assets/logo.svg',
   './assets/icon.svg',
-  './assets/icon-192.png?v=20.5.0',
-  './assets/icon-512.png?v=20.5.0'
+  './assets/icon-192.png?v=20.5.1',
+  './assets/icon-512.png?v=20.5.1'
 ];
 
 self.addEventListener('notificationclick', event => {

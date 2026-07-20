@@ -29,5 +29,5 @@
 
 ## PWA
 
-- Caché nueva `lubayd-sa-v20.5.0-v20-1-offline`.
+- Caché nueva `lubayd-sa-v20.5.1-v20-1-offline`.
 - Se mantienen Firebase Cloud Messaging, VAPID y `notifyNewChatMessage`.

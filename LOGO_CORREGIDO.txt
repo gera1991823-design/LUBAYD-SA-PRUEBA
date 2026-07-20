@@ -1,0 +1,12 @@
+LUBAYD SA V20.5.1 - CORRECCION DEL LOGO
+=======================================
+
+El logo principal ahora esta incrustado directamente en index.html.
+Ya no depende de que el navegador encuentre assets/logo.svg para mostrarlo.
+La carpeta assets se conserva para los iconos de instalacion de la PWA.
+
+Para evitar que el telefono mantenga la version anterior:
+1. Reemplazar todos los archivos publicados.
+2. Esperar a que GitHub Pages termine.
+3. Abrir la aplicacion y pulsar Configuracion > Actualizar ahora.
+4. Si sigue igual, eliminar la PWA anterior e instalarla nuevamente.

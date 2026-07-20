@@ -1,8 +1,8 @@
-/* Lubayd SA V20.5 - diseño V20.1 con modo offline */
+/* Lubayd SA V20.5.1 - diseño V20.1 con modo offline */
 (function () {
   'use strict';
 
-  const VERSION = '20.5.0';
+  const VERSION = '20.5.1';
   const TIME_ZONE = 'America/Montevideo';
   const $ = selector => document.querySelector(selector);
   const $$ = selector => Array.from(document.querySelectorAll(selector));
