@@ -1,4 +1,4 @@
-/* Lubayd SA V17 - Firebase Authentication, Firestore, asistencia administrable y notificaciones */
+/* Lubayd SA V18 - Firebase Authentication, Firestore, asistencia y notificaciones push */
 (function () {
   const firebaseConfig = {
     apiKey: "AIzaSyCQDwcbAox4QEDe_czZX_YSd9jVx9g5BkY",
@@ -122,6 +122,13 @@
         return auth.sendPasswordResetEmail(String(email || '').trim());
       },
       async logout() {
+        try {
+          if (window.LubaydPush && typeof window.LubaydPush.disable === 'function') {
+            await window.LubaydPush.disable({ keepPermission: true });
+          }
+        } catch (error) {
+          console.warn('No se pudo retirar el dispositivo antes de cerrar sesión:', error);
+        }
         return auth.signOut();
       },
       errorMessage: authErrorMessage

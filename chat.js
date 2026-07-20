@@ -396,6 +396,8 @@
   }
 
   async function showSystemNotification(name, preview, conversation) {
+    // FCM se ocupa de los avisos en segundo plano. Evita notificaciones duplicadas.
+    if (window.LubaydPush?.isEnabled?.()) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const peer = peerFromConversation(conversation);
     const options = {
@@ -471,34 +473,47 @@
       return;
     }
     try {
-      if (Notification.permission === 'default') await Notification.requestPermission();
+      if (window.LubaydPush?.enable) {
+        await window.LubaydPush.enable();
+      } else if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
       updateNotificationButton();
       if (Notification.permission === 'granted') {
-        showDirectoryNotice('Notificaciones y sonido activados.');
-        window.setTimeout(() => showDirectoryNotice(''), 3000);
+        showDirectoryNotice('Notificaciones push y sonido activados en este dispositivo.');
+        window.setTimeout(() => showDirectoryNotice(''), 3500);
       } else if (Notification.permission === 'denied') {
-        showDirectoryNotice('Las notificaciones están bloqueadas en el navegador. Debes habilitarlas desde la configuración del sitio.');
+        showDirectoryNotice('Las notificaciones están bloqueadas. Habilítalas desde la configuración del sitio o del teléfono.');
       }
     } catch (error) {
-      showDirectoryNotice(error.message || 'No se pudieron activar las notificaciones.');
+      showDirectoryNotice(error.message || 'No se pudieron activar las notificaciones push.');
+      updateNotificationButton();
     }
   }
 
   function updateNotificationButton() {
     const button = $('#chatNotificationBtn');
     if (!button) return;
-    const supported = 'Notification' in window;
+    const pushState = window.LubaydPush?.state?.() || {};
+    const supported = pushState.supported !== false && 'Notification' in window;
     const permission = supported ? Notification.permission : 'unsupported';
+    const enabled = Boolean(window.LubaydPush?.isEnabled?.());
     button.dataset.permission = permission;
-    if (permission === 'granted') {
-      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Avisos activos</span>';
-      button.title = 'Notificaciones y sonido activados';
+    if (enabled) {
+      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Push activo</span>';
+      button.title = 'Este dispositivo recibirá mensajes aunque la aplicación esté cerrada';
+    } else if (permission === 'granted') {
+      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Completar activación</span>';
+      button.title = 'Registrar este dispositivo en Firebase Cloud Messaging';
     } else if (permission === 'denied') {
       button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Avisos bloqueados</span>';
       button.title = 'Habilita las notificaciones desde la configuración del navegador';
+    } else if (!supported) {
+      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>No compatible</span>';
+      button.title = 'Este navegador no admite notificaciones push web';
     } else {
-      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Activar avisos</span>';
-      button.title = 'Activar notificaciones y sonido';
+      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Activar push</span>';
+      button.title = 'Recibir mensajes aunque la aplicación esté cerrada';
     }
   }
 
@@ -512,6 +527,7 @@
   });
   $('#chatBackBtn')?.addEventListener('click', closeThread);
   $('#chatNotificationBtn')?.addEventListener('click', requestNotifications);
+  window.addEventListener('lubayd-push-state', updateNotificationButton);
 
   document.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
   document.addEventListener('keydown', unlockAudio, { once: true });
