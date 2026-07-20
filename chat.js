@@ -396,9 +396,11 @@
   }
 
   async function showSystemNotification(name, preview, conversation) {
-    // FCM se ocupa de los avisos en segundo plano. Evita notificaciones duplicadas.
-    if (window.LubaydPush?.isEnabled?.()) return;
+    // Cuando la app está minimizada o en otra pestaña, muestra una notificación del sistema.
+    // El servicio push completo se ocupa de la app cerrada; este aviso local cubre el uso minimizado.
+    if (!document.hidden && document.hasFocus()) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (window.LubaydPush?.wasRecentlyPushed?.(conversation.id, preview)) return;
     const peer = peerFromConversation(conversation);
     const options = {
       body: preview,
@@ -406,11 +408,14 @@
       badge: './assets/icon-192.png',
       tag: `lubayd-chat-${conversation.id}`,
       renotify: true,
-      silent: true,
+      silent: false,
+      vibrate: [180, 80, 180],
       data: { url: './?view=chat', peerUid: peer?.uid || '' }
     };
     try {
-      if ('serviceWorker' in navigator) {
+      if (window.LubaydPush?.showLocalNotification) {
+        await window.LubaydPush.showLocalNotification(`Nuevo mensaje de ${name}`, options);
+      } else if ('serviceWorker' in navigator) {
         const registration = await navigator.serviceWorker.ready;
         await registration.showNotification(`Nuevo mensaje de ${name}`, options);
       } else {
@@ -480,7 +485,7 @@
       }
       updateNotificationButton();
       if (Notification.permission === 'granted') {
-        showDirectoryNotice('Notificaciones push y sonido activados en este dispositivo.');
+        showDirectoryNotice(window.LubaydPush?.state?.().tokenRegistered ? 'Notificaciones push y sonido activados.' : 'Avisos activados para la aplicación abierta o minimizada.');
         window.setTimeout(() => showDirectoryNotice(''), 3500);
       } else if (Notification.permission === 'denied') {
         showDirectoryNotice('Las notificaciones están bloqueadas. Habilítalas desde la configuración del sitio o del teléfono.');
@@ -497,11 +502,11 @@
     const pushState = window.LubaydPush?.state?.() || {};
     const supported = pushState.supported !== false && 'Notification' in window;
     const permission = supported ? Notification.permission : 'unsupported';
-    const enabled = Boolean(window.LubaydPush?.isEnabled?.());
+    const enabled = Boolean(pushState.locallyEnabled || window.LubaydPush?.isEnabled?.());
     button.dataset.permission = permission;
     if (enabled) {
-      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Push activo</span>';
-      button.title = 'Este dispositivo recibirá mensajes aunque la aplicación esté cerrada';
+      button.innerHTML = `<svg><use href="#i-bell"></use></svg><span>${pushState.tokenRegistered ? 'Notificaciones activas' : 'Avisos activos'}</span>`;
+      button.title = pushState.tokenRegistered ? 'Este dispositivo está registrado para notificaciones push' : 'Recibirás avisos mientras la aplicación esté abierta o minimizada';
     } else if (permission === 'granted') {
       button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Completar activación</span>';
       button.title = 'Registrar este dispositivo en Firebase Cloud Messaging';
@@ -512,8 +517,8 @@
       button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>No compatible</span>';
       button.title = 'Este navegador no admite notificaciones push web';
     } else {
-      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Activar push</span>';
-      button.title = 'Recibir mensajes aunque la aplicación esté cerrada';
+      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Activar notificaciones</span>';
+      button.title = 'Recibir avisos y sonido al usar o minimizar la aplicación';
     }
   }
 

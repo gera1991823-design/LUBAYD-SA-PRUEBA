@@ -1,7 +1,7 @@
 {
   "name": "Centro de Operaciones Forestales Lubayd SA",
   "short_name": "Lubayd Forestal",
-  "description": "Gestión forestal Lubayd SA con partes, firma digital, asistencia con foto administrable, GPS, chat con avisos y sincronización.",
+  "description": "Gestión forestal Lubayd SA con partes, asistencia, GPS, chat y notificaciones móviles.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

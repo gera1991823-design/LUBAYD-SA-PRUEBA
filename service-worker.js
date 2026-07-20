@@ -1,4 +1,4 @@
-/* Lubayd SA V18 - PWA + Firebase Cloud Messaging */
+/* Lubayd SA V19 - PWA + Firebase Cloud Messaging */
 
 // Este listener debe registrarse antes de importar Firebase Messaging para conservar
 // el comportamiento personalizado al tocar una notificación.
@@ -37,18 +37,28 @@ messaging.onBackgroundMessage(payload => {
   const title = data.title || (data.senderName ? `Nuevo mensaje de ${data.senderName}` : 'Nuevo mensaje');
   const body = data.body || data.text || 'Tienes un mensaje nuevo en Lubayd SA.';
   const url = data.url || './?view=chat';
-  return self.registration.showNotification(title, {
+  const notificationPromise = self.registration.showNotification(title, {
     body,
     icon: new URL('./assets/icon-192.png', self.registration.scope).href,
     badge: new URL('./assets/icon-192.png', self.registration.scope).href,
     tag: data.chatId ? `lubayd-chat-${data.chatId}` : 'lubayd-chat',
     renotify: true,
+    silent: false,
     vibrate: [180, 90, 180],
     data: { url, chatId: data.chatId || '', senderId: data.senderId || '' }
   });
+  const clientPromise = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    clients.forEach(client => client.postMessage({
+      type: 'LUBAYD_PUSH_RECEIVED',
+      chatId: data.chatId || '',
+      messageId: data.messageId || '',
+      text: body
+    }));
+  });
+  return Promise.all([notificationPromise, clientPromise]);
 });
 
-const CACHE_NAME = 'lubayd-forestal-v18.0.0-push';
+const CACHE_NAME = 'lubayd-forestal-v19.0.0-notificaciones';
 const LOCAL_ASSETS = [
   './',
   './index.html',

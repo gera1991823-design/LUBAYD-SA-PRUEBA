@@ -152,7 +152,7 @@
         <div><strong id="sidebarUserName">Operador</strong><small id="sidebarUserEmail">Sesión segura</small></div>
         <svg><use href="#i-chevron-left"></use></svg>
       </button>
-      <div class="sidebar-version">V18 Push · Lubayd SA</div>
+      <div class="sidebar-version">V19 Notificaciones · Lubayd SA</div>
     </aside>
 
     <main class="main">
@@ -168,6 +168,17 @@
           <div class="topbar-user"><div class="avatar" id="topbarAvatar">OP</div><div><strong id="topbarUserName">Operador</strong><small id="topbarUserEmail">Lubayd SA</small></div></div>
         </div>
       </header>
+
+      <aside id="notificationActivationBanner" class="notification-activation-banner hidden" aria-live="polite">
+        <div class="notification-activation-icon"><svg><use href="#i-bell"></use></svg><span></span></div>
+        <div class="notification-activation-copy"><span>AVISOS EN EL CELULAR</span><strong id="notificationBannerTitle">Activa las notificaciones</strong><small id="notificationBannerText">Recibe el nombre del remitente, vista previa, sonido y vibración.</small></div>
+        <span id="notificationStatusPill" class="notification-status-pill">PENDIENTE</span>
+        <div class="notification-activation-actions">
+          <button type="button" class="btn btn-primary" data-enable-notifications><svg><use href="#i-bell"></use></svg><span data-notification-label>Activar notificaciones</span></button>
+          <button type="button" class="btn btn-soft hidden" data-test-notification><svg><use href="#i-check"></use></svg> Probar</button>
+          <button type="button" id="notificationBannerDismiss" class="icon-button" aria-label="Cerrar aviso"><svg><use href="#i-close"></use></svg></button>
+        </div>
+      </aside>
 
       <section id="dashboard" class="view active">
         <div id="operatorDashboard" class="role-dashboard operator-dashboard">
@@ -408,6 +419,13 @@
               </div>
             </div>
 
+            <div id="chatNotificationSetup" class="chat-notification-setup">
+              <div class="chat-notification-setup-icon"><svg><use href="#i-bell"></use></svg></div>
+              <div><strong id="chatNotificationSetupTitle">Activa las notificaciones</strong><span id="chatNotificationSetupText">Recibe avisos y sonido cuando minimices la aplicación.</span></div>
+              <button type="button" data-enable-notifications><svg><use href="#i-bell"></use></svg><span data-notification-label>Activar</span></button>
+              <button type="button" class="hidden" data-test-notification><svg><use href="#i-check"></use></svg><span>Probar</span></button>
+            </div>
+
             <label class="chat-search">
               <svg><use href="#i-search"></use></svg>
               <input id="chatSearch" type="search" autocomplete="off" placeholder="Buscar conversación">
@@ -525,7 +543,7 @@
 
       <section id="configuracion" class="view admin-view">
         <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-settings"></use></svg> PREFERENCIAS</span><h2>Configuración de la aplicación</h2><p>Ajusta apariencia, accesibilidad y comportamiento del sistema.</p></div></div>
-        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 17.0 Administración y Avisos</span><small>Usuarios, asistencia con foto y gestión administrativa, firma digital, chat con avisos y sonido, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
+        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2 notification-settings-card"><div class="ops-card-head"><div><span>NOTIFICACIONES</span><h3>Avisos en celular y computadora</h3></div><span class="notification-settings-state" id="notificationSettingsState">Pendiente</span></div><div class="notification-settings-body"><div class="notification-settings-visual"><svg><use href="#i-bell"></use></svg><span></span></div><div><strong>Mensajes nuevos con nombre y vista previa</strong><p>Activa sonido, vibración y aviso del sistema. La prueba confirma que el teléfono puede mostrarlos.</p></div><div class="notification-settings-actions"><button type="button" class="btn btn-primary" data-enable-notifications><svg><use href="#i-bell"></use></svg><span data-notification-label>Activar notificaciones</span></button><button type="button" class="btn btn-soft hidden" data-test-notification><svg><use href="#i-check"></use></svg> Enviar prueba</button></div></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 19.0 Notificaciones móviles</span><small>Usuarios, asistencia con foto, firma digital, chat con notificaciones, sonido, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
       </section>
 
     </main>

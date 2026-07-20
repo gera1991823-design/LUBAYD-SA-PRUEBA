@@ -1380,6 +1380,8 @@ function showToast(title, text) {
   toastTimer = window.setTimeout(() => $('#toast').classList.add('hidden'), 3200);
 }
 
+window.LubaydToast = showToast;
+
 function syncNetworkStatus() {
   if (!navigator.onLine) {
     applyCloudStatus('Sin conexión', false, 'Trabajando con datos locales');
