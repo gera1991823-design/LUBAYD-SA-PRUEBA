@@ -1,0 +1,59 @@
+LUBAYD SA - VERSION 20.1 PUSH CORREGIDO
+========================================
+
+CORRECCION PRINCIPAL
+--------------------
+La version anterior intentaba leer el documento del token antes de crearlo.
+Las reglas de Firestore rechazaban esa lectura porque el documento todavia no
+existia. Por eso nunca se creaba la coleccion push_tokens.
+
+Esta version guarda el token directamente y muestra un error visible si el
+registro push no se completa.
+
+PASOS DE INSTALACION
+--------------------
+1. Descomprime el ZIP.
+2. Sube TODOS los archivos a la raiz del repositorio LUBAYD-SA-PRUEBA.
+3. Reemplaza los archivos existentes.
+4. Verifica que GitHub muestre estos archivos:
+   - push-notifications.js
+   - service-worker.js
+   - firestore.rules
+   - firebase-init.js
+   - index.html
+5. Espera a que GitHub Pages finalice el despliegue en verde.
+6. En Firebase abre Firestore Database > Reglas.
+7. Copia todo el contenido de firestore.rules y pulsa Publicar.
+8. En el celular elimina la version anterior de la pantalla de inicio.
+9. Abre la pagina desde Chrome o Safari, actualiza y vuelve a agregarla a inicio.
+10. Inicia sesion y pulsa Activar notificaciones.
+11. Acepta el permiso del sistema.
+
+VERIFICACION
+------------
+Despues de activar, abre Firebase > Firestore > Datos.
+Debe aparecer la coleccion:
+
+push_tokens
+
+Dentro debe existir un documento con:
+- active: true
+- userId: UID del usuario conectado
+- token: cadena larga
+- platform: Android, iOS, Windows, etc.
+
+PRUEBA REAL
+-----------
+1. Deja la aplicacion instalada en segundo plano.
+2. Inicia sesion con otra cuenta en PC u otro celular.
+3. Envia un mensaje al usuario registrado.
+4. El telefono debe mostrar el nombre del remitente y el texto.
+
+IMPORTANTE
+----------
+La Cloud Function notifyNewChatMessage ya fue desplegada. No hace falta volver
+a desplegarla si sigue apareciendo en Firebase > Functions.
+
+En iPhone la web app debe estar agregada a la pantalla de inicio y abrirse desde
+ese icono. En Android revisa que las notificaciones de Chrome o Lubayd esten
+permitidas y que la bateria no tenga restricciones severas.
