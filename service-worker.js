@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lubayd-forestal-v16.0.0-firma-digital';
+const CACHE_NAME = 'lubayd-forestal-v17.0.0-admin-notificaciones';
 const LOCAL_ASSETS = [
   './',
   './index.html',
@@ -68,4 +68,20 @@ self.addEventListener('fetch', event => {
 
 self.addEventListener('message', event => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || './?view=chat', self.location.href).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      const existing = clients.find(client => client.url.startsWith(self.location.origin));
+      if (existing) {
+        existing.navigate(targetUrl).catch(() => {});
+        return existing.focus();
+      }
+      return self.clients.openWindow(targetUrl);
+    })
+  );
 });

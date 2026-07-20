@@ -21,7 +21,7 @@
     window.LubaydLogoFallback = function (img) {
       if (img.dataset.fallbackTried !== '1') {
         img.dataset.fallbackTried = '1';
-        img.src = './assets/logo.png?v=16.0.0';
+        img.src = './assets/logo.png?v=17.0.0';
         return;
       }
       img.onerror = null;
@@ -59,6 +59,7 @@
     <symbol id="i-map" viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/></symbol>
     <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 3h7v7M10 14 21 3"/><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16v4Z"/><path d="m13 7 4 4M3 21h18"/></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></symbol>
     <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8Z"/><path d="m19 16 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8Z"/></symbol>
@@ -88,13 +89,13 @@
 
   <div class="auth-gate" id="authGate">
     <section class="auth-visual" aria-hidden="true">
-      <div class="auth-brand"><img src="./assets/logo-transparent.png?v=16.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt=""><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
+      <div class="auth-brand"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt=""><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
       <div class="auth-copy"><span>PLATAFORMA OPERATIVA SEGURA</span><h1>Gestión forestal conectada, clara y en tiempo real.</h1><p>Registra partes, consulta ubicaciones y comunícate con el equipo desde una única plataforma.</p></div>
       <div class="auth-feature-list"><span><svg><use href="#i-shield"></use></svg> Acceso protegido</span><span><svg><use href="#i-cloud"></use></svg> Datos sincronizados</span><span><svg><use href="#i-chat"></use></svg> Chat interno</span></div>
     </section>
     <section class="auth-panel">
       <div class="auth-card">
-        <div class="auth-mobile-brand"><img src="./assets/logo-transparent.png?v=16.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
+        <div class="auth-mobile-brand"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
         <div class="auth-tabs" role="tablist"><button type="button" class="active" data-auth-tab="login">Ingresar</button><button type="button" data-auth-tab="register">Crear cuenta</button></div>
         <form id="loginForm" class="auth-form active">
           <div class="auth-heading"><span>ACCESO AL SISTEMA</span><h2>Bienvenido</h2><p>Ingresa con tu correo y contraseña.</p></div>
@@ -119,7 +120,7 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <div class="brand-mark"><img src="./assets/logo-transparent.png?v=16.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div>
+        <div class="brand-mark"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div>
         <div class="brand-copy"><strong>Lubayd SA</strong><span>Gestión Forestal</span></div>
       </div>
 
@@ -151,7 +152,7 @@
         <div><strong id="sidebarUserName">Operador</strong><small id="sidebarUserEmail">Sesión segura</small></div>
         <svg><use href="#i-chevron-left"></use></svg>
       </button>
-      <div class="sidebar-version">V16 Firma Digital · Lubayd SA</div>
+      <div class="sidebar-version">V17 Firma Digital · Lubayd SA</div>
     </aside>
 
     <main class="main">
@@ -249,7 +250,7 @@
         <div id="attendanceAdminPanel" class="attendance-admin-panel hidden">
           <div class="section-heading-row attendance-admin-heading"><div><span class="section-kicker"><svg><use href="#i-users"></use></svg> SUPERVISIÓN</span><h2>Asistencia del equipo</h2><p>Consulta las marcaciones, fotografías y ubicaciones del personal.</p></div><div class="heading-actions"><label class="date-chip"><svg><use href="#i-calendar"></use></svg><input id="attendanceAdminDate" type="date"></label><button id="attendanceAdminRefresh" class="btn btn-soft" type="button"><svg><use href="#i-refresh"></use></svg> Actualizar</button></div></div>
           <div class="attendance-summary-grid"><article><span>Marcaciones</span><strong id="attendanceTeamTotal">0</strong><small>Personas registradas</small><i><svg><use href="#i-users"></use></svg></i></article><article><span>Trabajando</span><strong id="attendanceTeamWorking">0</strong><small>Sin salida registrada</small><i><svg><use href="#i-clock"></use></svg></i></article><article><span>Turnos completos</span><strong id="attendanceTeamCompleted">0</strong><small>Entrada y salida</small><i><svg><use href="#i-check"></use></svg></i></article><article><span>Promedio</span><strong id="attendanceTeamAverage">0 h 00 min</strong><small>Duración de jornada</small><i><svg><use href="#i-trend-up"></use></svg></i></article></div>
-          <article class="ops-card attendance-team-card"><div class="table-wrap"><table class="attendance-table"><thead><tr><th>Usuario</th><th>Llegada</th><th>Salida</th><th>Total</th><th>Estado</th><th>Evidencia</th></tr></thead><tbody id="attendanceAdminBody"></tbody></table></div><div id="attendanceAdminEmpty" class="empty-table hidden">No hay marcaciones para la fecha seleccionada.</div></article>
+          <article class="ops-card attendance-team-card"><div class="table-wrap"><table class="attendance-table"><thead><tr><th>Usuario</th><th>Llegada</th><th>Salida</th><th>Total</th><th>Estado</th><th>Evidencia</th><th class="attendance-admin-only-column">Administración</th></tr></thead><tbody id="attendanceAdminBody"></tbody></table></div><div id="attendanceAdminEmpty" class="empty-table hidden">No hay marcaciones para la fecha seleccionada.</div></article>
         </div>
       </section>
 
@@ -401,7 +402,10 @@
                 <span class="chat-eyebrow">COMUNICACIÓN INTERNA</span>
                 <h2>Mensajes</h2>
               </div>
-              <span id="chatTotalUnread" class="chat-total-badge hidden">0</span>
+              <div class="chat-directory-actions">
+                <span id="chatTotalUnread" class="chat-total-badge hidden">0</span>
+                <button id="chatNotificationBtn" type="button" class="chat-notification-button" title="Activar notificaciones y sonido"><svg><use href="#i-bell"></use></svg><span>Activar avisos</span></button>
+              </div>
             </div>
 
             <label class="chat-search">
@@ -521,7 +525,7 @@
 
       <section id="configuracion" class="view admin-view">
         <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-settings"></use></svg> PREFERENCIAS</span><h2>Configuración de la aplicación</h2><p>Ajusta apariencia, accesibilidad y comportamiento del sistema.</p></div></div>
-        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=16.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 16.0 Firma Digital</span><small>Usuarios, asistencia con foto, firma digital, producción Troza/Pulpa, chat, incidencias, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
+        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 17.0 Administración y Avisos</span><small>Usuarios, asistencia con foto y gestión administrativa, firma digital, chat con avisos y sonido, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
       </section>
 
     </main>
@@ -551,8 +555,31 @@
       <div class="attendance-camera-actions"><button id="attendanceCancelCamera" type="button" class="btn btn-ghost">Cancelar</button><button id="attendanceRetakeBtn" type="button" class="btn btn-soft hidden"><svg><use href="#i-refresh"></use></svg> Repetir</button><button id="attendanceCaptureBtn" type="button" class="btn btn-primary btn-lg" disabled><svg><use href="#i-camera"></use></svg> Tomar foto</button><button id="attendanceConfirmBtn" type="button" class="btn btn-primary btn-lg hidden"><svg><use href="#i-check"></use></svg> Confirmar registro</button></div>
     </div>
   </div>
+  <div id="attendanceAdminEditModal" class="attendance-admin-edit-modal hidden" role="dialog" aria-modal="true" aria-labelledby="attendanceAdminEditTitle">
+    <div class="attendance-admin-edit-backdrop"></div>
+    <form id="attendanceAdminEditForm" class="attendance-admin-edit-panel">
+      <button id="attendanceAdminEditClose" type="button" class="attendance-admin-edit-close" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button>
+      <div class="attendance-admin-edit-head">
+        <span class="attendance-admin-edit-icon"><svg><use href="#i-edit"></use></svg></span>
+        <div><span>GESTIÓN ADMINISTRATIVA</span><h3 id="attendanceAdminEditTitle">Modificar horario</h3><p id="attendanceAdminEditUser">Usuario · Fecha</p></div>
+      </div>
+      <div class="attendance-admin-edit-grid">
+        <label><span>Hora de llegada</span><input id="attendanceAdminEntryTime" type="time" required></label>
+        <label><span>Hora de salida</span><input id="attendanceAdminExitTime" type="time"><small>Déjalo vacío para mantener la jornada abierta.</small></label>
+        <label class="full"><span>Motivo del cambio *</span><textarea id="attendanceAdminEditReason" rows="3" maxlength="300" required placeholder="Ej.: corrección solicitada por el encargado"></textarea></label>
+      </div>
+      <div class="attendance-admin-audit-note"><svg><use href="#i-shield"></use></svg><span>Solo un administrador puede guardar o eliminar. Cada acción queda registrada en la auditoría.</span></div>
+      <div class="attendance-admin-edit-actions">
+        <button id="attendanceAdminDeleteBtn" type="button" class="btn attendance-danger-btn"><svg><use href="#i-trash"></use></svg> Eliminar registro</button>
+        <span></span>
+        <button id="attendanceAdminEditCancel" type="button" class="btn btn-ghost">Cancelar</button>
+        <button id="attendanceAdminEditSave" type="submit" class="btn btn-primary"><svg><use href="#i-check"></use></svg> Guardar cambios</button>
+      </div>
+    </form>
+  </div>
   <div id="attendancePhotoModal" class="attendance-photo-modal hidden" role="dialog" aria-modal="true" aria-label="Comprobante fotográfico"><div class="attendance-photo-backdrop"></div><div class="attendance-photo-panel"><button id="attendanceClosePhoto" type="button" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button><div id="attendancePhotoLoading" class="attendance-photo-loading"><span class="button-spinner"></span><strong>Cargando fotografía</strong><span>Verificando permisos…</span></div><img id="attendancePhotoImage" class="hidden" alt="Comprobante de asistencia"></div></div>
   <div id="detailModal" class="modal-overlay hidden"><div class="modal"><button id="detailClose" class="modal-close" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button><div id="detailContent"></div></div></div>
+  <div id="messageNotificationStack" class="message-notification-stack" aria-live="polite" aria-label="Notificaciones de mensajes"></div>
   <div id="toast" class="toast hidden"><span class="toast-icon"><svg><use href="#i-check"></use></svg></span><div><strong id="toastTitle">Listo</strong><small id="toastText">Acción completada correctamente.</small></div></div>
   <div id="updateBanner" class="update-banner hidden"><div><strong>Nueva versión disponible</strong><span>Actualiza para recibir las últimas mejoras.</span></div><button id="updateBtn">Actualizar</button></div>
 

@@ -1,4 +1,4 @@
-/* Lubayd SA - Firebase Authentication, Cloud Firestore and internal chat */
+/* Lubayd SA V17 - Firebase Authentication, Firestore, asistencia administrable y notificaciones */
 (function () {
   const firebaseConfig = {
     apiKey: "AIzaSyCQDwcbAox4QEDe_czZX_YSd9jVx9g5BkY",
@@ -49,6 +49,7 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
     const FieldValue = firebase.firestore.FieldValue;
+    const Timestamp = firebase.firestore.Timestamp;
     const serverTimestamp = FieldValue.serverTimestamp;
 
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function (error) {
@@ -66,6 +67,7 @@
     const chatsCollection = db.collection('chats');
     const attendanceCollection = db.collection('asistencias');
     const attendancePhotosCollection = db.collection('asistencia_fotos');
+    const attendanceAuditCollection = db.collection('asistencia_auditoria');
 
     window.LubaydAuth = {
       available: true,
@@ -450,6 +452,110 @@
           }
         });
         return documentId;
+      },
+      async updateByAdmin(attendanceId, changes) {
+        const admin = requireAdmin();
+        const reason = String(changes?.reason || '').trim().slice(0, 300);
+        const entryTime = String(changes?.entryTime || '').trim();
+        const exitTime = String(changes?.exitTime || '').trim();
+        if (!attendanceId) throw new Error('Registro de asistencia no válido.');
+        if (!/^\d{2}:\d{2}$/.test(entryTime)) throw new Error('La hora de llegada no es válida.');
+        if (exitTime && !/^\d{2}:\d{2}$/.test(exitTime)) throw new Error('La hora de salida no es válida.');
+        if (!reason) throw new Error('Debes indicar el motivo del cambio.');
+
+        const reference = attendanceCollection.doc(attendanceId);
+        const snapshot = await reference.get();
+        if (!snapshot.exists) throw new Error('El registro ya no existe.');
+        const data = snapshot.data() || {};
+        const dateKey = String(data.dateKey || '');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) throw new Error('La fecha del registro no es válida.');
+        if (data.exitAt && !exitTime) throw new Error('Indica la hora de salida o elimina el registro completo.');
+
+        function timestampFor(time) {
+          const date = new Date(`${dateKey}T${time}:00-03:00`);
+          if (Number.isNaN(date.getTime())) throw new Error('No se pudo interpretar el horario.');
+          return Timestamp.fromDate(date);
+        }
+
+        const entryAt = timestampFor(entryTime);
+        const exitAt = exitTime ? timestampFor(exitTime) : null;
+        if (exitAt && exitAt.toMillis() <= entryAt.toMillis()) {
+          throw new Error('La salida debe ser posterior a la llegada.');
+        }
+
+        const nowClient = new Date().toISOString();
+        const profile = window.LubaydCurrentProfile || {};
+        const updatePayload = {
+          entryAt: entryAt,
+          entryAtClient: entryAt.toDate().toISOString(),
+          status: exitAt ? 'finalizado' : 'trabajando',
+          updatedAt: serverTimestamp(),
+          correctedAt: serverTimestamp(),
+          correctedAtClient: nowClient,
+          correctedByUid: admin.uid,
+          correctedByName: safeName(profile, admin),
+          correctionReason: reason
+        };
+        if (exitAt) {
+          updatePayload.exitAt = exitAt;
+          updatePayload.exitAtClient = exitAt.toDate().toISOString();
+        }
+
+        const auditReference = attendanceAuditCollection.doc();
+        const batch = db.batch();
+        batch.update(reference, updatePayload);
+        batch.set(auditReference, {
+          action: 'update',
+          attendanceId: attendanceId,
+          userId: data.userId || '',
+          userName: data.userName || data.userEmail || 'Usuario',
+          dateKey: dateKey,
+          beforeEntryAt: data.entryAt || null,
+          beforeExitAt: data.exitAt || null,
+          afterEntryAt: entryAt,
+          afterExitAt: exitAt,
+          reason: reason,
+          performedByUid: admin.uid,
+          performedByName: safeName(profile, admin),
+          performedAt: serverTimestamp(),
+          performedAtClient: nowClient
+        });
+        await batch.commit();
+      },
+      async deleteByAdmin(attendanceId, reasonText) {
+        const admin = requireAdmin();
+        const reason = String(reasonText || '').trim().slice(0, 300);
+        if (!attendanceId) throw new Error('Registro de asistencia no válido.');
+        if (!reason) throw new Error('Debes indicar el motivo de la eliminación.');
+        const reference = attendanceCollection.doc(attendanceId);
+        const snapshot = await reference.get();
+        if (!snapshot.exists) throw new Error('El registro ya no existe.');
+        const data = snapshot.data() || {};
+        const profile = window.LubaydCurrentProfile || {};
+        const nowClient = new Date().toISOString();
+        const auditReference = attendanceAuditCollection.doc();
+        const batch = db.batch();
+        batch.set(auditReference, {
+          action: 'delete',
+          attendanceId: attendanceId,
+          userId: data.userId || '',
+          userName: data.userName || data.userEmail || 'Usuario',
+          userEmail: data.userEmail || '',
+          dateKey: data.dateKey || '',
+          beforeEntryAt: data.entryAt || null,
+          beforeExitAt: data.exitAt || null,
+          entryPhotoId: data.entryPhotoId || '',
+          exitPhotoId: data.exitPhotoId || '',
+          reason: reason,
+          performedByUid: admin.uid,
+          performedByName: safeName(profile, admin),
+          performedAt: serverTimestamp(),
+          performedAtClient: nowClient
+        });
+        if (data.entryPhotoId) batch.delete(attendancePhotosCollection.doc(data.entryPhotoId));
+        if (data.exitPhotoId) batch.delete(attendancePhotosCollection.doc(data.exitPhotoId));
+        batch.delete(reference);
+        await batch.commit();
       }
     };
 

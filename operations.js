@@ -723,7 +723,7 @@
     if ($('#reduceMotionPreference')) $('#reduceMotionPreference').checked = reduceMotion;
     if ($('#confirmSavePreference')) $('#confirmSavePreference').checked = settings.confirmSave !== false;
     if ($('#rememberMontePreference')) $('#rememberMontePreference').checked = settings.rememberMonte !== false;
-    if ($('#soundPreference')) $('#soundPreference').checked = Boolean(settings.sound);
+    if ($('#soundPreference')) $('#soundPreference').checked = settings.sound !== false;
     applySettings(settings);
   }
 

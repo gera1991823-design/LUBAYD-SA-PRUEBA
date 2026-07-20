@@ -1,0 +1,16 @@
+FIREBASE V17 - PASOS OBLIGATORIOS
+
+1. Abrir Firebase Console > Firestore Database > Reglas.
+2. Reemplazar las reglas actuales por todo el contenido de firestore.rules.
+3. Presionar Publicar.
+4. Confirmar que el usuario administrador tenga:
+   active: true
+   role: "admin"
+5. No es necesario crear colecciones manualmente.
+   La colección asistencia_auditoria se crea al realizar la primera corrección o eliminación.
+6. Después de publicar GitHub Pages, abrir Mensajes y pulsar "Activar avisos".
+
+SEGURIDAD
+- Solo el administrador puede modificar o eliminar asistencias.
+- Cada acción queda registrada con usuario, fecha, motivo, valores anteriores y nuevos.
+- Los mensajes continúan siendo privados entre sus participantes.

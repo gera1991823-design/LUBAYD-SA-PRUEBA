@@ -218,7 +218,8 @@ service cloud.firestore {
           'exitAt', 'exitAtClient', 'exitPhotoId', 'exitGps'
         ]);
 
-      allow update: if activeUser()
+      allow update: if (
+        activeUser()
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.userName == resource.data.userName
@@ -246,9 +247,48 @@ service cloud.firestore {
           'exitPhotoId',
           'exitGps',
           'updatedAt'
-        ]);
+        ])
+      ) || (
+        adminUser()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'entryAt',
+          'entryAtClient',
+          'exitAt',
+          'exitAtClient',
+          'status',
+          'updatedAt',
+          'correctedAt',
+          'correctedAtClient',
+          'correctedByUid',
+          'correctedByName',
+          'correctionReason'
+        ])
+        && request.resource.data.entryAt is timestamp
+        && request.resource.data.entryAtClient is string
+        && request.resource.data.status in ['trabajando', 'finalizado']
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.correctedAt == request.time
+        && request.resource.data.correctedAtClient is string
+        && request.resource.data.correctedByUid == request.auth.uid
+        && request.resource.data.correctedByName is string
+        && request.resource.data.correctionReason is string
+        && request.resource.data.correctionReason.size() > 0
+        && request.resource.data.correctionReason.size() <= 300
+        && (
+          (
+            request.resource.data.status == 'trabajando'
+            && !request.resource.data.keys().hasAny(['exitAt', 'exitAtClient'])
+          )
+          || (
+            request.resource.data.status == 'finalizado'
+            && request.resource.data.exitAt is timestamp
+            && request.resource.data.exitAtClient is string
+            && request.resource.data.exitAt > request.resource.data.entryAt
+          )
+        )
+      );
 
-      allow delete: if false;
+      allow delete: if adminUser();
     }
 
 
@@ -267,6 +307,26 @@ service cloud.firestore {
         && request.resource.data.imageData.size() > 100
         && request.resource.data.imageData.size() < 700000
         && request.resource.data.createdAt == request.time;
+
+      allow update: if false;
+      allow delete: if adminUser();
+    }
+
+    match /asistencia_auditoria/{auditId} {
+      allow read: if supervisorUser();
+
+      allow create: if adminUser()
+        && request.resource.data.action in ['update', 'delete']
+        && request.resource.data.attendanceId is string
+        && request.resource.data.userId is string
+        && request.resource.data.dateKey is string
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 300
+        && request.resource.data.performedByUid == request.auth.uid
+        && request.resource.data.performedByName is string
+        && request.resource.data.performedAt == request.time
+        && request.resource.data.performedAtClient is string;
 
       allow update, delete: if false;
     }

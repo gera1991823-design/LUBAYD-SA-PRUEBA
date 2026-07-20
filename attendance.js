@@ -1,4 +1,4 @@
-/* Lubayd SA V16 - Control de asistencia con foto, GPS y hora de servidor */
+/* Lubayd SA V17 - Asistencia con gestión administrativa, foto, GPS y hora de servidor */
 (function () {
   'use strict';
 
@@ -17,7 +17,8 @@
     photoBlob: null,
     gps: null,
     timer: null,
-    busy: false
+    busy: false,
+    editingRecordId: null
   };
 
   function dateKeyUruguay(date = new Date()) {
@@ -202,11 +203,20 @@
     }).join('');
   }
 
+  function inputTimeValue(value) {
+    const date = toDate(value);
+    if (!date) return '';
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  }
+
   function renderTeam() {
     const adminPanel = $('#attendanceAdminPanel');
     const canSeeTeam = state.profile?.role === 'admin' || state.profile?.role === 'supervisor';
+    const isAdmin = state.profile?.role === 'admin';
     if (!adminPanel) return;
     adminPanel.classList.toggle('hidden', !canSeeTeam);
+    adminPanel.classList.toggle('can-manage-attendance', isAdmin);
+    $$('.attendance-admin-only-column').forEach(node => node.classList.toggle('hidden', !isAdmin));
     if (!canSeeTeam) return;
 
     const selectedDate = $('#attendanceAdminDate')?.value || dateKeyUruguay();
@@ -236,8 +246,9 @@
     body.innerHTML = records.sort((a, b) => String(a.userName || '').localeCompare(String(b.userName || ''), 'es')).map(record => {
       const status = statusOf(record);
       const total = record.entryAt && record.exitAt ? formatDuration(minutesBetween(record.entryAt, record.exitAt)) : 'En curso';
+      const corrected = record.correctedAt ? '<span class="attendance-corrected-chip"><svg><use href="#i-edit"></use></svg> Corregido</span>' : '';
       return `<tr>
-        <td data-label="Usuario"><div class="attendance-person-cell"><span>${initials(record.userName)}</span><div><strong>${escapeHtml(record.userName || 'Usuario')}</strong><small>${escapeHtml(record.userEmail || '')}</small></div></div></td>
+        <td data-label="Usuario"><div class="attendance-person-cell"><span>${initials(record.userName)}</span><div><strong>${escapeHtml(record.userName || 'Usuario')}</strong><small>${escapeHtml(record.userEmail || '')}</small>${corrected}</div></div></td>
         <td data-label="Llegada">${escapeHtml(formatTime(record.entryAt))}</td>
         <td data-label="Salida">${escapeHtml(formatTime(record.exitAt))}</td>
         <td data-label="Total">${escapeHtml(total)}</td>
@@ -247,8 +258,94 @@
           ${record.exitPhotoId ? `<button type="button" data-attendance-photo="${escapeHtml(record.exitPhotoId)}" title="Foto de salida"><svg><use href="#i-camera"></use></svg></button>` : ''}
           ${record.entryGps ? `<a href="${mapUrl(record.entryGps)}" target="_blank" rel="noopener" title="Ubicación de llegada"><svg><use href="#i-pin"></use></svg></a>` : ''}
         </div></td>
+        <td data-label="Administración" class="attendance-admin-actions-cell ${isAdmin ? '' : 'hidden'}"><div class="attendance-admin-row-actions">
+          <button type="button" data-attendance-edit="${escapeHtml(record.id)}" title="Modificar horario"><svg><use href="#i-edit"></use></svg><span>Editar</span></button>
+          <button type="button" class="danger" data-attendance-delete="${escapeHtml(record.id)}" title="Eliminar registro"><svg><use href="#i-trash"></use></svg><span>Eliminar</span></button>
+        </div></td>
       </tr>`;
     }).join('');
+  }
+
+  function selectedAdminRecord() {
+    return state.records.find(record => record.id === state.editingRecordId) || null;
+  }
+
+  function openAdminEditor(recordId, deleteMode = false) {
+    if (state.profile?.role !== 'admin') return notify('Acceso restringido', 'Solo el administrador puede modificar o eliminar horarios.', 'error');
+    const record = state.records.find(item => item.id === recordId);
+    if (!record) return notify('Registro no encontrado', 'Actualiza la lista e intenta nuevamente.', 'error');
+    state.editingRecordId = recordId;
+    const modal = $('#attendanceAdminEditModal');
+    const entry = $('#attendanceAdminEntryTime');
+    const exit = $('#attendanceAdminExitTime');
+    const reason = $('#attendanceAdminEditReason');
+    if (entry) entry.value = inputTimeValue(record.entryAt);
+    if (exit) exit.value = inputTimeValue(record.exitAt);
+    if (reason) reason.value = '';
+    const user = $('#attendanceAdminEditUser');
+    if (user) user.textContent = `${record.userName || record.userEmail || 'Usuario'} · ${formatDate(record.dateKey)}`;
+    modal?.classList.remove('hidden');
+    document.body.classList.add('attendance-admin-modal-open');
+    window.setTimeout(() => (deleteMode ? reason : entry)?.focus(), 50);
+  }
+
+  function closeAdminEditor() {
+    state.editingRecordId = null;
+    $('#attendanceAdminEditModal')?.classList.add('hidden');
+    document.body.classList.remove('attendance-admin-modal-open');
+    const form = $('#attendanceAdminEditForm');
+    if (form) form.reset();
+  }
+
+  async function saveAdminAttendance(event) {
+    event?.preventDefault();
+    if (state.profile?.role !== 'admin') return;
+    const record = selectedAdminRecord();
+    if (!record) return closeAdminEditor();
+    const entryTime = String($('#attendanceAdminEntryTime')?.value || '').trim();
+    const exitTime = String($('#attendanceAdminExitTime')?.value || '').trim();
+    const reason = String($('#attendanceAdminEditReason')?.value || '').trim();
+    if (!entryTime) return notify('Falta la llegada', 'Indica una hora de llegada válida.', 'error');
+    if (!reason) return notify('Falta el motivo', 'Escribe por qué se modifica el horario.', 'error');
+    if (record.exitAt && !exitTime) return notify('Falta la salida', 'Indica una hora de salida o elimina el registro completo.', 'error');
+    if (exitTime && exitTime <= entryTime) return notify('Horario inválido', 'La salida debe ser posterior a la llegada.', 'error');
+    const button = $('#attendanceAdminEditSave');
+    if (button) { button.disabled = true; button.innerHTML = '<span class="button-spinner"></span> Guardando...'; }
+    try {
+      await window.LubaydAttendanceData.updateByAdmin(record.id, { entryTime, exitTime, reason });
+      notify('Horario actualizado', `Se corrigió la asistencia de ${record.userName || 'usuario'} y quedó registrada en la auditoría.`);
+      closeAdminEditor();
+    } catch (error) {
+      console.error('Modificar asistencia:', error);
+      notify('No se pudo modificar', error.message || 'Revisa las reglas de Firestore.', 'error');
+    } finally {
+      if (button) { button.disabled = false; button.innerHTML = '<svg><use href="#i-check"></use></svg> Guardar cambios'; }
+    }
+  }
+
+  async function deleteAdminAttendance(recordId) {
+    if (state.profile?.role !== 'admin') return;
+    if (recordId && state.editingRecordId !== recordId) openAdminEditor(recordId, true);
+    const record = state.records.find(item => item.id === (recordId || state.editingRecordId));
+    if (!record) return;
+    const reason = String($('#attendanceAdminEditReason')?.value || '').trim();
+    if (!reason) return notify('Falta el motivo', 'Escribe el motivo antes de eliminar el registro.', 'error');
+    const accepted = window.confirm(`¿Eliminar completamente el horario de ${record.userName || record.userEmail || 'este usuario'} del ${formatDate(record.dateKey)}?
+
+La acción quedará registrada y no se puede deshacer.`);
+    if (!accepted) return;
+    const button = $('#attendanceAdminDeleteBtn');
+    if (button) { button.disabled = true; button.innerHTML = '<span class="button-spinner"></span> Eliminando...'; }
+    try {
+      await window.LubaydAttendanceData.deleteByAdmin(record.id, reason);
+      notify('Horario eliminado', 'El registro fue eliminado por el administrador y la acción quedó auditada.');
+      closeAdminEditor();
+    } catch (error) {
+      console.error('Eliminar asistencia:', error);
+      notify('No se pudo eliminar', error.message || 'Revisa las reglas de Firestore.', 'error');
+    } finally {
+      if (button) { button.disabled = false; button.innerHTML = '<svg><use href="#i-trash"></use></svg> Eliminar registro'; }
+    }
   }
 
   function render() {
@@ -485,9 +582,18 @@
     $('#attendanceAdminRefresh')?.addEventListener('click', renderTeam);
     $('#attendanceClosePhoto')?.addEventListener('click', closePhoto);
     $('.attendance-photo-backdrop')?.addEventListener('click', closePhoto);
+    $('#attendanceAdminEditForm')?.addEventListener('submit', saveAdminAttendance);
+    $('#attendanceAdminEditClose')?.addEventListener('click', closeAdminEditor);
+    $('#attendanceAdminEditCancel')?.addEventListener('click', closeAdminEditor);
+    $('.attendance-admin-edit-backdrop')?.addEventListener('click', closeAdminEditor);
+    $('#attendanceAdminDeleteBtn')?.addEventListener('click', () => deleteAdminAttendance());
     document.addEventListener('click', event => {
-      const button = event.target.closest('[data-attendance-photo]');
-      if (button) openPhoto(button.dataset.attendancePhoto);
+      const photoButton = event.target.closest('[data-attendance-photo]');
+      if (photoButton) return openPhoto(photoButton.dataset.attendancePhoto);
+      const editButton = event.target.closest('[data-attendance-edit]');
+      if (editButton) return openAdminEditor(editButton.dataset.attendanceEdit);
+      const deleteButton = event.target.closest('[data-attendance-delete]');
+      if (deleteButton) return openAdminEditor(deleteButton.dataset.attendanceDelete, true);
     });
     window.addEventListener('online', renderPersonal);
     window.addEventListener('offline', renderPersonal);
@@ -512,7 +618,7 @@
   }
 
   bindEvents();
-  window.LubaydAttendanceUI = { show, render, openCamera };
+  window.LubaydAttendanceUI = { show, render, openCamera, openAdminEditor };
   window.addEventListener('lubayd-profile-ready', event => initialize(event.detail?.user, event.detail?.profile));
   window.addEventListener('lubayd-auth-changed', event => {
     if (!event.detail?.user) {

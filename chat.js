@@ -13,7 +13,12 @@
     messagesUnsubscribe: null,
     initializedForUid: null,
     openingPeerUid: null,
-    directoryFilter: 'all'
+    directoryFilter: 'all',
+    notificationsPrimed: false,
+    notifiedSignatures: new Set(),
+    audioContext: null,
+    audioUnlocked: false,
+    originalTitle: document.title
   };
 
   const $ = selector => document.querySelector(selector);
@@ -76,6 +81,8 @@
     chatState.activeConversation = null;
     chatState.initializedForUid = null;
     chatState.openingPeerUid = null;
+    chatState.notificationsPrimed = false;
+    chatState.notifiedSignatures.clear();
     setUnreadBadge(0);
     closeThread();
   }
@@ -86,6 +93,7 @@
       chatState.user = user;
       chatState.profile = profile;
       renderDirectory();
+      updateNotificationButton();
       return;
     }
 
@@ -100,6 +108,7 @@
       ? 'Envía mensajes privados a cada usuario registrado.'
       : 'Comunícate directamente con la administración.';
     if (directoryTitle) directoryTitle.textContent = isAdmin() ? 'Usuarios' : 'Administración';
+    updateNotificationButton();
 
     try {
       chatState.usersUnsubscribe = window.LubaydChat.subscribeUsers(profile, users => {
@@ -112,7 +121,10 @@
       });
 
       chatState.conversationsUnsubscribe = window.LubaydChat.subscribeConversations(conversations => {
+        const previousById = new Map(chatState.conversations.map(item => [item.id, item]));
         chatState.conversations = conversations;
+        if (chatState.notificationsPrimed) notifyConversationChanges(previousById, conversations);
+        else chatState.notificationsPrimed = true;
         updateUnreadFromConversations();
         renderDirectory();
         if (chatState.activeConversation) {
@@ -156,12 +168,15 @@
     $$('.chat-unread-badge').forEach(badge => {
       badge.textContent = total > 99 ? '99+' : String(total);
       badge.classList.toggle('hidden', total <= 0);
+      badge.closest('[data-view="chat"], [data-view-link="chat"]')?.classList.toggle('has-chat-unread', total > 0);
     });
     const totalBadge = $('#chatTotalUnread');
     if (totalBadge) {
       totalBadge.textContent = total > 99 ? '99+' : String(total);
       totalBadge.classList.toggle('hidden', total <= 0);
+      totalBadge.parentElement?.classList.toggle('has-unread', total > 0);
     }
+    document.title = total > 0 ? `(${total > 99 ? '99+' : total}) ${chatState.originalTitle}` : chatState.originalTitle;
   }
 
   function filteredUsers() {
@@ -201,7 +216,7 @@
       const active = chatState.activePeer?.uid === peer.uid;
       const time = cleanTime(conversation?.lastMessageAtClient || conversation?.createdAtClient);
       return `
-        <button type="button" class="chat-conversation ${active ? 'active' : ''}" data-chat-peer="${escapeHtml(peer.uid)}">
+        <button type="button" class="chat-conversation ${active ? 'active' : ''} ${unread > 0 ? 'has-unread' : ''}" data-chat-peer="${escapeHtml(peer.uid)}">
           <span class="chat-avatar-wrap"><span class="chat-user-avatar">${escapeHtml(initials(peer.nombre || peer.email))}</span><i aria-hidden="true"></i></span>
           <span class="chat-conversation-copy"><strong>${escapeHtml(peer.nombre || peer.email || 'Usuario')}</strong><span>${escapeHtml(lastMessage)}</span></span>
           <span class="chat-conversation-meta">${time ? `<time>${escapeHtml(time)}</time>` : ''}${unread > 0 ? `<b class="chat-conversation-unread">${unread > 99 ? '99+' : unread}</b>` : ''}</span>
@@ -256,13 +271,14 @@
   function subscribeMessages(chatId) {
     chatState.messagesUnsubscribe?.();
     chatState.messagesUnsubscribe = null;
-    $('#chatMessages').innerHTML = '<div class="chat-loading">Cargando mensajes…</div>';
+    const messageRoot = $('#chatMessages');
+    if (messageRoot) messageRoot.innerHTML = '<div class="chat-loading">Cargando mensajes…</div>';
     chatState.messagesUnsubscribe = window.LubaydChat.subscribeMessages(chatId, messages => {
       renderMessages(messages);
       window.LubaydChat.markRead(chatId).catch(() => {});
     }, error => {
       console.error('Mensajes:', error);
-      $('#chatMessages').innerHTML = '<div class="chat-list-empty">No se pudieron cargar los mensajes.</div>';
+      if (messageRoot) messageRoot.innerHTML = '<div class="chat-list-empty">No se pudieron cargar los mensajes.</div>';
     });
   }
 
@@ -307,6 +323,185 @@
     autoOpenForOperator();
   }
 
+  function senderName(conversation) {
+    if (conversation.lastSenderId === conversation.adminUid) return conversation.adminName || conversation.adminEmail || 'Administración';
+    return conversation.operatorName || conversation.operatorEmail || 'Operador';
+  }
+
+  function peerFromConversation(conversation) {
+    const peerUid = (conversation.participants || []).find(uid => uid !== chatState.user?.uid);
+    if (!peerUid) return null;
+    const existing = chatState.users.find(user => user.uid === peerUid);
+    if (existing) return existing;
+    const isPeerAdmin = conversation.adminUid === peerUid;
+    return {
+      uid: peerUid,
+      nombre: isPeerAdmin ? conversation.adminName : conversation.operatorName,
+      email: isPeerAdmin ? conversation.adminEmail : conversation.operatorEmail,
+      role: isPeerAdmin ? 'admin' : 'operador',
+      active: true
+    };
+  }
+
+  function notifyConversationChanges(previousById, conversations) {
+    conversations.forEach(conversation => {
+      const previous = previousById.get(conversation.id);
+      const previousUnread = unreadForConversation(previous);
+      const currentUnread = unreadForConversation(conversation);
+      if (currentUnread <= previousUnread || conversation.lastSenderId === chatState.user?.uid) return;
+      const signature = `${conversation.id}|${conversation.lastMessageAtClient || ''}|${conversation.lastMessage || ''}`;
+      if (chatState.notifiedSignatures.has(signature)) return;
+      chatState.notifiedSignatures.add(signature);
+      if (chatState.notifiedSignatures.size > 80) {
+        chatState.notifiedSignatures = new Set([...chatState.notifiedSignatures].slice(-50));
+      }
+      const currentChatVisible = !document.hidden
+        && $('#chat')?.classList.contains('active')
+        && chatState.activeConversation?.id === conversation.id;
+      if (currentChatVisible) return;
+      deliverMessageNotification(conversation);
+    });
+  }
+
+  function deliverMessageNotification(conversation) {
+    const name = senderName(conversation);
+    const preview = String(conversation.lastMessage || 'Tienes un mensaje nuevo.').slice(0, 160);
+    playNotificationSound();
+    showInAppMessageNotification(name, preview, conversation);
+    showSystemNotification(name, preview, conversation);
+  }
+
+  function showInAppMessageNotification(name, preview, conversation) {
+    const stack = $('#messageNotificationStack');
+    if (!stack) return;
+    const peer = peerFromConversation(conversation);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'message-notification-card';
+    button.innerHTML = `
+      <span class="message-notification-avatar">${escapeHtml(initials(name))}</span>
+      <span class="message-notification-copy"><small>NUEVO MENSAJE</small><strong>${escapeHtml(name)}</strong><span>${escapeHtml(preview)}</span></span>
+      <svg><use href="#i-chat"></use></svg>`;
+    button.addEventListener('click', async () => {
+      button.remove();
+      window.LubaydShowView?.('chat');
+      if (peer) await openPeer(peer);
+    });
+    stack.appendChild(button);
+    requestAnimationFrame(() => button.classList.add('visible'));
+    window.setTimeout(() => {
+      button.classList.remove('visible');
+      window.setTimeout(() => button.remove(), 250);
+    }, 8000);
+  }
+
+  async function showSystemNotification(name, preview, conversation) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const peer = peerFromConversation(conversation);
+    const options = {
+      body: preview,
+      icon: './assets/icon-192.png',
+      badge: './assets/icon-192.png',
+      tag: `lubayd-chat-${conversation.id}`,
+      renotify: true,
+      silent: true,
+      data: { url: './?view=chat', peerUid: peer?.uid || '' }
+    };
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification(`Nuevo mensaje de ${name}`, options);
+      } else {
+        new Notification(`Nuevo mensaje de ${name}`, options);
+      }
+    } catch (error) {
+      console.warn('Notificación del sistema:', error);
+    }
+  }
+
+  function ensureAudioContext() {
+    if (chatState.audioContext) return chatState.audioContext;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return null;
+    chatState.audioContext = new AudioContext();
+    return chatState.audioContext;
+  }
+
+  async function unlockAudio() {
+    const context = ensureAudioContext();
+    if (!context) return;
+    try {
+      if (context.state === 'suspended') await context.resume();
+      chatState.audioUnlocked = context.state === 'running';
+    } catch (_) {
+      chatState.audioUnlocked = false;
+    }
+  }
+
+  function playNotificationSound() {
+    try {
+      const settings = JSON.parse(localStorage.getItem('lubayd_ui_settings_v14') || '{}');
+      if (settings.sound === false) return;
+    } catch (_) {}
+    const context = ensureAudioContext();
+    if (!context) return;
+    if (context.state === 'suspended') context.resume().catch(() => {});
+    if (context.state !== 'running') return;
+    const now = context.currentTime;
+    [0, 0.12].forEach((offset, index) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(index === 0 ? 880 : 1175, now + offset);
+      gain.gain.setValueAtTime(0.0001, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.16, now + offset + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.12);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(now + offset);
+      oscillator.stop(now + offset + 0.13);
+    });
+  }
+
+  async function requestNotifications() {
+    await unlockAudio();
+    if (!('Notification' in window)) {
+      showDirectoryNotice('Este navegador no admite notificaciones del sistema. El aviso y el sonido dentro de la app seguirán funcionando.');
+      updateNotificationButton();
+      return;
+    }
+    try {
+      if (Notification.permission === 'default') await Notification.requestPermission();
+      updateNotificationButton();
+      if (Notification.permission === 'granted') {
+        showDirectoryNotice('Notificaciones y sonido activados.');
+        window.setTimeout(() => showDirectoryNotice(''), 3000);
+      } else if (Notification.permission === 'denied') {
+        showDirectoryNotice('Las notificaciones están bloqueadas en el navegador. Debes habilitarlas desde la configuración del sitio.');
+      }
+    } catch (error) {
+      showDirectoryNotice(error.message || 'No se pudieron activar las notificaciones.');
+    }
+  }
+
+  function updateNotificationButton() {
+    const button = $('#chatNotificationBtn');
+    if (!button) return;
+    const supported = 'Notification' in window;
+    const permission = supported ? Notification.permission : 'unsupported';
+    button.dataset.permission = permission;
+    if (permission === 'granted') {
+      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Avisos activos</span>';
+      button.title = 'Notificaciones y sonido activados';
+    } else if (permission === 'denied') {
+      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Avisos bloqueados</span>';
+      button.title = 'Habilita las notificaciones desde la configuración del navegador';
+    } else {
+      button.innerHTML = '<svg><use href="#i-bell"></use></svg><span>Activar avisos</span>';
+      button.title = 'Activar notificaciones y sonido';
+    }
+  }
+
   $('#chatSearch')?.addEventListener('input', renderDirectory);
   $$('.chat-filter-tabs [data-chat-filter]').forEach(button => {
     button.addEventListener('click', () => {
@@ -316,10 +511,15 @@
     });
   });
   $('#chatBackBtn')?.addEventListener('click', closeThread);
+  $('#chatNotificationBtn')?.addEventListener('click', requestNotifications);
+
+  document.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
+  document.addEventListener('keydown', unlockAudio, { once: true });
 
   const input = $('#chatMessageInput');
   input?.addEventListener('input', () => {
-    $('#chatCharacterCount').textContent = String(input.value.length);
+    const count = $('#chatCharacterCount');
+    if (count) count.textContent = String(input.value.length);
     input.style.height = 'auto';
     input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
   });
@@ -335,18 +535,19 @@
     const text = String(input?.value || '').trim();
     if (!text || !chatState.activeConversation) return;
     const button = $('#chatSendBtn');
-    button.disabled = true;
+    if (button) button.disabled = true;
     try {
       await window.LubaydChat.sendMessage(chatState.activeConversation.id, text);
       input.value = '';
       input.style.height = 'auto';
-      $('#chatCharacterCount').textContent = '0';
+      const count = $('#chatCharacterCount');
+      if (count) count.textContent = '0';
       input.focus();
     } catch (error) {
       console.error('Enviar mensaje:', error);
       if (typeof window.alert === 'function') window.alert(error.message || 'No se pudo enviar el mensaje.');
     } finally {
-      button.disabled = false;
+      if (button) button.disabled = false;
     }
   });
 
@@ -358,7 +559,14 @@
     if (!event.detail?.user) cleanup();
   });
 
-  window.LubaydChatUI = { show, initialize, closeThread };
+  window.addEventListener('focus', updateNotificationButton);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && chatState.activeConversation && $('#chat')?.classList.contains('active')) {
+      window.LubaydChat.markRead(chatState.activeConversation.id).catch(() => {});
+    }
+  });
+
+  window.LubaydChatUI = { show, initialize, closeThread, requestNotifications };
 
   if (window.LubaydCurrentUser && window.LubaydCurrentProfile) {
     initialize(window.LubaydCurrentUser, window.LubaydCurrentProfile);
