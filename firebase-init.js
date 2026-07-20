@@ -144,17 +144,22 @@
       save(record) {
         const user = auth.currentUser;
         if (!user) return Promise.reject(new Error('Debes iniciar sesión.'));
-        if (!record || !record.gps) return Promise.reject(new Error('El parte requiere ubicación GPS.'));
+        if (!record) return Promise.reject(new Error('No se recibió el parte.'));
 
         const payload = Object.assign({}, record, {
           createdByUid: user.uid,
           createdByEmail: user.email || '',
           createdByName: user.displayName || user.email || 'Usuario',
-          createdAtServer: serverTimestamp(),
-          gps: Object.assign({}, record.gps, {
-            capturedAtServer: serverTimestamp()
-          })
+          createdAtServer: serverTimestamp()
         });
+
+        if (record.gps) {
+          payload.gps = Object.assign({}, record.gps, {
+            capturedAtServer: serverTimestamp()
+          });
+        } else {
+          payload.gps = null;
+        }
 
         return partesCollection.doc(record.id).set(payload);
       },

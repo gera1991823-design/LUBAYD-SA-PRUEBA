@@ -21,7 +21,7 @@
     window.LubaydLogoFallback = function (img) {
       if (img.dataset.fallbackTried !== '1') {
         img.dataset.fallbackTried = '1';
-        img.src = './assets/logo.png?v=15.0.0';
+        img.src = './assets/logo.png?v=16.0.0';
         return;
       }
       img.onerror = null;
@@ -88,13 +88,13 @@
 
   <div class="auth-gate" id="authGate">
     <section class="auth-visual" aria-hidden="true">
-      <div class="auth-brand"><img src="./assets/logo-transparent.png?v=15.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt=""><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
+      <div class="auth-brand"><img src="./assets/logo-transparent.png?v=16.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt=""><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
       <div class="auth-copy"><span>PLATAFORMA OPERATIVA SEGURA</span><h1>Gestión forestal conectada, clara y en tiempo real.</h1><p>Registra partes, consulta ubicaciones y comunícate con el equipo desde una única plataforma.</p></div>
       <div class="auth-feature-list"><span><svg><use href="#i-shield"></use></svg> Acceso protegido</span><span><svg><use href="#i-cloud"></use></svg> Datos sincronizados</span><span><svg><use href="#i-chat"></use></svg> Chat interno</span></div>
     </section>
     <section class="auth-panel">
       <div class="auth-card">
-        <div class="auth-mobile-brand"><img src="./assets/logo-transparent.png?v=15.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
+        <div class="auth-mobile-brand"><img src="./assets/logo-transparent.png?v=16.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
         <div class="auth-tabs" role="tablist"><button type="button" class="active" data-auth-tab="login">Ingresar</button><button type="button" data-auth-tab="register">Crear cuenta</button></div>
         <form id="loginForm" class="auth-form active">
           <div class="auth-heading"><span>ACCESO AL SISTEMA</span><h2>Bienvenido</h2><p>Ingresa con tu correo y contraseña.</p></div>
@@ -119,7 +119,7 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <div class="brand-mark"><img src="./assets/logo-transparent.png?v=15.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div>
+        <div class="brand-mark"><img src="./assets/logo-transparent.png?v=16.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div>
         <div class="brand-copy"><strong>Lubayd SA</strong><span>Gestión Forestal</span></div>
       </div>
 
@@ -151,7 +151,7 @@
         <div><strong id="sidebarUserName">Operador</strong><small id="sidebarUserEmail">Sesión segura</small></div>
         <svg><use href="#i-chevron-left"></use></svg>
       </button>
-      <div class="sidebar-version">V15 Asistencia · Lubayd SA</div>
+      <div class="sidebar-version">V16 Firma Digital · Lubayd SA</div>
     </aside>
 
     <main class="main">
@@ -271,27 +271,33 @@
 
           <form id="parteForm" novalidate autocomplete="off">
             <div class="form-page active" data-step="1">
-              <div class="form-section-head"><div><span class="form-section-number">01</span><h3>Datos generales del turno</h3><p>Información principal para identificar la operación.</p></div><span class="required-note">* Campos obligatorios</span></div>
+              <div class="form-section-head"><div><span class="form-section-number">01</span><h3>Datos generales del turno</h3><p>Información principal para identificar la operación. Puedes completar únicamente los datos que correspondan.</p></div><span class="optional-badge">Todos los campos son opcionales</span></div>
               <div class="form-grid">
-                <label class="field"><span class="field-label">Monte <em>*</em></span><div class="input-shell"><svg><use href="#i-tree"></use></svg><input id="monte" list="monteOptions" required placeholder="Ej.: Monte Verde"></div></label>
-                <label class="field"><span class="field-label">Fecha <em>*</em></span><div class="input-shell"><svg><use href="#i-calendar"></use></svg><input id="fecha" type="date" required></div></label>
-                <label class="field"><span class="field-label">N.º de máquina <em>*</em></span><div class="input-shell"><svg><use href="#i-machine"></use></svg><input id="maquina" list="maquinaOptions" required placeholder="Ej.: 859M-03"></div></label>
-                <label class="field"><span class="field-label">Operador <em>*</em></span><div class="input-shell"><svg><use href="#i-user"></use></svg><input id="operador" list="operadorOptions" required placeholder="Nombre y apellido"></div></label>
-                <fieldset class="field-group full"><legend>Turno <em>*</em></legend><div class="segmented"><label><input type="radio" name="turno" value="Diurno" required><span><svg><use href="#i-sun"></use></svg>Diurno</span></label><label><input type="radio" name="turno" value="Nocturno"><span><svg><use href="#i-moon"></use></svg>Nocturno</span></label></div></fieldset>
-                <label class="field"><span class="field-label">Especie <em>*</em></span><div class="input-shell"><svg><use href="#i-leaf"></use></svg><select id="especie" required><option value="">Seleccionar especie</option><option>Eucalyptus</option><option>Pino</option><option>Otra</option></select></div></label>
-                <label class="field"><span class="field-label">Largo (m) <em>*</em></span><div class="input-shell"><span class="input-prefix">m</span><input id="largo" type="number" inputmode="decimal" min="0" step="0.01" required placeholder="0,00"></div></label>
+                <label class="field"><span class="field-label">Monte</span><div class="input-shell"><svg><use href="#i-tree"></use></svg><input id="monte" list="monteOptions" placeholder="Ej.: Monte Verde"></div></label>
+                <label class="field"><span class="field-label">Fecha</span><div class="input-shell"><svg><use href="#i-calendar"></use></svg><input id="fecha" type="date"></div></label>
+                <label class="field"><span class="field-label">N.º de máquina</span><div class="input-shell"><svg><use href="#i-machine"></use></svg><input id="maquina" list="maquinaOptions" placeholder="Ej.: 859M-03"></div></label>
+                <label class="field"><span class="field-label">Operador</span><div class="input-shell"><svg><use href="#i-user"></use></svg><input id="operador" list="operadorOptions" placeholder="Nombre y apellido"></div></label>
+                <fieldset class="field-group full"><legend>Turno</legend><div class="segmented"><label><input type="radio" name="turno" value="Diurno"><span><svg><use href="#i-sun"></use></svg>Diurno</span></label><label><input type="radio" name="turno" value="Nocturno"><span><svg><use href="#i-moon"></use></svg>Nocturno</span></label></div></fieldset>
+                <div class="product-quantity-group full">
+                  <div class="product-quantity-head"><div><span>Tipo de producto</span><small>Registra la cantidad obtenida de cada destino.</small></div><span class="optional-badge">Opcional</span></div>
+                  <div class="product-quantity-grid">
+                    <label class="product-quantity-card"><span class="product-icon"><svg><use href="#i-tree"></use></svg></span><div><strong>Troza</strong><small>Cantidad producida</small></div><div class="input-shell compact"><span class="input-prefix">Cant.</span><input id="trozaCantidad" type="number" inputmode="numeric" min="0" step="1" placeholder="0"></div></label>
+                    <label class="product-quantity-card"><span class="product-icon pulp"><svg><use href="#i-leaf"></use></svg></span><div><strong>Pulpa</strong><small>Cantidad producida</small></div><div class="input-shell compact"><span class="input-prefix">Cant.</span><input id="pulpaCantidad" type="number" inputmode="numeric" min="0" step="1" placeholder="0"></div></label>
+                  </div>
+                </div>
+                <label class="field"><span class="field-label">Largo (m)</span><div class="input-shell"><span class="input-prefix">m</span><input id="largo" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0,00"></div></label>
               </div>
             </div>
 
             <div class="form-page" data-step="2">
               <div class="form-section-head"><div><span class="form-section-number">02</span><h3>Producción del turno</h3><p>Ingresa las lecturas; los resultados se calculan automáticamente.</p></div></div>
               <div class="form-grid">
-                <label class="field"><span class="field-label">Horómetro inicial <em>*</em></span><div class="input-shell"><svg><use href="#i-clock"></use></svg><input id="horometroInicio" type="number" inputmode="decimal" min="0" step="0.1" required placeholder="0,0"></div></label>
-                <label class="field"><span class="field-label">Horómetro final <em>*</em></span><div class="input-shell"><svg><use href="#i-clock"></use></svg><input id="horometroFinal" type="number" inputmode="decimal" min="0" step="0.1" required placeholder="0,0"></div></label>
-                <label class="field"><span class="field-label">Árboles iniciales <em>*</em></span><div class="input-shell"><svg><use href="#i-tree"></use></svg><input id="arbolesIniciales" type="number" inputmode="numeric" min="0" step="1" required placeholder="0"></div></label>
-                <label class="field"><span class="field-label">Árboles finales <em>*</em></span><div class="input-shell"><svg><use href="#i-tree"></use></svg><input id="arbolesFinales" type="number" inputmode="numeric" min="0" step="1" required placeholder="0"></div></label>
-                <label class="field"><span class="field-label">Carros <em>*</em></span><div class="input-shell"><svg><use href="#i-machine"></use></svg><input id="carros" type="number" inputmode="numeric" min="0" step="1" required placeholder="0"></div></label>
-                <fieldset class="field-group full"><legend>Actividad <em>*</em></legend><div class="segmented segmented-three"><label><input type="radio" name="actividad" value="Cosecha" required><span>Cosecha</span></label><label><input type="radio" name="actividad" value="Extracción"><span>Extracción</span></label><label><input type="radio" name="actividad" value="Feller Buncher"><span>Feller Buncher</span></label></div></fieldset>
+                <label class="field"><span class="field-label">Horómetro inicial</span><div class="input-shell"><svg><use href="#i-clock"></use></svg><input id="horometroInicio" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0,0"></div></label>
+                <label class="field"><span class="field-label">Horómetro final</span><div class="input-shell"><svg><use href="#i-clock"></use></svg><input id="horometroFinal" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0,0"></div></label>
+                <label class="field"><span class="field-label">Árboles iniciales</span><div class="input-shell"><svg><use href="#i-tree"></use></svg><input id="arbolesIniciales" type="number" inputmode="numeric" min="0" step="1" placeholder="0"></div></label>
+                <label class="field"><span class="field-label">Árboles finales</span><div class="input-shell"><svg><use href="#i-tree"></use></svg><input id="arbolesFinales" type="number" inputmode="numeric" min="0" step="1" placeholder="0"></div></label>
+                <label class="field"><span class="field-label">Carros</span><div class="input-shell"><svg><use href="#i-machine"></use></svg><input id="carros" type="number" inputmode="numeric" min="0" step="1" placeholder="0"></div></label>
+                <fieldset class="field-group full"><legend>Actividad</legend><div class="segmented segmented-three"><label><input type="radio" name="actividad" value="Cosecha"><span>Cosecha</span></label><label><input type="radio" name="actividad" value="Extracción"><span>Extracción</span></label><label><input type="radio" name="actividad" value="Feller Buncher"><span>Feller Buncher</span></label></div></fieldset>
               </div>
 
               <div class="calculation-grid">
@@ -325,7 +331,7 @@
                 <label class="field"><span class="field-label">Hidráulico (L)</span><div class="input-shell"><span class="input-prefix">L</span><input id="hidraulico" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0,0"></div></label>
                 <label class="field full"><span class="field-label">Observaciones</span><div class="textarea-shell"><textarea id="observaciones" rows="4" placeholder="Fallas, novedades o comentarios importantes…"></textarea></div></label>
                 <label class="field"><span class="field-label">Controlado por</span><div class="input-shell"><svg><use href="#i-user"></use></svg><input id="controlado" placeholder="Nombre del encargado"></div></label>
-                <label class="field"><span class="field-label">Firma registrada</span><div class="input-shell"><svg><use href="#i-file"></use></svg><input id="firma" placeholder="Nombre o referencia"></div></label>
+                <label class="field"><span class="field-label">Nombre del firmante</span><div class="input-shell"><svg><use href="#i-file"></use></svg><input id="firma" placeholder="Nombre de quien firma"></div></label>
               </div>
             </div>
 
@@ -345,6 +351,14 @@
 
             <div class="form-page" data-step="5">
               <div class="form-section-head"><div><span class="form-section-number">05</span><h3>Revisar y guardar</h3><p>Comprueba los datos principales antes de sincronizar el parte.</p></div><span class="ready-badge"><svg><use href="#i-shield"></use></svg> Listo para guardar</span></div>
+              <div class="signature-card">
+                <div class="signature-card-head"><div><span>FIRMA DIGITAL</span><h4>Firma del responsable</h4><p>Firma directamente con el dedo en el celular o con el mouse en la computadora.</p></div><span id="signatureStatus" class="signature-status">Sin firma</span></div>
+                <div class="signature-pad-wrap">
+                  <canvas id="signatureCanvas" aria-label="Área para realizar la firma digital"></canvas>
+                  <div id="signaturePlaceholder" class="signature-placeholder"><svg><use href="#i-file"></use></svg><strong>Firma aquí</strong><span>Desliza el dedo dentro del recuadro</span></div>
+                </div>
+                <div class="signature-actions"><span><svg><use href="#i-shield"></use></svg> La firma queda vinculada al parte guardado.</span><div><button type="button" id="signatureUndoBtn" class="btn btn-soft btn-sm" disabled><svg><use href="#i-chevron-left"></use></svg> Deshacer</button><button type="button" id="signatureClearBtn" class="btn btn-ghost btn-sm" disabled><svg><use href="#i-trash"></use></svg> Limpiar</button></div></div>
+              </div>
               <div id="reviewContent" class="review-content"></div>
             </div>
 
@@ -496,7 +510,7 @@
         <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-report"></use></svg> INTELIGENCIA OPERATIVA</span><h2>Reportes avanzados</h2><p>Analiza producción, rendimiento y consumo con filtros claros.</p></div><div class="heading-actions"><button class="btn btn-soft" id="reportExportCsv"><svg><use href="#i-download"></use></svg> Exportar Excel/CSV</button><button class="btn btn-primary" id="reportPrintBtn"><svg><use href="#i-report"></use></svg> Imprimir</button></div></div>
         <div class="report-filter-bar"><label><span>Desde</span><input id="reportDateFrom" type="date"></label><label><span>Hasta</span><input id="reportDateTo" type="date"></label><label><span>Operador</span><select id="reportOperator"><option value="">Todos</option></select></label><label><span>Máquina</span><select id="reportMachine"><option value="">Todas</option></select></label><button class="btn btn-primary" id="applyReportFilters">Aplicar filtros</button></div>
         <div class="report-kpi-grid"><article><span>Partes</span><strong id="reportKpiParts">0</strong></article><article><span>Árboles</span><strong id="reportKpiTrees">0</strong></article><article><span>Horas</span><strong id="reportKpiHours">0 h</strong></article><article><span>Combustible</span><strong id="reportKpiFuel">0 L</strong></article><article><span>Rendimiento</span><strong id="reportKpiPerformance">0 árb/h</strong></article></div>
-        <div class="report-grid"><article class="ops-card span-2"><div class="ops-card-head"><div><span>TENDENCIA</span><h3>Producción por día</h3></div></div><div class="admin-chart-wrap tall"><canvas id="reportProductionChart"></canvas></div></article><article class="ops-card"><div class="ops-card-head"><div><span>RANKING</span><h3>Rendimiento por operador</h3></div></div><div id="reportOperatorRanking" class="horizontal-bars"><div class="empty-state">Sin datos.</div></div></article><article class="ops-card span-3"><div class="ops-card-head"><div><span>DETALLE</span><h3>Resumen de registros</h3></div></div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Operador</th><th>Máquina</th><th>Monte</th><th>Árboles</th><th>Horas</th><th>Combustible</th><th>Rendimiento</th></tr></thead><tbody id="reportTableBody"></tbody></table></div></article></div>
+        <div class="report-grid"><article class="ops-card span-2"><div class="ops-card-head"><div><span>TENDENCIA</span><h3>Producción por día</h3></div></div><div class="admin-chart-wrap tall"><canvas id="reportProductionChart"></canvas></div></article><article class="ops-card"><div class="ops-card-head"><div><span>RANKING</span><h3>Rendimiento por operador</h3></div></div><div id="reportOperatorRanking" class="horizontal-bars"><div class="empty-state">Sin datos.</div></div></article><article class="ops-card span-3"><div class="ops-card-head"><div><span>DETALLE</span><h3>Resumen de registros</h3></div></div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Operador</th><th>Máquina</th><th>Monte</th><th>Troza</th><th>Pulpa</th><th>Árboles</th><th>Horas</th><th>Combustible</th><th>Rendimiento</th></tr></thead><tbody id="reportTableBody"></tbody></table></div></article></div>
       </section>
 
       <section id="sincronizacion" class="view admin-view">
@@ -507,7 +521,7 @@
 
       <section id="configuracion" class="view admin-view">
         <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-settings"></use></svg> PREFERENCIAS</span><h2>Configuración de la aplicación</h2><p>Ajusta apariencia, accesibilidad y comportamiento del sistema.</p></div></div>
-        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=15.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 15.0 Asistencia</span><small>Usuarios, asistencia con foto, GPS bloqueado, chat, incidencias, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
+        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=16.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 16.0 Firma Digital</span><small>Usuarios, asistencia con foto, firma digital, producción Troza/Pulpa, chat, incidencias, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
       </section>
 
     </main>

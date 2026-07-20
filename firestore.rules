@@ -50,6 +50,16 @@ service cloud.firestore {
         && gps.capturedAtClient is string;
     }
 
+    function validOptionalSignature() {
+      return !request.resource.data.keys().hasAny(['firmaDigital'])
+        || request.resource.data.firmaDigital == ''
+        || (
+          request.resource.data.firmaDigital is string
+          && request.resource.data.firmaDigital.size() < 500000
+          && request.resource.data.firmaDigital.matches('^data:image/png;base64,.*$')
+        );
+    }
+
     function validLockedGps() {
       return request.resource.data.gps is map
         && request.resource.data.gps.keys().hasAll([
@@ -106,7 +116,12 @@ service cloud.firestore {
         && request.resource.data.createdByUid == request.auth.uid
         && request.resource.data.createdByEmail == request.auth.token.email
         && request.resource.data.createdAtServer == request.time
-        && validLockedGps();
+        && (
+          !request.resource.data.keys().hasAny(['gps'])
+          || request.resource.data.gps == null
+          || validLockedGps()
+        )
+        && validOptionalSignature();
 
       allow update: if adminUser()
         && request.resource.data.gps == resource.data.gps

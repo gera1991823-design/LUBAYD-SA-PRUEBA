@@ -1,7 +1,7 @@
 {
   "name": "Centro de Operaciones Forestales Lubayd SA",
   "short_name": "Lubayd Forestal",
-  "description": "Plataforma de gestión forestal con asistencia por foto, partes, GPS, chat, incidencias y reportes",
+  "description": "Gestión forestal Lubayd SA con partes opcionales, firma digital, asistencia con foto, GPS y sincronización.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -28,28 +28,48 @@
       "short_name": "Nuevo",
       "description": "Crear un nuevo parte diario",
       "url": "./?view=nuevo",
-      "icons": [{"src":"./assets/icon-192.png","sizes":"192x192"}]
+      "icons": [
+        {
+          "src": "./assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Asistencia",
       "short_name": "Asistencia",
       "description": "Registrar llegada o salida con fotografía",
       "url": "./?view=asistencia",
-      "icons": [{"src":"./assets/icon-192.png","sizes":"192x192"}]
+      "icons": [
+        {
+          "src": "./assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Mensajes",
       "short_name": "Chat",
       "description": "Abrir el chat interno",
       "url": "./?view=chat",
-      "icons": [{"src":"./assets/icon-192.png","sizes":"192x192"}]
+      "icons": [
+        {
+          "src": "./assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Historial",
       "short_name": "Historial",
       "description": "Consultar partes guardados",
       "url": "./?view=historial",
-      "icons": [{"src":"./assets/icon-192.png","sizes":"192x192"}]
+      "icons": [
+        {
+          "src": "./assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,9 @@
+FIREBASE V16 - PASOS
+
+1. Abrir Firebase Console.
+2. Entrar a Firestore Database > Reglas.
+3. Reemplazar las reglas por el contenido de firestore.rules.
+4. Presionar Publicar.
+
+El cambio permite guardar partes sin GPS. Cuando se captura GPS, continúa validándose como dato bloqueado generado en el momento.
+La firma digital se guarda en el documento del parte como firmaDigital.

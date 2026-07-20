@@ -1345,3 +1345,42 @@ body.auth-ready .auth-gate { display: none; }
 /* V13.1 - corrección robusta del logo */
 .brand-mark, .auth-brand img, .auth-mobile-brand img { overflow: hidden; }
 .brand-mark img, .auth-brand img, .auth-mobile-brand img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+
+
+/* V16 - Producción Troza/Pulpa y firma digital */
+.product-quantity-group{grid-column:1/-1;padding:16px;border:1px solid #dfe9e4;border-radius:17px;background:linear-gradient(145deg,#fbfefc,#f4faf7)}
+.product-quantity-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.product-quantity-head span{display:block;color:#253a30;font-size:11px;font-weight:800}
+.product-quantity-head small{display:block;margin-top:3px;color:var(--muted);font-size:9px}
+.product-quantity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.product-quantity-card{display:grid;grid-template-columns:42px minmax(0,1fr) minmax(125px,170px);align-items:center;gap:11px;padding:12px;border:1px solid #dce8e1;border-radius:14px;background:#fff;box-shadow:0 6px 20px rgba(16,66,42,.04)}
+.product-quantity-card .product-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;color:#167a48;background:#e6f6ed}
+.product-quantity-card .product-icon.pulp{color:#8d6b1f;background:#fff5d9}
+.product-quantity-card .product-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2}
+.product-quantity-card strong,.product-quantity-card small{display:block}
+.product-quantity-card strong{font-size:13px}.product-quantity-card small{margin-top:2px;color:var(--muted);font-size:9px}
+.input-shell.compact{min-height:42px}.input-shell.compact input{height:40px;text-align:right;font-weight:800}
+.signature-card{margin-bottom:18px;padding:18px;border:1px solid #d8e7df;border-radius:18px;background:linear-gradient(145deg,#ffffff,#f5faf7);box-shadow:0 10px 30px rgba(18,77,47,.06)}
+.signature-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+.signature-card-head>div>span{color:var(--primary);font-size:9px;font-weight:900;letter-spacing:.12em}
+.signature-card-head h4{margin:4px 0 3px;font-size:18px}.signature-card-head p{margin:0;color:var(--muted);font-size:10px}
+.signature-status{display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;color:#6a7880;background:#edf2ef;font-size:9px;font-weight:800;white-space:nowrap}
+.signature-status.signed{color:#08713f;background:#dff5e8}
+.signature-pad-wrap{position:relative;overflow:hidden;border:2px dashed #bfd5c9;border-radius:15px;background:#fff;touch-action:none;transition:border-color .2s,box-shadow .2s}
+.signature-pad-wrap:focus-within,.signature-pad-wrap.drawing{border-color:#22a05f;box-shadow:0 0 0 4px rgba(24,157,87,.08)}
+#signatureCanvas{display:block;width:100%;height:210px;cursor:crosshair;touch-action:none}
+.signature-placeholder{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:4px;color:#91a29a;pointer-events:none;text-align:center}
+.signature-placeholder svg{width:28px;height:28px;fill:none;stroke:#86a293;stroke-width:1.7}
+.signature-placeholder strong{font-size:14px}.signature-placeholder span{font-size:9px}
+.signature-placeholder.hidden{display:none}
+.signature-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.signature-actions>span{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:9px}
+.signature-actions>span svg{width:16px;height:16px;fill:none;stroke:#188c51;stroke-width:2}
+.signature-actions>div{display:flex;gap:7px}
+.review-signature{padding:14px;border:1px solid #dfe8e3;border-radius:14px;background:#fff}
+.review-signature>span{display:block;margin-bottom:8px;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.review-signature img{display:block;width:min(100%,480px);max-height:150px;object-fit:contain;object-position:left center;border-bottom:1px solid #d8dfdb;background:#fff}
+.detail-signature{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.detail-signature span{display:block;margin-bottom:8px;color:var(--muted);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.detail-signature img{display:block;width:min(100%,520px);max-height:160px;object-fit:contain;object-position:left;background:#fff;border-bottom:1px solid #d7dfdb}
+@media(max-width:680px){.product-quantity-grid{grid-template-columns:1fr}.product-quantity-card{grid-template-columns:40px 1fr}.product-quantity-card .input-shell{grid-column:1/-1}.signature-card{padding:14px}.signature-card-head,.signature-actions{align-items:flex-start;flex-direction:column}.signature-actions>div{width:100%}.signature-actions .btn{flex:1}#signatureCanvas{height:180px}}

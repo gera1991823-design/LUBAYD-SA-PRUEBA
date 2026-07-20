@@ -685,13 +685,13 @@
     const max = Math.max(...ranking.map(item => item[1]), 1);
     $('#reportOperatorRanking').innerHTML = ranking.length ? ranking.map(item => `<div class="horizontal-bar-row"><span>${escapeHtml(item[0])}</span><div><i style="width:${Math.max(5, (item[1] / max) * 100)}%"></i></div><strong>${number(item[1], 1)}</strong></div>`).join('') : '<div class="empty-state">Sin datos.</div>';
 
-    $('#reportTableBody').innerHTML = list.slice().sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || ''))).map(item => `<tr><td>${formatDate(item.fecha)}</td><td>${escapeHtml(item.operador || '—')}</td><td>${escapeHtml(item.maquina || '—')}</td><td>${escapeHtml(item.monte || '—')}</td><td>${number(item.arboles)}</td><td>${number(item.horas, 1)}</td><td>${number(item.combustible, 1)}</td><td>${number(item.horas ? item.arboles / item.horas : 0, 1)}</td></tr>`).join('') || '<tr><td colspan="8" class="empty-cell">No hay registros para el período seleccionado.</td></tr>';
+    $('#reportTableBody').innerHTML = list.slice().sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || ''))).map(item => `<tr><td>${formatDate(item.fecha)}</td><td>${escapeHtml(item.operador || '—')}</td><td>${escapeHtml(item.maquina || '—')}</td><td>${escapeHtml(item.monte || '—')}</td><td>${number(item.trozaCantidad || 0)}</td><td>${number(item.pulpaCantidad || 0)}</td><td>${number(item.arboles)}</td><td>${number(item.horas, 1)}</td><td>${number(item.combustible, 1)}</td><td>${number(item.horas ? item.arboles / item.horas : 0, 1)}</td></tr>`).join('') || '<tr><td colspan="10" class="empty-cell">No hay registros para el período seleccionado.</td></tr>';
   }
 
   function exportReportCsv() {
     const list = state.reportRecords.length || reportFilteredRecords().length ? (state.reportRecords.length ? state.reportRecords : reportFilteredRecords()) : [];
-    const rows = [['Fecha', 'Operador', 'Máquina', 'Monte', 'Actividad', 'Árboles', 'Horas', 'Combustible', 'Rendimiento']];
-    list.forEach(item => rows.push([item.fecha || '', item.operador || '', item.maquina || '', item.monte || '', item.actividad || '', Number(item.arboles || 0), Number(item.horas || 0), Number(item.combustible || 0), Number(item.horas ? item.arboles / item.horas : 0).toFixed(2)]));
+    const rows = [['Fecha', 'Operador', 'Máquina', 'Monte', 'Actividad', 'Troza', 'Pulpa', 'Árboles', 'Horas', 'Combustible', 'Rendimiento']];
+    list.forEach(item => rows.push([item.fecha || '', item.operador || '', item.maquina || '', item.monte || '', item.actividad || '', Number(item.trozaCantidad || 0), Number(item.pulpaCantidad || 0), Number(item.arboles || 0), Number(item.horas || 0), Number(item.combustible || 0), Number(item.horas ? item.arboles / item.horas : 0).toFixed(2)]));
     const csv = '\ufeff' + rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(';')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const anchor = document.createElement('a');

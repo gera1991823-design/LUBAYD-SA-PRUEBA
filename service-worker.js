@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lubayd-forestal-v15.0.0-asistencia';
+const CACHE_NAME = 'lubayd-forestal-v16.0.0-firma-digital';
 const LOCAL_ASSETS = [
   './',
   './index.html',

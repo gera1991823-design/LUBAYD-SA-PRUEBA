@@ -1,4 +1,4 @@
-/* Lubayd SA V15 - Control de asistencia con foto, GPS y hora de servidor */
+/* Lubayd SA V16 - Control de asistencia con foto, GPS y hora de servidor */
 (function () {
   'use strict';
 

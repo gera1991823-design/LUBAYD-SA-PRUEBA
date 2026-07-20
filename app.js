@@ -2,7 +2,7 @@
 
 const STORAGE_KEY = 'lubayd_partes_v3';
 const LEGACY_KEYS = ['lubayd_partes_v2', 'lubayd_partes'];
-const DRAFT_KEY = 'lubayd_parte_draft_v12';
+const DRAFT_KEY = 'lubayd_parte_draft_v16';
 const TOTAL_STEPS = 5;
 const CHECK_IDS = ['agua', 'aceite', 'valvulina', 'giro', 'chequeoGral', 'cabezal', 'grua'];
 const CHECK_LABELS = {
@@ -15,7 +15,7 @@ const CHECK_LABELS = {
   grua: 'Grúa'
 };
 const DRAFT_FIELDS = [
-  'monte', 'fecha', 'maquina', 'operador', 'especie', 'largo',
+  'monte', 'fecha', 'maquina', 'operador', 'trozaCantidad', 'pulpaCantidad', 'largo',
   'horometroInicio', 'horometroFinal', 'arbolesIniciales', 'arbolesFinales', 'carros',
   'desde1', 'hasta1', 'trabajo1', 'mecanico1', 'observaciones', 'combustible',
   'hidraulico', 'controlado', 'firma', ...CHECK_IDS
@@ -25,6 +25,10 @@ let step = 1;
 let currentGps = null;
 let gpsInProgress = false;
 let gpsAttemptedThisForm = false;
+let signatureData = '';
+let signatureStrokes = [];
+let activeSignatureStroke = null;
+let signatureDrawing = false;
 let deferredInstall = null;
 let waitingWorker = null;
 let cloudUnsubscribe = null;
@@ -390,7 +394,10 @@ function updateStep() {
     gpsAttemptedThisForm = true;
     window.setTimeout(() => captureGps(true), 350);
   }
-  if (step === 5) fillReview();
+  if (step === 5) {
+    window.requestAnimationFrame(() => { resizeSignatureCanvas(); renderSignaturePad(); });
+    fillReview();
+  }
 }
 
 $$('.wizard-step').forEach(item => {
@@ -423,7 +430,7 @@ function validateStep(stepNumber, options = {}) {
       const field = input.closest('.field, .field-group') || input.parentElement;
       field?.classList.add('field-error');
       if (!options.silent) {
-        showFormMessage('Completa los campos obligatorios marcados antes de continuar.', 'error');
+        showFormMessage('Revisa el formato de los datos antes de continuar.', 'error');
         input.scrollIntoView({ behavior: 'smooth', block: 'center' });
         window.setTimeout(() => input.focus({ preventScroll: true }), 260);
       }
@@ -432,13 +439,17 @@ function validateStep(stepNumber, options = {}) {
   }
 
   if (stepNumber === 2) {
-    if (numberValue('#horometroFinal') < numberValue('#horometroInicio')) {
+    const hourStart = $('#horometroInicio')?.value;
+    const hourEnd = $('#horometroFinal')?.value;
+    if (hourStart !== '' && hourEnd !== '' && numberValue('#horometroFinal') < numberValue('#horometroInicio')) {
       showFormMessage('El horómetro final no puede ser menor que el inicial.', 'error');
       $('#horometroFinal').closest('.field')?.classList.add('field-error');
       if (!options.silent) $('#horometroFinal').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return false;
     }
-    if (numberValue('#arbolesFinales') < numberValue('#arbolesIniciales')) {
+    const treeStart = $('#arbolesIniciales')?.value;
+    const treeEnd = $('#arbolesFinales')?.value;
+    if (treeStart !== '' && treeEnd !== '' && numberValue('#arbolesFinales') < numberValue('#arbolesIniciales')) {
       showFormMessage('Los árboles finales no pueden ser menores que los iniciales.', 'error');
       $('#arbolesFinales').closest('.field')?.classList.add('field-error');
       if (!options.silent) $('#arbolesFinales').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -446,20 +457,11 @@ function validateStep(stepNumber, options = {}) {
     }
   }
 
-  if (stepNumber === 4) {
-    if (!currentGps) {
-      if (!options.silent) {
-        showFormMessage('Debes obtener la ubicación actual antes de continuar.', 'error');
-        captureGps(false);
-      }
-      return false;
-    }
+  if (stepNumber === 4 && currentGps) {
     const captured = new Date(currentGps.capturedAt || currentGps.positionTimestamp || 0).getTime();
     if (!captured || Date.now() - captured > 15 * 60 * 1000) {
       currentGps = null;
-      renderGpsState('La ubicación venció. Obtén una nueva captura.');
-      if (!options.silent) showFormMessage('La ubicación debe ser reciente. Vuelve a obtenerla.', 'error');
-      return false;
+      renderGpsState('La ubicación venció. Puedes obtener una nueva captura o continuar sin GPS.');
     }
   }
 
@@ -558,7 +560,7 @@ function recordFromForm() {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    version: 12,
+    version: 16,
     createdAt: now,
     updatedAt: now,
     monte: $('#monte').value.trim(),
@@ -569,7 +571,8 @@ function recordFromForm() {
     createdByEmail: currentUser()?.email || '',
     createdByName: userDisplayName(),
     turno: radioValue('turno'),
-    especie: $('#especie').value,
+    trozaCantidad: numberValue('#trozaCantidad'),
+    pulpaCantidad: numberValue('#pulpaCantidad'),
     largo: numberValue('#largo'),
     horometroInicio: numberValue('#horometroInicio'),
     horometroFinal: numberValue('#horometroFinal'),
@@ -589,6 +592,8 @@ function recordFromForm() {
     hidraulico: numberValue('#hidraulico'),
     controlado: $('#controlado').value.trim(),
     firma: $('#firma').value.trim(),
+    firmaDigital: signatureData || '',
+    firmaDigitalAt: signatureData ? now : '',
     gps: currentGps ? { ...currentGps } : null
   };
 }
@@ -615,7 +620,8 @@ function fillReview() {
     <div class="review-grid">
       ${reviewItem('Fecha', formatDate(record.fecha))}
       ${reviewItem('Turno', record.turno || '—')}
-      ${reviewItem('Especie', record.especie || '—')}
+      ${reviewItem('Troza', formatNumber(record.trozaCantidad))}
+      ${reviewItem('Pulpa', formatNumber(record.pulpaCantidad))}
       ${reviewItem('Actividad', record.actividad || '—')}
       ${reviewItem('Carros', formatNumber(record.carros))}
       ${reviewItem('Rendimiento', `${formatNumber(record.horas ? record.arboles / record.horas : 0, 1)} árb/h`)}
@@ -630,6 +636,7 @@ function fillReview() {
       </div>
     </div>
     ${record.observaciones ? `<div class="review-checks"><span>Observaciones</span><p style="margin:0;color:#425466;font-size:11px;white-space:pre-wrap">${escapeHtml(record.observaciones)}</p></div>` : ''}
+    ${record.firmaDigital ? `<div class="review-signature"><span>Firma digital</span><img src="${record.firmaDigital}" alt="Firma digital del responsable"></div>` : '<div class="review-signature"><span>Firma digital</span><p style="margin:0;color:#7b8b83;font-size:10px">Sin firma registrada.</p></div>'}
   `;
 }
 
@@ -670,6 +677,7 @@ function resetForm({ clearDraft = false } = {}) {
   currentGps = null;
   gpsInProgress = false;
   gpsAttemptedThisForm = false;
+  clearSignaturePad({ silent: true });
   step = 1;
   $('#fecha').value = todayKey();
   enforceAuthenticatedOperator();
@@ -693,6 +701,8 @@ function serializeDraft() {
     values,
     turno: radioValue('turno'),
     actividad: radioValue('actividad'),
+    signatureData,
+    signatureStrokes,
     savedAt: new Date().toISOString()
   };
 }
@@ -728,6 +738,10 @@ function restoreDraft() {
     });
     setRadioValue('turno', draft.turno || '');
     setRadioValue('actividad', draft.actividad || '');
+    signatureData = String(draft.signatureData || '');
+    signatureStrokes = Array.isArray(draft.signatureStrokes) ? draft.signatureStrokes : [];
+    activeSignatureStroke = null;
+    renderSignaturePad();
     currentGps = null;
     enforceAuthenticatedOperator();
     updateCheckCards();
@@ -760,10 +774,12 @@ $('#useLastRecordBtn')?.addEventListener('click', () => {
   $('#monte').value = last.monte || '';
   $('#maquina').value = last.maquina || '';
   enforceAuthenticatedOperator();
-  $('#especie').value = last.especie || '';
+  $('#trozaCantidad').value = last.trozaCantidad || '';
+  $('#pulpaCantidad').value = last.pulpaCantidad || '';
   $('#largo').value = last.largo || '';
   setRadioValue('turno', last.turno || '');
   setRadioValue('actividad', last.actividad || '');
+  clearSignaturePad({ silent: true });
   scheduleDraftSave();
   showToast('Datos reutilizados', 'Se cargaron el monte, la máquina y otros datos frecuentes. El operador corresponde al usuario conectado.');
 });
@@ -989,7 +1005,8 @@ function openDetail(id) {
     Operador: record.operador || '—',
     Máquina: record.maquina || '—',
     Turno: record.turno || '—',
-    Especie: record.especie || '—',
+    Troza: formatNumber(record.trozaCantidad || 0),
+    Pulpa: formatNumber(record.pulpaCantidad || 0),
     Actividad: record.actividad || '—',
     'Horas trabajadas': `${formatNumber(record.horas, 1)} h`,
     'Árboles procesados': formatNumber(record.arboles),
@@ -1006,6 +1023,7 @@ function openDetail(id) {
     <h2 class="detail-title">${escapeHtml(record.monte)} · ${escapeHtml(record.maquina)}</h2>
     <p class="detail-subtitle">Registrado ${formatDateTime(record.createdAt)} por ${escapeHtml(record.operador || 'Operador')}.</p>
     <div class="detail-grid">${Object.entries(fields).map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`).join('')}</div>
+    ${record.firmaDigital ? `<div class="detail-signature"><span>Firma digital</span><img src="${record.firmaDigital}" alt="Firma digital del parte"></div>` : ''}
     ${record.gps ? `<a class="btn btn-primary detail-map" href="${mapUrl(record.gps)}" target="_blank" rel="noopener"><svg><use href="#i-pin"></use></svg> Abrir ubicación en el mapa</a>` : ''}
   `;
   $('#detailModal').classList.remove('hidden');
@@ -1034,6 +1052,186 @@ $('#exportBtn')?.addEventListener('click', () => {
   window.setTimeout(() => URL.revokeObjectURL(anchor.href), 700);
   showToast('Archivo preparado', 'Se descargó una copia JSON del historial.');
 });
+
+
+function signatureCanvasElements() {
+  return {
+    canvas: $('#signatureCanvas'),
+    placeholder: $('#signaturePlaceholder'),
+    status: $('#signatureStatus'),
+    undo: $('#signatureUndoBtn'),
+    clear: $('#signatureClearBtn'),
+    wrap: $('.signature-pad-wrap')
+  };
+}
+
+function resizeSignatureCanvas() {
+  const { canvas } = signatureCanvasElements();
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const ratio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  const width = Math.round(rect.width * ratio);
+  const height = Math.round(rect.height * ratio);
+  if (canvas.width === width && canvas.height === height) return;
+  canvas.width = width;
+  canvas.height = height;
+  renderSignaturePad();
+}
+
+function signatureContext() {
+  const { canvas } = signatureCanvasElements();
+  if (!canvas) return null;
+  const context = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / Math.max(rect.width, 1);
+  const scaleY = canvas.height / Math.max(rect.height, 1);
+  context.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  context.strokeStyle = '#10261b';
+  context.lineWidth = 2.4;
+  return { context, rect };
+}
+
+function drawSignatureStroke(context, stroke) {
+  if (!stroke?.length) return;
+  context.beginPath();
+  context.moveTo(stroke[0].x, stroke[0].y);
+  if (stroke.length === 1) {
+    context.lineTo(stroke[0].x + 0.1, stroke[0].y + 0.1);
+  } else {
+    for (let index = 1; index < stroke.length; index += 1) {
+      const point = stroke[index];
+      const previous = stroke[index - 1];
+      const middleX = (previous.x + point.x) / 2;
+      const middleY = (previous.y + point.y) / 2;
+      context.quadraticCurveTo(previous.x, previous.y, middleX, middleY);
+    }
+  }
+  context.stroke();
+}
+
+function renderSignaturePad() {
+  const elements = signatureCanvasElements();
+  const setup = signatureContext();
+  if (!setup || !elements.canvas) return;
+  const { context, rect } = setup;
+  context.clearRect(0, 0, rect.width, rect.height);
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, rect.width, rect.height);
+
+  if (signatureStrokes.length) {
+    signatureStrokes.forEach(stroke => drawSignatureStroke(context, stroke));
+  } else if (signatureData) {
+    const image = new Image();
+    image.onload = () => {
+      const current = signatureContext();
+      if (!current) return;
+      current.context.drawImage(image, 0, 0, current.rect.width, current.rect.height);
+    };
+    image.src = signatureData;
+  }
+
+  const hasSignature = Boolean(signatureData || signatureStrokes.length);
+  elements.placeholder?.classList.toggle('hidden', hasSignature);
+  elements.status?.classList.toggle('signed', hasSignature);
+  if (elements.status) elements.status.textContent = hasSignature ? 'Firma registrada' : 'Sin firma';
+  if (elements.undo) elements.undo.disabled = signatureStrokes.length === 0;
+  if (elements.clear) elements.clear.disabled = !hasSignature;
+}
+
+function updateSignatureData() {
+  const { canvas } = signatureCanvasElements();
+  if (!canvas || !signatureStrokes.length) {
+    signatureData = '';
+    renderSignaturePad();
+    return;
+  }
+  signatureData = canvas.toDataURL('image/png');
+  renderSignaturePad();
+  scheduleDraftSave();
+  if (step === 5) fillReview();
+}
+
+function clearSignaturePad(options = {}) {
+  signatureData = '';
+  signatureStrokes = [];
+  activeSignatureStroke = null;
+  signatureDrawing = false;
+  renderSignaturePad();
+  if (!options.silent) {
+    scheduleDraftSave();
+    if (step === 5) fillReview();
+  }
+}
+
+function signaturePoint(event) {
+  const { canvas } = signatureCanvasElements();
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
+    y: Math.max(0, Math.min(rect.height, event.clientY - rect.top))
+  };
+}
+
+function beginSignature(event) {
+  const { canvas, wrap } = signatureCanvasElements();
+  if (!canvas || (event.pointerType === 'mouse' && event.button !== 0)) return;
+  event.preventDefault();
+  resizeSignatureCanvas();
+  signatureDrawing = true;
+  activeSignatureStroke = [signaturePoint(event)];
+  signatureStrokes.push(activeSignatureStroke);
+  canvas.setPointerCapture?.(event.pointerId);
+  wrap?.classList.add('drawing');
+  renderSignaturePad();
+}
+
+function moveSignature(event) {
+  if (!signatureDrawing || !activeSignatureStroke) return;
+  event.preventDefault();
+  activeSignatureStroke.push(signaturePoint(event));
+  renderSignaturePad();
+}
+
+function endSignature(event) {
+  if (!signatureDrawing) return;
+  event.preventDefault();
+  signatureDrawing = false;
+  activeSignatureStroke = null;
+  signatureCanvasElements().wrap?.classList.remove('drawing');
+  updateSignatureData();
+}
+
+function initializeSignaturePad() {
+  const { canvas, undo, clear } = signatureCanvasElements();
+  if (!canvas) return;
+  canvas.addEventListener('pointerdown', beginSignature, { passive: false });
+  canvas.addEventListener('pointermove', moveSignature, { passive: false });
+  canvas.addEventListener('pointerup', endSignature, { passive: false });
+  canvas.addEventListener('pointercancel', endSignature, { passive: false });
+  canvas.addEventListener('pointerleave', event => {
+    if (signatureDrawing && event.pointerType === 'mouse') endSignature(event);
+  });
+  undo?.addEventListener('click', () => {
+    if (signatureStrokes.length) signatureStrokes.pop();
+    signatureData = '';
+    if (signatureStrokes.length) {
+      renderSignaturePad();
+      const currentCanvas = signatureCanvasElements().canvas;
+      signatureData = currentCanvas.toDataURL('image/png');
+    }
+    renderSignaturePad();
+    scheduleDraftSave();
+    if (step === 5) fillReview();
+  });
+  clear?.addEventListener('click', () => clearSignaturePad());
+  window.addEventListener('resize', () => window.requestAnimationFrame(resizeSignatureCanvas));
+  window.requestAnimationFrame(() => { resizeSignatureCanvas(); renderSignaturePad(); });
+}
+
+initializeSignaturePad();
 
 function mapUrl(gps) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${gps.latitude},${gps.longitude}`)}`;
