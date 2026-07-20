@@ -349,7 +349,7 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.token == resource.data.token
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'active', 'platform', 'userAgent', 'language', 'appUrl',
+          'active', 'platform', 'installedPwa', 'userAgent', 'language', 'appUrl',
           'userEmail', 'updatedAt', 'updatedAtClient'
         ])
         && request.resource.data.updatedAt == request.time;

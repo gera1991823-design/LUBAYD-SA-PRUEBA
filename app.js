@@ -1441,7 +1441,7 @@ window.addEventListener('appinstalled', () => $('#installBtn').classList.add('hi
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./service-worker.js');
+      const registration = await navigator.serviceWorker.register('./service-worker.js?v=20.1.0', { scope: './', updateViaCache: 'none' });
       if (registration.waiting) {
         waitingWorker = registration.waiting;
         $('#updateBanner').classList.remove('hidden');

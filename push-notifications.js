@@ -1,20 +1,48 @@
-/* Lubayd SA V19 - Notificaciones visibles con la app en uso o minimizada */
+/* Lubayd SA V20.1 - Push corregido con registro FCM verificable */
 (function () {
   'use strict';
 
   const VAPID_PUBLIC_KEY = 'BD2QB0qlQKnf4ZGV5pyoeAPwMA4Psj9j-tgpKdtb_A1b6bclmw_kUPFSdffyGpfPTXSF630SHbHgjCmirow-Imc';
   const TOKEN_COLLECTION = 'push_tokens';
-  const LOCAL_ENABLED_KEY = 'lubayd_notifications_enabled_v19';
-  const LOCAL_TOKEN_KEY = 'lubayd_fcm_token_v19';
-  const LOCAL_TOKEN_DOC_KEY = 'lubayd_fcm_token_doc_v19';
-  const DISMISSED_KEY = 'lubayd_notifications_banner_dismissed_v19';
+  const LOCAL_ENABLED_KEY = 'lubayd_notifications_enabled_v20_1';
+  const LOCAL_TOKEN_KEY = 'lubayd_fcm_token_v20_1';
+  const LOCAL_TOKEN_DOC_KEY = 'lubayd_fcm_token_doc_v20_1';
+  const DISMISSED_KEY = 'lubayd_notifications_banner_dismissed_v20_1';
   let messaging = null;
   let initializationPromise = null;
   let foregroundUnsubscribe = null;
+  let lastTokenError = '';
   const recentPushSignatures = new Map();
 
   const $ = selector => document.querySelector(selector);
   const $$ = selector => [...document.querySelectorAll(selector)];
+
+
+  function withTimeout(promise, milliseconds, message) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message || 'La operación demoró demasiado.')), milliseconds);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  function readablePushError(error) {
+    const code = String(error?.code || '');
+    const message = String(error?.message || error || 'Error desconocido');
+    if (code.includes('permission-blocked') || code.includes('permission-denied')) {
+      return 'El permiso está bloqueado en el teléfono. Habilítalo desde Ajustes → Notificaciones.';
+    }
+    if (code.includes('token-subscribe-failed')) {
+      return 'Firebase no pudo registrar este dispositivo. Verifica conexión, fecha/hora y vuelve a intentar.';
+    }
+    if (code.includes('unsupported-browser')) {
+      return 'Este navegador no admite notificaciones push. Usa Chrome/Edge o instala la app en la pantalla de inicio.';
+    }
+    if (code.includes('failed-service-worker-registration')) {
+      return 'No se pudo iniciar el servicio de notificaciones. Actualiza la aplicación y vuelve a intentar.';
+    }
+    return message;
+  }
 
 
   function pushSignature(chatId, text) {
@@ -84,7 +112,8 @@
       tokenRegistered,
       pushReady: tokenRegistered,
       platform: detectPlatform(),
-      installedPwa: isInstalledPwa()
+      installedPwa: isInstalledPwa(),
+      tokenError: lastTokenError
     }, extra || {});
   }
 
@@ -119,9 +148,29 @@
   }
 
   async function getRegistration() {
-    const registration = await navigator.serviceWorker.ready;
-    if (!registration) throw new Error('El servicio de notificaciones todavía no está disponible. Recarga la aplicación.');
-    return registration;
+    if (!('serviceWorker' in navigator)) {
+      throw new Error('Este navegador no admite el servicio de notificaciones.');
+    }
+
+    let registration = await navigator.serviceWorker.getRegistration('./').catch(() => null);
+    if (!registration) {
+      registration = await navigator.serviceWorker.register('./service-worker.js?v=20.1.0', {
+        scope: './',
+        updateViaCache: 'none'
+      });
+    }
+
+    try {
+      await registration.update();
+    } catch (_) {
+      // La actualización puede fallar temporalmente sin impedir usar el registro existente.
+    }
+
+    const ready = await navigator.serviceWorker.ready;
+    if (!ready) {
+      throw new Error('El servicio de notificaciones todavía no está disponible. Cierra y vuelve a abrir la aplicación.');
+    }
+    return ready;
   }
 
   async function saveToken(token) {
@@ -144,8 +193,10 @@
       updatedAtClient: new Date().toISOString()
     };
     const ref = db.collection(TOKEN_COLLECTION).doc(tokenId);
-    const snapshot = await ref.get();
-    if (!snapshot.exists) payload.createdAt = FieldValue.serverTimestamp();
+
+    // No hacemos una lectura previa. Las reglas de seguridad no pueden autorizar
+    // la lectura de un documento que todavía no existe, y esa lectura impedía
+    // crear la colección push_tokens en el primer registro del celular.
     await ref.set(payload, { merge: true });
     localStorage.setItem(LOCAL_TOKEN_KEY, token);
     localStorage.setItem(LOCAL_TOKEN_DOC_KEY, tokenId);
@@ -153,16 +204,29 @@
   }
 
   async function registerFcmToken() {
-    if (!navigator.onLine || !currentUser()) return { tokenRegistered: false };
+    if (!navigator.onLine) throw new Error('El celular no tiene conexión a internet.');
+    if (!currentUser()) throw new Error('Debes iniciar sesión antes de registrar el celular.');
     const instance = await initializeMessaging();
-    if (!instance) return { tokenRegistered: false };
-    const registration = await getRegistration();
-    const token = await instance.getToken({
-      vapidKey: VAPID_PUBLIC_KEY,
-      serviceWorkerRegistration: registration
-    });
-    if (!token) return { tokenRegistered: false };
-    const saved = await saveToken(token);
+    if (!instance) throw new Error('Firebase Cloud Messaging no es compatible con este navegador o modo de apertura.');
+    const registration = await withTimeout(
+      getRegistration(),
+      20000,
+      'El servicio de notificaciones no respondió. Cierra y vuelve a abrir la aplicación.'
+    );
+    const token = await withTimeout(
+      instance.getToken({
+        vapidKey: VAPID_PUBLIC_KEY,
+        serviceWorkerRegistration: registration
+      }),
+      30000,
+      'Firebase demoró demasiado en registrar el celular. Revisa la conexión y vuelve a intentar.'
+    );
+    if (!token) throw new Error('Firebase no devolvió un identificador para este dispositivo.');
+    const saved = await withTimeout(
+      saveToken(token),
+      20000,
+      'El token se generó, pero no pudo guardarse en Firestore. Publica las reglas V20.1.'
+    );
     return { tokenRegistered: true, tokenId: saved.tokenId };
   }
 
@@ -203,8 +267,10 @@
     let tokenError = '';
     try {
       tokenResult = await registerFcmToken();
+      lastTokenError = '';
     } catch (error) {
       tokenError = error?.message || String(error);
+      lastTokenError = tokenError;
       console.warn('FCM no quedó registrado, se mantienen avisos locales:', error);
     }
 
@@ -233,10 +299,12 @@
     localStorage.setItem(LOCAL_ENABLED_KEY, '1');
     try {
       const tokenResult = await registerFcmToken();
+      lastTokenError = '';
       return emitState(tokenResult);
     } catch (error) {
+      lastTokenError = error?.message || String(error);
       console.warn('Actualización del registro push:', error);
-      return emitState({ enabled: true, locallyEnabled: true, tokenError: error?.message || String(error) });
+      return emitState({ enabled: true, locallyEnabled: true, tokenError: lastTokenError });
     }
   }
 
@@ -255,6 +323,7 @@
       localStorage.removeItem(LOCAL_ENABLED_KEY);
       localStorage.removeItem(LOCAL_TOKEN_KEY);
       localStorage.removeItem(LOCAL_TOKEN_DOC_KEY);
+      lastTokenError = '';
       emitState({ enabled: false, locallyEnabled: false, tokenRegistered: false });
     }
   }
@@ -278,6 +347,11 @@
       title: 'Notificaciones activas',
       text: 'El celular está registrado para avisos de mensajes.',
       tone: 'success'
+    };
+    if (detail.locallyEnabled && detail.tokenError) return {
+      title: 'Registro push incompleto',
+      text: readablePushError({ message: detail.tokenError }),
+      tone: 'error'
     };
     if (detail.locallyEnabled) return {
       title: 'Avisos al minimizar activados',
@@ -308,11 +382,11 @@
     if (setupTitle) setupTitle.textContent = copy.title;
     if (setupText) setupText.textContent = copy.text;
     if (settingsState) {
-      settingsState.textContent = info.locallyEnabled ? (info.tokenRegistered ? 'Activas' : 'Minimizada') : (info.permission === 'denied' ? 'Bloqueadas' : 'Pendiente');
+      settingsState.textContent = info.locallyEnabled ? (info.tokenRegistered ? 'Activas' : (info.tokenError ? 'Error' : 'Minimizada')) : (info.permission === 'denied' ? 'Bloqueadas' : 'Pendiente');
       settingsState.dataset.tone = copy.tone;
     }
     if (status) {
-      status.textContent = info.locallyEnabled ? (info.tokenRegistered ? 'ACTIVAS' : 'MINIMIZADA') : 'PENDIENTE';
+      status.textContent = info.locallyEnabled ? (info.tokenRegistered ? 'ACTIVAS' : (info.tokenError ? 'ERROR' : 'MINIMIZADA')) : 'PENDIENTE';
       status.dataset.tone = copy.tone;
     }
     [banner, setup].forEach(element => {
@@ -355,7 +429,9 @@
           : 'Funcionarán mientras la aplicación esté abierta o minimizada.'
       );
     } catch (error) {
-      window.LubaydToast?.('No se pudo activar', error?.message || String(error));
+      const message = readablePushError(error);
+      console.error('Error al activar notificaciones:', error);
+      window.LubaydToast?.('No se pudo activar', message);
     } finally {
       button.classList.remove('is-loading');
       button.disabled = originalDisabled;
@@ -390,6 +466,23 @@
     updateNotificationUi(state());
   }
 
+  async function diagnostics() {
+    const current = state();
+    const registration = 'serviceWorker' in navigator
+      ? await navigator.serviceWorker.getRegistration().catch(() => null)
+      : null;
+    return {
+      ...current,
+      secureContext: window.isSecureContext,
+      online: navigator.onLine,
+      userAuthenticated: Boolean(currentUser()),
+      serviceWorkerRegistered: Boolean(registration),
+      serviceWorkerScope: registration?.scope || '',
+      firebaseMessagingLoaded: Boolean(window.firebase?.messaging),
+      tokenDocumentId: localStorage.getItem(LOCAL_TOKEN_DOC_KEY) || ''
+    };
+  }
+
   window.LubaydPush = {
     enable,
     disable,
@@ -398,7 +491,8 @@
     isEnabled,
     showLocalNotification,
     wasRecentlyPushed,
-    publicVapidKey: VAPID_PUBLIC_KEY
+    publicVapidKey: VAPID_PUBLIC_KEY,
+    diagnostics
   };
 
   window.addEventListener('lubayd-profile-ready', () => {

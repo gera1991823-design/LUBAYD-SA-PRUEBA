@@ -1,4 +1,4 @@
-/* Lubayd SA V19 - PWA + Firebase Cloud Messaging */
+/* Lubayd SA V20.1 - PWA + Firebase Cloud Messaging corregido */
 
 // Este listener debe registrarse antes de importar Firebase Messaging para conservar
 // el comportamiento personalizado al tocar una notificación.
@@ -58,7 +58,7 @@ messaging.onBackgroundMessage(payload => {
   return Promise.all([notificationPromise, clientPromise]);
 });
 
-const CACHE_NAME = 'lubayd-forestal-v19.0.0-notificaciones';
+const CACHE_NAME = 'lubayd-forestal-v20.1.0-push-corregido';
 const LOCAL_ASSETS = [
   './',
   './index.html',
@@ -80,8 +80,17 @@ const LOCAL_ASSETS = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(LOCAL_ASSETS)));
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await Promise.all(LOCAL_ASSETS.map(async asset => {
+      try {
+        await cache.add(asset);
+      } catch (error) {
+        console.warn('[Lubayd SW] No se pudo precargar:', asset, error);
+      }
+    }));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
