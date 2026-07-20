@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lubayd-forestal-v13.0.0';
+const CACHE_NAME = 'lubayd-forestal-v13.1.0-logo-fix';
 const LOCAL_ASSETS = [
   './',
   './index.html',

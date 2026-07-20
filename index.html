@@ -14,6 +14,19 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Gestión Forestal">
   <link rel="stylesheet" href="./style.css">
+
+  <script>
+    window.LubaydLogoFallback = function (img) {
+      if (img.dataset.fallbackTried !== '1') {
+        img.dataset.fallbackTried = '1';
+        img.src = './assets/logo.png?v=13.1.0';
+        return;
+      }
+      img.onerror = null;
+      img.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' rx='20' fill='%23ffffff'/%3E%3Cpath d='M23 68 42 24h15L43 57h30l-6 11H23Z' fill='%2318a957'/%3E%3Cpath d='M45 52 59 24h14L58 52H45Z' fill='%23f2d500'/%3E%3C/svg%3E";
+      img.alt = 'Lubayd SA';
+    };
+  </script>
 </head>
 <body class="auth-pending">
   <svg class="svg-sprite" aria-hidden="true">
@@ -59,13 +72,13 @@
 
   <div class="auth-gate" id="authGate">
     <section class="auth-visual" aria-hidden="true">
-      <div class="auth-brand"><img src="./assets/logo-transparent.png" alt=""><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
+      <div class="auth-brand"><img src="./assets/logo-transparent.png?v=13.1.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt=""><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
       <div class="auth-copy"><span>PLATAFORMA OPERATIVA SEGURA</span><h1>Gestión forestal conectada, clara y en tiempo real.</h1><p>Registra partes, consulta ubicaciones y comunícate con el equipo desde una única plataforma.</p></div>
       <div class="auth-feature-list"><span><svg><use href="#i-shield"></use></svg> Acceso protegido</span><span><svg><use href="#i-cloud"></use></svg> Datos sincronizados</span><span><svg><use href="#i-chat"></use></svg> Chat interno</span></div>
     </section>
     <section class="auth-panel">
       <div class="auth-card">
-        <div class="auth-mobile-brand"><img src="./assets/logo-transparent.png" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
+        <div class="auth-mobile-brand"><img src="./assets/logo-transparent.png?v=13.1.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"><div><strong>Lubayd SA</strong><span>Gestión Forestal</span></div></div>
         <div class="auth-tabs" role="tablist"><button type="button" class="active" data-auth-tab="login">Ingresar</button><button type="button" data-auth-tab="register">Crear cuenta</button></div>
         <form id="loginForm" class="auth-form active">
           <div class="auth-heading"><span>ACCESO AL SISTEMA</span><h2>Bienvenido</h2><p>Ingresa con tu correo y contraseña.</p></div>
@@ -90,7 +103,7 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <div class="brand-mark"><img src="./assets/logo-transparent.png" alt="Lubayd SA"></div>
+        <div class="brand-mark"><img src="./assets/logo-transparent.png?v=13.1.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div>
         <div class="brand-copy"><strong>Lubayd SA</strong><span>Gestión Forestal</span></div>
       </div>
 
