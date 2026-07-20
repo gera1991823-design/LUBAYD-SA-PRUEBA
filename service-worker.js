@@ -1,21 +1,32 @@
-/* Lubayd SA V20.1 - PWA + Firebase Cloud Messaging corregido */
+/* Lubayd SA V20.2 - PWA + Firebase Cloud Messaging */
+const CACHE_NAME = 'lubayd-sa-v20.2.0-attendance-mobile';
+const APP_SHELL = [
+  './',
+  './index.html',
+  './styles.css?v=20.2.0',
+  './firebase-init.js?v=20.2.0',
+  './push-notifications.js?v=20.2.0',
+  './attendance.js?v=20.2.0',
+  './chat.js?v=20.2.0',
+  './app.js?v=20.2.0',
+  './manifest.webmanifest?v=20.2.0',
+  './assets/logo.svg',
+  './assets/icon-192.png?v=20.2.0',
+  './assets/icon-512.png?v=20.2.0'
+];
 
-// Este listener debe registrarse antes de importar Firebase Messaging para conservar
-// el comportamiento personalizado al tocar una notificación.
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const rawTarget = event.notification.data?.url || './?view=chat';
   const targetUrl = new URL(rawTarget, self.registration.scope).href;
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-      const existing = clients.find(client => client.url.startsWith(self.registration.scope));
-      if (existing) {
-        existing.navigate(targetUrl).catch(() => {});
-        return existing.focus();
-      }
-      return self.clients.openWindow(targetUrl);
-    })
-  );
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    const existing = clients.find(client => client.url.startsWith(self.registration.scope));
+    if (existing) {
+      existing.navigate(targetUrl).catch(() => {});
+      return existing.focus();
+    }
+    return self.clients.openWindow(targetUrl);
+  }));
 });
 
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
@@ -37,68 +48,48 @@ messaging.onBackgroundMessage(payload => {
   const title = data.title || (data.senderName ? `Nuevo mensaje de ${data.senderName}` : 'Nuevo mensaje');
   const body = data.body || data.text || 'Tienes un mensaje nuevo en Lubayd SA.';
   const url = data.url || './?view=chat';
-  const notificationPromise = self.registration.showNotification(title, {
+  return self.registration.showNotification(title, {
     body,
     icon: new URL('./assets/icon-192.png', self.registration.scope).href,
     badge: new URL('./assets/icon-192.png', self.registration.scope).href,
     tag: data.chatId ? `lubayd-chat-${data.chatId}` : 'lubayd-chat',
     renotify: true,
-    silent: false,
     vibrate: [180, 90, 180],
     data: { url, chatId: data.chatId || '', senderId: data.senderId || '' }
   });
-  const clientPromise = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-    clients.forEach(client => client.postMessage({
-      type: 'LUBAYD_PUSH_RECEIVED',
-      chatId: data.chatId || '',
-      messageId: data.messageId || '',
-      text: body
-    }));
-  });
-  return Promise.all([notificationPromise, clientPromise]);
 });
 
-const CACHE_NAME = 'lubayd-forestal-v20.1.0-push-corregido';
-const LOCAL_ASSETS = [
-  './',
-  './index.html',
-  './style.css',
-  './operations.css',
-  './attendance.css',
-  './app.js',
-  './charts.js',
-  './chat.js',
-  './operations.js',
-  './attendance.js',
-  './firebase-init.js',
-  './push-notifications.js',
-  './manifest.json',
-  './assets/logo.png',
-  './assets/logo-transparent.png',
-  './assets/icon-192.png',
-  './assets/icon-512.png'
-];
-
 self.addEventListener('install', event => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    await Promise.all(LOCAL_ASSETS.map(async asset => {
-      try {
-        await cache.add(asset);
-      } catch (error) {
-        console.warn('[Lubayd SW] No se pudo precargar:', asset, error);
-      }
-    }));
-    await self.skipWaiting();
-  })());
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
-  );
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))));
   self.clients.claim();
 });
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request, { cache: 'no-store' });
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  } catch (_) {
+    return (await cache.match(request)) || (request.mode === 'navigate' ? cache.match('./index.html') : Response.error());
+  }
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok) {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
@@ -106,34 +97,23 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
 
   if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
+    event.respondWith(networkFirst(event.request));
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      const network = fetch(event.request)
-        .then(response => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
-  );
+  if (/\.(?:js|css|html|webmanifest)$/.test(url.pathname)) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  if (/\.(?:png|svg|jpg|jpeg|webp)$/.test(url.pathname)) {
+    event.respondWith(cacheFirst(event.request));
+  }
 });
 
 self.addEventListener('message', event => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data?.type === 'CLEAR_CACHE') {
+    event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key)))));
+  }
 });

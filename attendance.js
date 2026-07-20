@@ -1,635 +1,515 @@
-/* Lubayd SA V17 - Asistencia con gestión administrativa, foto, GPS y hora de servidor */
+/* Lubayd SA V20.2 - Asistencia móvil */
 (function () {
   'use strict';
-
-  const $ = selector => document.querySelector(selector);
-  const $$ = selector => Array.from(document.querySelectorAll(selector));
-  const escapeHtml = window.escapeHtml || (value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character])));
 
   const state = {
     user: null,
     profile: null,
+    current: null,
     records: [],
-    metadata: {},
-    unsubscribe: null,
+    users: [],
+    cameraType: null,
     stream: null,
-    cameraMode: 'entry',
-    photoBlob: null,
+    facingMode: 'user',
     gps: null,
-    timer: null,
-    busy: false,
-    editingRecordId: null
+    busy: false
   };
 
-  function dateKeyUruguay(date = new Date()) {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Montevideo', year: 'numeric', month: '2-digit', day: '2-digit'
-    }).formatToParts(date).reduce((acc, part) => { acc[part.type] = part.value; return acc; }, {});
-    return `${parts.year}-${parts.month}-${parts.day}`;
+  const $ = selector => document.querySelector(selector);
+  const localDateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const todayKey = () => localDateKey(new Date());
+  const isManager = () => ['admin', 'supervisor'].includes(state.profile?.role);
+  const db = () => window.LubaydFirebase?.db;
+  const FieldValue = () => window.LubaydFirebase?.FieldValue;
+
+  function toast(title, text) {
+    if (window.LubaydUI?.toast) window.LubaydUI.toast(title, text);
+    else console.info(title, text);
   }
 
-  function formatDate(value) {
-    if (!value) return '—';
-    const [year, month, day] = String(value).split('-').map(Number);
-    if (!year || !month || !day) return String(value);
-    return new Intl.DateTimeFormat('es-UY', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(year, month - 1, day));
-  }
-
-  function toDate(value) {
+  function timestampDate(value) {
     if (!value) return null;
-    if (value instanceof Date) return value;
     if (typeof value.toDate === 'function') return value.toDate();
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   function formatTime(value) {
-    const date = toDate(value);
-    return date ? new Intl.DateTimeFormat('es-UY', { hour: '2-digit', minute: '2-digit' }).format(date) : '—';
+    const date = timestampDate(value);
+    return date ? new Intl.DateTimeFormat('es-UY', { hour: '2-digit', minute: '2-digit' }).format(date) : '--:--';
+  }
+
+  function formatDate(dateKey) {
+    const date = new Date(`${dateKey}T12:00:00`);
+    return new Intl.DateTimeFormat('es-UY', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(date);
   }
 
   function minutesBetween(start, end) {
-    const from = toDate(start);
-    const to = toDate(end);
-    if (!from || !to) return 0;
-    return Math.max(0, Math.round((to.getTime() - from.getTime()) / 60000));
+    const a = timestampDate(start);
+    const b = timestampDate(end);
+    if (!a || !b) return 0;
+    return Math.max(0, Math.round((b.getTime() - a.getTime()) / 60000));
   }
 
-  function formatDuration(minutes) {
-    const safe = Math.max(0, Number(minutes || 0));
-    const hours = Math.floor(safe / 60);
-    const mins = Math.round(safe % 60);
-    return `${hours} h ${String(mins).padStart(2, '0')} min`;
+  function durationText(start, end) {
+    const total = minutesBetween(start, end);
+    return `${Math.floor(total / 60)} h ${String(total % 60).padStart(2, '0')} min`;
+  }
+
+  function statusFor(record) {
+    if (!record?.entrada?.at) return { text: 'Sin registrar', className: 'neutral' };
+    if (!record?.salida?.at) return { text: 'Trabajando', className: 'online' };
+    return { text: 'Finalizado', className: 'neutral' };
+  }
+
+  function displayName(record) {
+    return record?.userName || record?.userEmail || 'Usuario';
   }
 
   function initials(name) {
-    return String(name || 'US').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'US';
+    const parts = String(name || 'U').trim().split(/\s+/).filter(Boolean);
+    return (parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2)).toUpperCase();
   }
 
-  function notify(title, text, type = 'success') {
-    const toast = $('#toast');
-    if (!toast) return;
-    const titleNode = $('#toastTitle');
-    const textNode = $('#toastText');
-    if (titleNode) titleNode.textContent = title;
-    if (textNode) textNode.textContent = text;
-    toast.dataset.type = type;
-    toast.classList.remove('hidden');
-    window.clearTimeout(notify.timer);
-    notify.timer = window.setTimeout(() => toast.classList.add('hidden'), 4200);
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
   }
 
-  function currentTodayRecord() {
-    if (!state.user) return null;
-    const key = dateKeyUruguay();
-    return state.records.find(record => record.userId === state.user.uid && record.dateKey === key) || null;
+  async function getGps() {
+    if (!navigator.geolocation) throw new Error('Este dispositivo no dispone de ubicación GPS.');
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(position => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        capturedAtClient: new Date().toISOString()
+      }), error => {
+        const messages = {
+          1: 'Debes permitir el acceso a la ubicación.',
+          2: 'No fue posible determinar la ubicación.',
+          3: 'La ubicación demoró demasiado.'
+        };
+        reject(new Error(messages[error.code] || 'No se pudo obtener la ubicación.'));
+      }, { enableHighAccuracy: true, timeout: 18000, maximumAge: 0 });
+    });
   }
 
-  function statusOf(record) {
-    if (!record) return 'pendiente';
-    if (record.exitAt || record.exitPhotoId) return 'finalizado';
-    return 'trabajando';
+  async function refreshMyAttendance() {
+    if (!state.user || !db()) return;
+    const id = `${state.user.uid}_${todayKey()}`;
+    const snapshot = await db().collection('asistencias').doc(id).get();
+    state.current = snapshot.exists ? Object.assign({ id: snapshot.id }, snapshot.data()) : null;
+    renderPersonalAttendance();
+    window.dispatchEvent(new CustomEvent('lubayd-attendance-updated'));
   }
 
-  function statusLabel(status) {
-    return ({ pendiente: 'Sin marcar', trabajando: 'Jornada activa', finalizado: 'Turno finalizado' })[status] || status;
+  async function loadUsers() {
+    if (!isManager() || !db()) return [];
+    const snapshot = await db().collection('usuarios').get();
+    state.users = snapshot.docs.map(doc => Object.assign({ uid: doc.id }, doc.data()))
+      .filter(user => user.active !== false)
+      .sort((a, b) => String(a.nombre || a.email).localeCompare(String(b.nombre || b.email), 'es'));
+    return state.users;
   }
 
-  function gpsQuality(accuracy) {
-    const value = Number(accuracy || 0);
-    if (value <= 15) return { label: 'Excelente', className: 'excellent' };
-    if (value <= 50) return { label: 'Aceptable', className: 'acceptable' };
-    return { label: 'Baja precisión', className: 'low' };
-  }
-
-  function mapUrl(gps) {
-    if (!gps || !Number.isFinite(Number(gps.latitude)) || !Number.isFinite(Number(gps.longitude))) return '#';
-    return `https://www.google.com/maps?q=${encodeURIComponent(`${gps.latitude},${gps.longitude}`)}`;
-  }
-
-  function renderPersonal() {
-    const record = currentTodayRecord();
-    const status = statusOf(record);
-    const name = state.profile?.nombre || state.user?.displayName || state.user?.email || 'Usuario';
-    const entryMinutes = record?.entryAt ? minutesBetween(record.entryAt, record.exitAt || new Date()) : 0;
-
-    const avatar = $('#attendanceUserAvatar');
-    const userName = $('#attendanceUserName');
-    const todayDate = $('#attendanceTodayDate');
-    const statusPill = $('#attendanceStatusPill');
-    const duration = $('#attendanceLiveDuration');
-    if (avatar) avatar.textContent = initials(name);
-    if (userName) userName.textContent = name;
-    if (todayDate) todayDate.textContent = formatDate(dateKeyUruguay());
-    if (statusPill) {
-      statusPill.className = `attendance-status ${status}`;
-      statusPill.innerHTML = `<i></i>${statusLabel(status)}`;
+  async function refreshManagerAttendance(options) {
+    if (!isManager() || !db()) return;
+    const opts = options || {};
+    const dateKey = $('#attendanceDateFilter')?.value || todayKey();
+    const list = $('#attendanceList');
+    const errorBox = $('#attendanceError');
+    if (list) {
+      list.className = 'attendance-card-list empty-state';
+      list.textContent = 'Cargando marcas…';
     }
-    if (duration) duration.textContent = record ? formatDuration(entryMinutes) : '0 h 00 min';
-
-    renderMarkCard('entry', record);
-    renderMarkCard('exit', record);
-
-    const entryButton = $('#attendanceEntryBtn');
-    const exitButton = $('#attendanceExitBtn');
-    if (entryButton) {
-      entryButton.disabled = Boolean(record) || state.busy;
-      entryButton.innerHTML = record
-        ? '<svg><use href="#i-check"></use></svg> Llegada registrada'
-        : '<svg><use href="#i-camera"></use></svg> Registrar llegada';
+    errorBox?.classList.add('hidden');
+    try {
+      const [attendanceSnapshot] = await Promise.all([
+        db().collection('asistencias').where('dateKey', '==', dateKey).get(),
+        state.users.length ? Promise.resolve(state.users) : loadUsers()
+      ]);
+      state.records = attendanceSnapshot.docs.map(doc => Object.assign({ id: doc.id }, doc.data()))
+        .sort((a, b) => displayName(a).localeCompare(displayName(b), 'es'));
+      renderManagerAttendance();
+      if (!opts.silent) toast('Marcas actualizadas', `Información del ${formatDate(dateKey)}.`);
+      window.dispatchEvent(new CustomEvent('lubayd-attendance-updated'));
+    } catch (error) {
+      console.error('Cargar asistencia:', error);
+      if (list) {
+        list.className = 'attendance-card-list empty-state';
+        list.textContent = 'No fue posible cargar las marcas.';
+      }
+      if (errorBox) {
+        errorBox.textContent = `Error al consultar Firestore: ${error.message || error}`;
+        errorBox.classList.remove('hidden');
+      }
     }
-    if (exitButton) {
-      exitButton.disabled = !record || Boolean(record?.exitAt || record?.exitPhotoId) || state.busy;
-      exitButton.innerHTML = record?.exitAt || record?.exitPhotoId
-        ? '<svg><use href="#i-check"></use></svg> Salida registrada'
-        : '<svg><use href="#i-camera"></use></svg> Registrar salida';
-    }
-
-    const onlineNotice = $('#attendanceOnlineNotice');
-    if (onlineNotice) {
-      onlineNotice.classList.toggle('offline', !navigator.onLine);
-      onlineNotice.innerHTML = navigator.onLine
-        ? '<i></i><span><strong>Conexión disponible</strong><small>La hora se confirmará desde Firebase.</small></span>'
-        : '<i></i><span><strong>Sin conexión</strong><small>La marcación se habilitará al recuperar internet.</small></span>';
-    }
-
-    renderPersonalHistory();
   }
 
-  function renderMarkCard(kind, record) {
-    const isEntry = kind === 'entry';
-    const prefix = isEntry ? 'entry' : 'exit';
-    const hasMark = isEntry ? Boolean(record?.entryAt || record?.entryPhotoId) : Boolean(record?.exitAt || record?.exitPhotoId);
-    const time = isEntry ? record?.entryAt : record?.exitAt;
-    const photoId = isEntry ? record?.entryPhotoId : record?.exitPhotoId;
-    const gps = isEntry ? record?.entryGps : record?.exitGps;
-    const card = $(`#attendance-${prefix}-card`);
-    if (!card) return;
-    card.classList.toggle('completed', hasMark);
-    const quality = gps ? gpsQuality(gps.accuracy) : null;
-    card.innerHTML = `
-      <div class="attendance-mark-icon ${hasMark ? 'done' : ''}"><svg><use href="#${isEntry ? 'i-log-in' : 'i-log-out'}"></use></svg></div>
-      <div class="attendance-mark-content">
-        <span>${isEntry ? 'LLEGADA' : 'SALIDA'}</span>
-        <strong>${hasMark ? formatTime(time) : 'Pendiente'}</strong>
-        <small>${hasMark ? 'Hora registrada por el servidor' : isEntry ? 'Inicia tu jornada con una fotografía' : 'Finaliza tu jornada con una fotografía'}</small>
-        ${gps ? `<div class="attendance-gps-chip ${quality.className}"><svg><use href="#i-pin"></use></svg>${quality.label} · ±${Math.round(Number(gps.accuracy || 0))} m</div>` : ''}
-      </div>
-      ${hasMark ? `<div class="attendance-mark-actions"><button type="button" data-attendance-photo="${escapeHtml(photoId)}" aria-label="Ver foto"><svg><use href="#i-camera"></use></svg></button><a href="${mapUrl(gps)}" target="_blank" rel="noopener" aria-label="Ver ubicación"><svg><use href="#i-map"></use></svg></a></div>` : ''}
-    `;
+  function renderPersonalAttendance() {
+    const record = state.current;
+    const status = statusFor(record);
+    if ($('#myAttendanceDate')) $('#myAttendanceDate').textContent = formatDate(todayKey());
+    if ($('#myAttendanceStatus')) {
+      $('#myAttendanceStatus').textContent = status.text;
+      $('#myAttendanceStatus').className = `status-pill ${status.className}`;
+    }
+    if ($('#myEntryTime')) $('#myEntryTime').textContent = formatTime(record?.entrada?.at);
+    if ($('#myExitTime')) $('#myExitTime').textContent = formatTime(record?.salida?.at);
+    if ($('#myTotalTime')) $('#myTotalTime').textContent = record?.salida?.at ? durationText(record.entrada.at, record.salida.at) : '0 h 00 min';
+    if ($('#myEntryMeta')) $('#myEntryMeta').textContent = record?.entrada?.gps ? `GPS ±${Math.round(record.entrada.gps.accuracy || 0)} m` : 'Pendiente';
+    if ($('#myExitMeta')) $('#myExitMeta').textContent = record?.salida?.gps ? `GPS ±${Math.round(record.salida.gps.accuracy || 0)} m` : 'Pendiente';
+    if ($('#registerEntryButton')) $('#registerEntryButton').disabled = Boolean(record?.entrada?.at) || state.busy;
+    if ($('#registerExitButton')) $('#registerExitButton').disabled = !record?.entrada?.at || Boolean(record?.salida?.at) || state.busy;
   }
 
-  function renderPersonalHistory() {
-    const root = $('#attendancePersonalHistory');
-    if (!root || !state.user) return;
-    const records = state.records.filter(record => record.userId === state.user.uid).slice(0, 10);
-    if (!records.length) {
-      root.innerHTML = '<div class="attendance-empty"><svg><use href="#i-clock"></use></svg><strong>Todavía no hay registros</strong><span>Tu historial de entradas y salidas aparecerá aquí.</span></div>';
+  function renderManagerAttendance() {
+    const dateKey = $('#attendanceDateFilter')?.value || todayKey();
+    const query = String($('#attendanceSearch')?.value || '').trim().toLowerCase();
+    const byUser = new Map(state.records.map(record => [record.userId, record]));
+    const rows = state.users.map(user => byUser.get(user.uid) || {
+      id: '',
+      userId: user.uid,
+      userName: user.nombre || user.email || 'Usuario',
+      userEmail: user.email || '',
+      dateKey,
+      entrada: null,
+      salida: null,
+      missing: true
+    });
+    state.records.forEach(record => {
+      if (!state.users.some(user => user.uid === record.userId)) rows.push(record);
+    });
+    const filtered = rows.filter(record => {
+      const haystack = `${record.userName || ''} ${record.userEmail || ''}`.toLowerCase();
+      return !query || haystack.includes(query);
+    });
+    const present = state.records.filter(record => record.entrada?.at).length;
+    const working = state.records.filter(record => record.entrada?.at && !record.salida?.at).length;
+    const finished = state.records.filter(record => record.salida?.at).length;
+    const missing = Math.max(0, state.users.length - present);
+    if ($('#summaryPresent')) $('#summaryPresent').textContent = present;
+    if ($('#summaryWorking')) $('#summaryWorking').textContent = working;
+    if ($('#summaryFinished')) $('#summaryFinished').textContent = finished;
+    if ($('#summaryMissing')) $('#summaryMissing').textContent = missing;
+
+    const list = $('#attendanceList');
+    if (!list) return;
+    if (!filtered.length) {
+      list.className = 'attendance-card-list empty-state';
+      list.textContent = `No hay marcas para ${formatDate(dateKey)}.`;
       return;
     }
-    root.innerHTML = records.map(record => {
-      const total = record.entryAt && record.exitAt ? formatDuration(minutesBetween(record.entryAt, record.exitAt)) : 'En curso';
-      const status = statusOf(record);
-      return `<article class="attendance-history-row">
-        <div class="attendance-history-date"><strong>${escapeHtml(formatDate(record.dateKey))}</strong><span class="attendance-status ${status}"><i></i>${escapeHtml(statusLabel(status))}</span></div>
-        <div><span>Entrada</span><strong>${escapeHtml(formatTime(record.entryAt))}</strong></div>
-        <div><span>Salida</span><strong>${escapeHtml(formatTime(record.exitAt))}</strong></div>
-        <div><span>Total</span><strong>${escapeHtml(total)}</strong></div>
-        <div class="attendance-history-actions">
-          ${record.entryPhotoId ? `<button type="button" data-attendance-photo="${escapeHtml(record.entryPhotoId)}" title="Foto de llegada"><svg><use href="#i-camera"></use></svg></button>` : ''}
-          ${record.exitPhotoId ? `<button type="button" data-attendance-photo="${escapeHtml(record.exitPhotoId)}" title="Foto de salida"><svg><use href="#i-camera"></use></svg></button>` : ''}
-        </div>
+    list.className = 'attendance-card-list';
+    list.innerHTML = filtered.map(record => {
+      const status = statusFor(record);
+      return `<article class="attendance-card" data-attendance-id="${escapeHtml(record.id)}">
+        <header><div><h3>${escapeHtml(displayName(record))}</h3><div class="email">${escapeHtml(record.userEmail || '')}</div></div><span class="status-pill ${status.className}">${status.text}</span></header>
+        <div class="time-row"><div><span>Entrada</span><strong>${formatTime(record.entrada?.at)}</strong><small>${record.entrada?.gps ? `GPS ±${Math.round(record.entrada.gps.accuracy || 0)} m` : 'Sin GPS'}</small></div><div><span>Salida</span><strong>${formatTime(record.salida?.at)}</strong><small>${record.salida?.gps ? `GPS ±${Math.round(record.salida.gps.accuracy || 0)} m` : 'Pendiente'}</small></div><div><span>Total</span><strong>${record.missing ? 'Sin jornada' : (record.salida?.at ? durationText(record.entrada?.at, record.salida?.at) : 'En curso')}</strong><small>${escapeHtml(record.dateKey || '')}</small></div></div>
+        <footer>${record.missing ? '<span class="inline-notice">Aún no registró llegada</span>' : `<button class="secondary-button" data-action="detail">Ver detalle</button>${state.profile?.role === 'admin' ? '<button class="secondary-button" data-action="edit">Editar</button><button class="danger-button" data-action="delete">Eliminar</button>' : ''}`}</footer>
       </article>`;
     }).join('');
   }
 
-  function inputTimeValue(value) {
-    const date = toDate(value);
-    if (!date) return '';
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-  }
-
-  function renderTeam() {
-    const adminPanel = $('#attendanceAdminPanel');
-    const canSeeTeam = state.profile?.role === 'admin' || state.profile?.role === 'supervisor';
-    const isAdmin = state.profile?.role === 'admin';
-    if (!adminPanel) return;
-    adminPanel.classList.toggle('hidden', !canSeeTeam);
-    adminPanel.classList.toggle('can-manage-attendance', isAdmin);
-    $$('.attendance-admin-only-column').forEach(node => node.classList.toggle('hidden', !isAdmin));
-    if (!canSeeTeam) return;
-
-    const selectedDate = $('#attendanceAdminDate')?.value || dateKeyUruguay();
-    const records = state.records.filter(record => record.dateKey === selectedDate);
-    const working = records.filter(record => statusOf(record) === 'trabajando').length;
-    const completed = records.filter(record => statusOf(record) === 'finalizado').length;
-    const durations = records.filter(record => record.entryAt && record.exitAt).map(record => minutesBetween(record.entryAt, record.exitAt));
-    const average = durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0;
-
-    const summary = {
-      attendanceTeamTotal: records.length,
-      attendanceTeamWorking: working,
-      attendanceTeamCompleted: completed,
-      attendanceTeamAverage: formatDuration(average)
-    };
-    Object.entries(summary).forEach(([id, value]) => { const node = document.getElementById(id); if (node) node.textContent = value; });
-
-    const body = $('#attendanceAdminBody');
-    const empty = $('#attendanceAdminEmpty');
-    if (!body) return;
-    if (!records.length) {
-      body.innerHTML = '';
-      empty?.classList.remove('hidden');
-      return;
-    }
-    empty?.classList.add('hidden');
-    body.innerHTML = records.sort((a, b) => String(a.userName || '').localeCompare(String(b.userName || ''), 'es')).map(record => {
-      const status = statusOf(record);
-      const total = record.entryAt && record.exitAt ? formatDuration(minutesBetween(record.entryAt, record.exitAt)) : 'En curso';
-      const corrected = record.correctedAt ? '<span class="attendance-corrected-chip"><svg><use href="#i-edit"></use></svg> Corregido</span>' : '';
-      return `<tr>
-        <td data-label="Usuario"><div class="attendance-person-cell"><span>${initials(record.userName)}</span><div><strong>${escapeHtml(record.userName || 'Usuario')}</strong><small>${escapeHtml(record.userEmail || '')}</small>${corrected}</div></div></td>
-        <td data-label="Llegada">${escapeHtml(formatTime(record.entryAt))}</td>
-        <td data-label="Salida">${escapeHtml(formatTime(record.exitAt))}</td>
-        <td data-label="Total">${escapeHtml(total)}</td>
-        <td data-label="Estado"><span class="attendance-status ${status}"><i></i>${escapeHtml(statusLabel(status))}</span></td>
-        <td data-label="Evidencia"><div class="attendance-table-actions">
-          ${record.entryPhotoId ? `<button type="button" data-attendance-photo="${escapeHtml(record.entryPhotoId)}" title="Foto de llegada"><svg><use href="#i-camera"></use></svg></button>` : ''}
-          ${record.exitPhotoId ? `<button type="button" data-attendance-photo="${escapeHtml(record.exitPhotoId)}" title="Foto de salida"><svg><use href="#i-camera"></use></svg></button>` : ''}
-          ${record.entryGps ? `<a href="${mapUrl(record.entryGps)}" target="_blank" rel="noopener" title="Ubicación de llegada"><svg><use href="#i-pin"></use></svg></a>` : ''}
-        </div></td>
-        <td data-label="Administración" class="attendance-admin-actions-cell ${isAdmin ? '' : 'hidden'}"><div class="attendance-admin-row-actions">
-          <button type="button" data-attendance-edit="${escapeHtml(record.id)}" title="Modificar horario"><svg><use href="#i-edit"></use></svg><span>Editar</span></button>
-          <button type="button" class="danger" data-attendance-delete="${escapeHtml(record.id)}" title="Eliminar registro"><svg><use href="#i-trash"></use></svg><span>Eliminar</span></button>
-        </div></td>
-      </tr>`;
-    }).join('');
-  }
-
-  function selectedAdminRecord() {
-    return state.records.find(record => record.id === state.editingRecordId) || null;
-  }
-
-  function openAdminEditor(recordId, deleteMode = false) {
-    if (state.profile?.role !== 'admin') return notify('Acceso restringido', 'Solo el administrador puede modificar o eliminar horarios.', 'error');
-    const record = state.records.find(item => item.id === recordId);
-    if (!record) return notify('Registro no encontrado', 'Actualiza la lista e intenta nuevamente.', 'error');
-    state.editingRecordId = recordId;
-    const modal = $('#attendanceAdminEditModal');
-    const entry = $('#attendanceAdminEntryTime');
-    const exit = $('#attendanceAdminExitTime');
-    const reason = $('#attendanceAdminEditReason');
-    if (entry) entry.value = inputTimeValue(record.entryAt);
-    if (exit) exit.value = inputTimeValue(record.exitAt);
-    if (reason) reason.value = '';
-    const user = $('#attendanceAdminEditUser');
-    if (user) user.textContent = `${record.userName || record.userEmail || 'Usuario'} · ${formatDate(record.dateKey)}`;
-    modal?.classList.remove('hidden');
-    document.body.classList.add('attendance-admin-modal-open');
-    window.setTimeout(() => (deleteMode ? reason : entry)?.focus(), 50);
-  }
-
-  function closeAdminEditor() {
-    state.editingRecordId = null;
-    $('#attendanceAdminEditModal')?.classList.add('hidden');
-    document.body.classList.remove('attendance-admin-modal-open');
-    const form = $('#attendanceAdminEditForm');
-    if (form) form.reset();
-  }
-
-  async function saveAdminAttendance(event) {
-    event?.preventDefault();
-    if (state.profile?.role !== 'admin') return;
-    const record = selectedAdminRecord();
-    if (!record) return closeAdminEditor();
-    const entryTime = String($('#attendanceAdminEntryTime')?.value || '').trim();
-    const exitTime = String($('#attendanceAdminExitTime')?.value || '').trim();
-    const reason = String($('#attendanceAdminEditReason')?.value || '').trim();
-    if (!entryTime) return notify('Falta la llegada', 'Indica una hora de llegada válida.', 'error');
-    if (!reason) return notify('Falta el motivo', 'Escribe por qué se modifica el horario.', 'error');
-    if (record.exitAt && !exitTime) return notify('Falta la salida', 'Indica una hora de salida o elimina el registro completo.', 'error');
-    if (exitTime && exitTime <= entryTime) return notify('Horario inválido', 'La salida debe ser posterior a la llegada.', 'error');
-    const button = $('#attendanceAdminEditSave');
-    if (button) { button.disabled = true; button.innerHTML = '<span class="button-spinner"></span> Guardando...'; }
-    try {
-      await window.LubaydAttendanceData.updateByAdmin(record.id, { entryTime, exitTime, reason });
-      notify('Horario actualizado', `Se corrigió la asistencia de ${record.userName || 'usuario'} y quedó registrada en la auditoría.`);
-      closeAdminEditor();
-    } catch (error) {
-      console.error('Modificar asistencia:', error);
-      notify('No se pudo modificar', error.message || 'Revisa las reglas de Firestore.', 'error');
-    } finally {
-      if (button) { button.disabled = false; button.innerHTML = '<svg><use href="#i-check"></use></svg> Guardar cambios'; }
-    }
-  }
-
-  async function deleteAdminAttendance(recordId) {
-    if (state.profile?.role !== 'admin') return;
-    if (recordId && state.editingRecordId !== recordId) openAdminEditor(recordId, true);
-    const record = state.records.find(item => item.id === (recordId || state.editingRecordId));
-    if (!record) return;
-    const reason = String($('#attendanceAdminEditReason')?.value || '').trim();
-    if (!reason) return notify('Falta el motivo', 'Escribe el motivo antes de eliminar el registro.', 'error');
-    const accepted = window.confirm(`¿Eliminar completamente el horario de ${record.userName || record.userEmail || 'este usuario'} del ${formatDate(record.dateKey)}?
-
-La acción quedará registrada y no se puede deshacer.`);
-    if (!accepted) return;
-    const button = $('#attendanceAdminDeleteBtn');
-    if (button) { button.disabled = true; button.innerHTML = '<span class="button-spinner"></span> Eliminando...'; }
-    try {
-      await window.LubaydAttendanceData.deleteByAdmin(record.id, reason);
-      notify('Horario eliminado', 'El registro fue eliminado por el administrador y la acción quedó auditada.');
-      closeAdminEditor();
-    } catch (error) {
-      console.error('Eliminar asistencia:', error);
-      notify('No se pudo eliminar', error.message || 'Revisa las reglas de Firestore.', 'error');
-    } finally {
-      if (button) { button.disabled = false; button.innerHTML = '<svg><use href="#i-trash"></use></svg> Eliminar registro'; }
-    }
-  }
-
-  function render() {
-    renderPersonal();
-    renderTeam();
-  }
-
-  function subscribe() {
-    state.unsubscribe?.();
-    state.unsubscribe = null;
-    if (!state.user || !window.LubaydAttendanceData?.available) return;
-    state.unsubscribe = window.LubaydAttendanceData.subscribe(state.profile, function (records, metadata) {
-      state.records = records || [];
-      state.metadata = metadata || {};
-      render();
-    }, function (error) {
-      console.error('Asistencia:', error);
-      notify('No se pudo cargar la asistencia', error?.message || 'Revisa las reglas de Firebase.', 'error');
-    });
-  }
-
-  function updateCameraState(kind, title, text, className) {
-    const node = $('#attendanceCameraState');
-    if (!node) return;
-    node.className = `camera-state ${className || ''}`;
-    node.innerHTML = `<span class="camera-state-icon"><svg><use href="#${kind}"></use></svg></span><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(text)}</small></div>`;
-  }
-
-  async function obtainGps() {
-    if (!navigator.geolocation) throw new Error('Este dispositivo no permite obtener la ubicación.');
-    updateCameraState('i-pin', 'Obteniendo ubicación', 'Espera mientras validamos la posición actual.', 'loading');
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(position => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          capturedAtClient: new Date(position.timestamp || Date.now()).toISOString()
-        });
-      }, error => {
-        const messages = {
-          1: 'Debes permitir el acceso a la ubicación.',
-          2: 'No fue posible determinar la ubicación.',
-          3: 'La ubicación tardó demasiado. Intenta nuevamente al aire libre.'
-        };
-        reject(new Error(messages[error.code] || 'No se pudo obtener la ubicación.'));
-      }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 });
-    });
-  }
-
-  async function openCamera(mode) {
+  async function openCamera(type) {
     if (state.busy) return;
-    if (!navigator.onLine) {
-      notify('Sin conexión', 'Para registrar asistencia necesitas conexión a internet.', 'error');
-      return;
-    }
-    const record = currentTodayRecord();
-    if (mode === 'entry' && record) return notify('Llegada ya registrada', 'Solo se permite una llegada por jornada.', 'error');
-    if (mode === 'exit' && !record) return notify('Falta la llegada', 'Primero debes registrar la llegada.', 'error');
-    if (mode === 'exit' && (record.exitAt || record.exitPhotoId)) return notify('Salida ya registrada', 'Solo se permite una salida por jornada.', 'error');
-
-    state.cameraMode = mode;
-    state.photoBlob = null;
+    state.cameraType = type;
     state.gps = null;
-    const modal = $('#attendanceCameraModal');
-    const video = $('#attendanceCameraVideo');
-    const preview = $('#attendanceCameraPreview');
-    const captureBtn = $('#attendanceCaptureBtn');
-    const confirmBtn = $('#attendanceConfirmBtn');
-    const retakeBtn = $('#attendanceRetakeBtn');
-    $('#attendanceCameraTitle').textContent = mode === 'entry' ? 'Registrar llegada' : 'Registrar salida';
-    $('#attendanceCameraSubtitle').textContent = 'Foto y ubicación obtenidas en este momento';
-    preview?.classList.add('hidden');
-    video?.classList.remove('hidden');
-    captureBtn?.classList.remove('hidden');
-    confirmBtn?.classList.add('hidden');
-    retakeBtn?.classList.add('hidden');
-    if (modal) modal.classList.remove('hidden');
-    document.body.classList.add('camera-open');
-    updateCameraState('i-camera', 'Preparando cámara', 'Permite el acceso a la cámara frontal.', 'loading');
-
+    $('#cameraTitle').textContent = type === 'entrada' ? 'Registrar llegada' : 'Registrar salida';
+    $('#cameraInstruction').textContent = type === 'entrada' ? 'Mira a la cámara para registrar tu llegada.' : 'Mira a la cámara para registrar tu salida.';
+    $('#cameraGpsState').textContent = 'Obteniendo ubicación precisa…';
+    $('#cameraModal').classList.remove('hidden');
     try {
-      const gpsPromise = obtainGps();
-      const stream = await (navigator.mediaDevices?.getUserMedia({
-        audio: false,
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } }
-      }) || Promise.reject(new Error('La cámara no está disponible en este navegador.')));
-      state.stream = stream;
-      if (video) {
-        video.srcObject = stream;
-        await video.play();
-      }
-      updateCameraState('i-pin', 'Cámara lista · validando GPS', 'Mantén el teléfono estable mientras obtenemos la ubicación.', 'loading');
-      const gps = await gpsPromise;
-      state.gps = gps;
-      const quality = gpsQuality(gps.accuracy);
-      updateCameraState('i-check', 'Cámara y GPS listos', `${quality.label} · precisión aproximada ±${Math.round(gps.accuracy)} m`, 'success');
-      if (captureBtn) captureBtn.disabled = false;
+      await startCamera();
+      state.gps = await getGps();
+      $('#cameraGpsState').textContent = `Ubicación lista · precisión aproximada ±${Math.round(state.gps.accuracy || 0)} metros.`;
     } catch (error) {
-      stopStream();
-      updateCameraState('i-alert', 'No se pudo iniciar', error.message || 'Revisa los permisos del dispositivo.', 'error');
-      if (captureBtn) captureBtn.disabled = true;
+      $('#cameraGpsState').textContent = error.message || String(error);
+      toast('No se pudo preparar la marca', error.message || String(error));
     }
   }
 
-  function stopStream() {
-    if (state.stream) state.stream.getTracks().forEach(track => track.stop());
+  async function startCamera() {
+    stopCamera();
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('La cámara no está disponible en este navegador.');
+    state.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: state.facingMode }, width: { ideal: 1280 }, height: { ideal: 960 } },
+      audio: false
+    });
+    $('#cameraVideo').srcObject = state.stream;
+    await $('#cameraVideo').play();
+  }
+
+  function stopCamera() {
+    state.stream?.getTracks?.().forEach(track => track.stop());
     state.stream = null;
-    const video = $('#attendanceCameraVideo');
-    if (video) video.srcObject = null;
+    if ($('#cameraVideo')) $('#cameraVideo').srcObject = null;
   }
 
   function closeCamera() {
-    stopStream();
-    state.photoBlob = null;
+    stopCamera();
+    state.cameraType = null;
     state.gps = null;
-    state.busy = false;
-    $('#attendanceCameraModal')?.classList.add('hidden');
-    document.body.classList.remove('camera-open');
-    renderPersonal();
+    $('#cameraModal')?.classList.add('hidden');
   }
 
-  async function capturePhoto() {
-    const video = $('#attendanceCameraVideo');
-    const canvas = $('#attendanceCameraCanvas');
-    const preview = $('#attendanceCameraPreview');
-    if (!video || !canvas || video.readyState < 2) return notify('Cámara no preparada', 'Espera un momento y vuelve a intentar.', 'error');
-    const sourceWidth = video.videoWidth || 720;
-    const sourceHeight = video.videoHeight || 720;
-    const side = Math.min(sourceWidth, sourceHeight);
-    const sx = Math.max(0, (sourceWidth - side) / 2);
-    const sy = Math.max(0, (sourceHeight - side) / 2);
-    canvas.width = 600;
-    canvas.height = 600;
-    const context = canvas.getContext('2d', { alpha: false });
-    context.save();
-    context.translate(canvas.width, 0);
-    context.scale(-1, 1);
-    context.drawImage(video, sx, sy, side, side, 0, 0, canvas.width, canvas.height);
-    context.restore();
-    state.photoBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.76));
-    if (state.photoBlob && state.photoBlob.size > 430000) {
-      state.photoBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.58));
+  function capturePhoto() {
+    const video = $('#cameraVideo');
+    const canvas = $('#cameraCanvas');
+    if (!video?.videoWidth) throw new Error('La cámara todavía no está lista.');
+    const maxWidth = 600;
+    const scale = Math.min(1, maxWidth / video.videoWidth);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const context = canvas.getContext('2d');
+    if (state.facingMode === 'user') {
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
     }
-    if (!state.photoBlob) return notify('No se pudo capturar', 'Intenta tomar la fotografía nuevamente.', 'error');
-    if (preview) {
-      preview.src = URL.createObjectURL(state.photoBlob);
-      preview.classList.remove('hidden');
-    }
-    video.classList.add('hidden');
-    $('#attendanceCaptureBtn')?.classList.add('hidden');
-    $('#attendanceConfirmBtn')?.classList.remove('hidden');
-    $('#attendanceRetakeBtn')?.classList.remove('hidden');
-    updateCameraState('i-check', 'Fotografía capturada', 'Verifica la imagen antes de confirmar la marcación.', 'success');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.62);
   }
 
-  async function retakePhoto() {
-    state.photoBlob = null;
-    const preview = $('#attendanceCameraPreview');
-    const video = $('#attendanceCameraVideo');
-    preview?.classList.add('hidden');
-    video?.classList.remove('hidden');
-    $('#attendanceCaptureBtn')?.classList.remove('hidden');
-    $('#attendanceConfirmBtn')?.classList.add('hidden');
-    $('#attendanceRetakeBtn')?.classList.add('hidden');
-    updateCameraState('i-camera', 'Cámara lista', 'Coloca tu rostro dentro del recuadro y toma la foto.', 'success');
-  }
-
-  async function confirmMark() {
-    if (state.busy || !state.photoBlob || !state.gps) return;
+  async function registerAttendance() {
+    if (state.busy) return;
+    if (!state.user || !state.profile) return toast('Sesión requerida', 'Vuelve a iniciar sesión.');
+    if (!state.gps) return toast('Ubicación pendiente', 'Espera a que la ubicación quede lista.');
     state.busy = true;
-    const button = $('#attendanceConfirmBtn');
-    if (button) {
-      button.disabled = true;
-      button.innerHTML = '<span class="button-spinner"></span> Guardando...';
-    }
-    updateCameraState('i-cloud', 'Guardando asistencia', 'Subiendo fotografía y confirmando hora del servidor.', 'loading');
+    renderPersonalAttendance();
+    $('#captureAttendanceButton').disabled = true;
+    $('#captureAttendanceButton').textContent = 'Registrando…';
+    const type = state.cameraType;
+    const dateKey = todayKey();
+    const attendanceId = `${state.user.uid}_${dateKey}`;
     try {
-      await window.LubaydAttendanceData.register(state.cameraMode, {
-        dateKey: dateKeyUruguay(),
-        blob: state.photoBlob,
-        gps: state.gps
+      const photoData = capturePhoto();
+      const photoRef = db().collection('asistencia_fotos').doc();
+      const attendanceRef = db().collection('asistencias').doc(attendanceId);
+      const snapshot = await attendanceRef.get();
+      const existing = snapshot.exists ? snapshot.data() : null;
+      if (type === 'entrada' && existing?.entrada?.at) throw new Error('La llegada de hoy ya está registrada.');
+      if (type === 'salida' && !existing?.entrada?.at) throw new Error('Primero debes registrar la llegada.');
+      if (type === 'salida' && existing?.salida?.at) throw new Error('La salida de hoy ya está registrada.');
+
+      await photoRef.set({
+        attendanceId,
+        userId: state.user.uid,
+        type,
+        dataUrl: photoData,
+        createdAt: FieldValue().serverTimestamp(),
+        createdAtClient: new Date().toISOString()
       });
-      notify(state.cameraMode === 'entry' ? 'Llegada registrada' : 'Salida registrada', 'La foto, el GPS y la hora quedaron guardados correctamente.');
+
+      const mark = {
+        at: FieldValue().serverTimestamp(),
+        atClient: new Date().toISOString(),
+        photoId: photoRef.id,
+        gps: Object.assign({}, state.gps),
+        device: navigator.userAgent.slice(0, 300)
+      };
+
+      if (type === 'entrada') {
+        await attendanceRef.set({
+          userId: state.user.uid,
+          userName: state.profile.nombre || state.user.displayName || state.user.email,
+          userEmail: state.user.email || '',
+          dateKey,
+          entrada: mark,
+          salida: null,
+          createdAt: FieldValue().serverTimestamp(),
+          updatedAt: FieldValue().serverTimestamp()
+        });
+      } else {
+        await attendanceRef.update({ salida: mark, updatedAt: FieldValue().serverTimestamp() });
+      }
       closeCamera();
+      await refreshMyAttendance();
+      if (isManager()) await refreshManagerAttendance({ silent: true });
+      toast(type === 'entrada' ? 'Llegada registrada' : 'Salida registrada', `Hora confirmada por Firebase: ${formatTime(type === 'entrada' ? state.current?.entrada?.at : state.current?.salida?.at)}.`);
     } catch (error) {
-      console.error('Registro de asistencia:', error);
+      console.error('Registrar asistencia:', error);
+      toast('No se pudo registrar', error.message || String(error));
+    } finally {
       state.busy = false;
-      if (button) {
-        button.disabled = false;
-        button.innerHTML = '<svg><use href="#i-check"></use></svg> Confirmar registro';
-      }
-      updateCameraState('i-alert', 'No se pudo guardar', error.message || 'Intenta nuevamente.', 'error');
+      $('#captureAttendanceButton').disabled = false;
+      $('#captureAttendanceButton').textContent = 'Tomar foto y registrar';
+      renderPersonalAttendance();
     }
   }
 
-  async function openPhoto(path) {
-    if (!path) return;
-    const modal = $('#attendancePhotoModal');
-    const image = $('#attendancePhotoImage');
-    const loading = $('#attendancePhotoLoading');
-    modal?.classList.remove('hidden');
-    document.body.classList.add('camera-open');
-    image?.classList.add('hidden');
-    loading?.classList.remove('hidden');
+  async function showDetail(record) {
+    const detail = $('#detailContent');
+    $('#detailModal').classList.remove('hidden');
+    detail.innerHTML = '<div class="empty-state">Cargando detalle…</div>';
     try {
-      const url = await window.LubaydAttendanceData.getPhotoUrl(path);
-      if (image) {
-        image.src = url;
-        image.classList.remove('hidden');
-      }
-      loading?.classList.add('hidden');
+      const photoIds = [record.entrada?.photoId, record.salida?.photoId].filter(Boolean);
+      const photos = await Promise.all(photoIds.map(id => db().collection('asistencia_fotos').doc(id).get()));
+      const photoMap = Object.fromEntries(photos.filter(s => s.exists).map(s => [s.id, s.data().dataUrl]));
+      const gpsLinks = ['entrada', 'salida'].map(type => {
+        const gps = record[type]?.gps;
+        return gps ? `https://www.google.com/maps?q=${gps.latitude},${gps.longitude}` : '';
+      });
+      detail.innerHTML = `<div class="detail-grid">
+        <article><span>Operador</span><strong>${escapeHtml(displayName(record))}</strong></article>
+        <article><span>Fecha</span><strong>${escapeHtml(formatDate(record.dateKey))}</strong></article>
+        <article><span>Entrada</span><strong>${formatTime(record.entrada?.at)}</strong>${gpsLinks[0] ? `<a href="${gpsLinks[0]}" target="_blank" rel="noopener">Abrir ubicación</a>` : ''}</article>
+        <article><span>Salida</span><strong>${formatTime(record.salida?.at)}</strong>${gpsLinks[1] ? `<a href="${gpsLinks[1]}" target="_blank" rel="noopener">Abrir ubicación</a>` : ''}</article>
+        <article><span>Duración</span><strong>${record.salida?.at ? durationText(record.entrada?.at, record.salida?.at) : 'Jornada en curso'}</strong></article>
+        <article><span>Estado</span><strong>${statusFor(record).text}</strong></article>
+      </div><div class="detail-photo-grid"><div><strong>Foto de entrada</strong>${photoMap[record.entrada?.photoId] ? `<img src="${photoMap[record.entrada.photoId]}" alt="Foto de entrada">` : '<div class="empty-state">Sin foto</div>'}</div><div><strong>Foto de salida</strong>${photoMap[record.salida?.photoId] ? `<img src="${photoMap[record.salida.photoId]}" alt="Foto de salida">` : '<div class="empty-state">Sin foto</div>'}</div></div>`;
     } catch (error) {
-      loading.innerHTML = `<svg><use href="#i-alert"></use></svg><strong>No se pudo abrir la fotografía</strong><span>${escapeHtml(error.message || 'Revisa las reglas de Firestore.')}</span>`;
+      detail.innerHTML = `<div class="error-banner">${escapeHtml(error.message || error)}</div>`;
     }
   }
 
-  function closePhoto() {
-    $('#attendancePhotoModal')?.classList.add('hidden');
-    $('#attendancePhotoImage')?.removeAttribute('src');
-    document.body.classList.remove('camera-open');
+  async function editRecord(record) {
+    if (state.profile?.role !== 'admin') return;
+    const entryDefault = formatTime(record.entrada?.at).replace('.', ':');
+    const exitDefault = record.salida?.at ? formatTime(record.salida.at).replace('.', ':') : '';
+    const entry = prompt('Nueva hora de entrada (HH:MM)', entryDefault);
+    if (entry === null) return;
+    const exit = prompt('Nueva hora de salida (HH:MM). Déjalo vacío para mantenerla pendiente.', exitDefault);
+    if (exit === null) return;
+    const reason = prompt('Motivo obligatorio de la corrección');
+    if (!reason?.trim()) return toast('Motivo requerido', 'La modificación no fue realizada.');
+    try {
+      const timestamp = time => {
+        if (!/^\d{2}:\d{2}$/.test(time)) throw new Error(`Hora inválida: ${time}`);
+        const date = new Date(`${record.dateKey}T${time}:00`);
+        if (Number.isNaN(date.getTime())) throw new Error(`Hora inválida: ${time}`);
+        return firebase.firestore.Timestamp.fromDate(date);
+      };
+      const updates = { 'entrada.at': timestamp(entry), updatedAt: FieldValue().serverTimestamp() };
+      if (exit.trim()) updates['salida.at'] = timestamp(exit.trim());
+      await db().collection('asistencias').doc(record.id).update(updates);
+      await db().collection('asistencia_auditoria').add({
+        attendanceId: record.id,
+        action: 'edit',
+        reason: reason.trim(),
+        before: { entry: record.entrada?.at || null, exit: record.salida?.at || null },
+        after: { entry, exit: exit.trim() || null },
+        adminId: state.user.uid,
+        adminEmail: state.user.email || '',
+        createdAt: FieldValue().serverTimestamp()
+      });
+      await refreshManagerAttendance({ silent: true });
+      toast('Marca corregida', 'La modificación quedó registrada en auditoría.');
+    } catch (error) {
+      toast('No se pudo editar', error.message || String(error));
+    }
+  }
+
+  async function deleteRecord(record) {
+    if (state.profile?.role !== 'admin') return;
+    if (!confirm(`¿Eliminar completamente la marca de ${displayName(record)}?`)) return;
+    const reason = prompt('Motivo obligatorio de la eliminación');
+    if (!reason?.trim()) return toast('Motivo requerido', 'La eliminación no fue realizada.');
+    try {
+      const batch = db().batch();
+      batch.delete(db().collection('asistencias').doc(record.id));
+      [record.entrada?.photoId, record.salida?.photoId].filter(Boolean).forEach(id => batch.delete(db().collection('asistencia_fotos').doc(id)));
+      const auditRef = db().collection('asistencia_auditoria').doc();
+      batch.set(auditRef, {
+        attendanceId: record.id,
+        action: 'delete',
+        reason: reason.trim(),
+        snapshot: {
+          userId: record.userId,
+          userName: record.userName || '',
+          userEmail: record.userEmail || '',
+          dateKey: record.dateKey,
+          entryClient: record.entrada?.atClient || '',
+          exitClient: record.salida?.atClient || ''
+        },
+        adminId: state.user.uid,
+        adminEmail: state.user.email || '',
+        createdAt: FieldValue().serverTimestamp()
+      });
+      await batch.commit();
+      await refreshManagerAttendance({ silent: true });
+      toast('Marca eliminada', 'La eliminación quedó registrada en auditoría.');
+    } catch (error) {
+      toast('No se pudo eliminar', error.message || String(error));
+    }
   }
 
   function bindEvents() {
-    $('#attendanceEntryBtn')?.addEventListener('click', () => openCamera('entry'));
-    $('#attendanceExitBtn')?.addEventListener('click', () => openCamera('exit'));
-    $('#attendanceCloseCamera')?.addEventListener('click', closeCamera);
-    $('#attendanceCancelCamera')?.addEventListener('click', closeCamera);
-    $('.attendance-camera-backdrop')?.addEventListener('click', closeCamera);
-    $('#attendanceCaptureBtn')?.addEventListener('click', capturePhoto);
-    $('#attendanceRetakeBtn')?.addEventListener('click', retakePhoto);
-    $('#attendanceConfirmBtn')?.addEventListener('click', confirmMark);
-    $('#attendanceAdminDate')?.addEventListener('change', renderTeam);
-    $('#attendanceAdminRefresh')?.addEventListener('click', renderTeam);
-    $('#attendanceClosePhoto')?.addEventListener('click', closePhoto);
-    $('.attendance-photo-backdrop')?.addEventListener('click', closePhoto);
-    $('#attendanceAdminEditForm')?.addEventListener('submit', saveAdminAttendance);
-    $('#attendanceAdminEditClose')?.addEventListener('click', closeAdminEditor);
-    $('#attendanceAdminEditCancel')?.addEventListener('click', closeAdminEditor);
-    $('.attendance-admin-edit-backdrop')?.addEventListener('click', closeAdminEditor);
-    $('#attendanceAdminDeleteBtn')?.addEventListener('click', () => deleteAdminAttendance());
-    document.addEventListener('click', event => {
-      const photoButton = event.target.closest('[data-attendance-photo]');
-      if (photoButton) return openPhoto(photoButton.dataset.attendancePhoto);
-      const editButton = event.target.closest('[data-attendance-edit]');
-      if (editButton) return openAdminEditor(editButton.dataset.attendanceEdit);
-      const deleteButton = event.target.closest('[data-attendance-delete]');
-      if (deleteButton) return openAdminEditor(deleteButton.dataset.attendanceDelete, true);
+    $('#registerEntryButton')?.addEventListener('click', () => openCamera('entrada'));
+    $('#registerExitButton')?.addEventListener('click', () => openCamera('salida'));
+    $('#closeCameraButton')?.addEventListener('click', closeCamera);
+    $('#captureAttendanceButton')?.addEventListener('click', registerAttendance);
+    $('#switchCameraButton')?.addEventListener('click', async () => {
+      state.facingMode = state.facingMode === 'user' ? 'environment' : 'user';
+      try { await startCamera(); } catch (error) { toast('Cámara', error.message || String(error)); }
     });
-    window.addEventListener('online', renderPersonal);
-    window.addEventListener('offline', renderPersonal);
-    window.addEventListener('beforeunload', stopStream);
+    $('#refreshAttendanceButton')?.addEventListener('click', async () => {
+      await refreshMyAttendance();
+      if (isManager()) await refreshManagerAttendance();
+      else toast('Marca actualizada', 'Tu jornada está sincronizada.');
+    });
+    $('#attendanceDateFilter')?.addEventListener('change', () => refreshManagerAttendance({ silent: true }));
+    $('#attendanceSearch')?.addEventListener('input', renderManagerAttendance);
+    $('#todayButton')?.addEventListener('click', () => {
+      $('#attendanceDateFilter').value = todayKey();
+      refreshManagerAttendance({ silent: true });
+    });
+    $('#previousDateButton')?.addEventListener('click', () => shiftDate(-1));
+    $('#nextDateButton')?.addEventListener('click', () => shiftDate(1));
+    $('#attendanceList')?.addEventListener('click', event => {
+      const card = event.target.closest('[data-attendance-id]');
+      const action = event.target.closest('[data-action]')?.dataset.action;
+      if (!card || !action) return;
+      const record = state.records.find(item => item.id === card.dataset.attendanceId);
+      if (!record) return;
+      if (action === 'detail') showDetail(record);
+      if (action === 'edit') editRecord(record);
+      if (action === 'delete') deleteRecord(record);
+    });
+    $('#closeDetailButton')?.addEventListener('click', () => $('#detailModal').classList.add('hidden'));
   }
 
-  function initialize(user, profile) {
+  function shiftDate(days) {
+    const input = $('#attendanceDateFilter');
+    const date = new Date(`${input.value || todayKey()}T12:00:00`);
+    date.setDate(date.getDate() + days);
+    input.value = localDateKey(date);
+    refreshManagerAttendance({ silent: true });
+  }
+
+  async function initialize(user, profile) {
     state.user = user;
     state.profile = profile;
-    const dateInput = $('#attendanceAdminDate');
-    if (dateInput && !dateInput.value) dateInput.value = dateKeyUruguay();
-    subscribe();
-    render();
-    window.clearInterval(state.timer);
-    state.timer = window.setInterval(() => {
-      if ($('#asistencia')?.classList.contains('active')) renderPersonal();
-    }, 30000);
+    state.current = null;
+    state.records = [];
+    state.users = [];
+    if ($('#attendanceDateFilter')) $('#attendanceDateFilter').value = todayKey();
+    renderPersonalAttendance();
+    await refreshMyAttendance();
+    if (isManager()) {
+      await loadUsers();
+      await refreshManagerAttendance({ silent: true });
+    }
   }
 
-  function show() {
-    render();
+  function reset() {
+    stopCamera();
+    state.user = null;
+    state.profile = null;
+    state.current = null;
+    state.records = [];
+    state.users = [];
   }
 
   bindEvents();
-  window.LubaydAttendanceUI = { show, render, openCamera, openAdminEditor };
-  window.addEventListener('lubayd-profile-ready', event => initialize(event.detail?.user, event.detail?.profile));
-  window.addEventListener('lubayd-auth-changed', event => {
-    if (!event.detail?.user) {
-      state.unsubscribe?.();
-      state.unsubscribe = null;
-      state.user = null;
-      state.profile = null;
-      state.records = [];
-      stopStream();
-      window.clearInterval(state.timer);
-    }
-  });
-  if (window.LubaydCurrentUser && window.LubaydCurrentProfile) initialize(window.LubaydCurrentUser, window.LubaydCurrentProfile);
+  window.addEventListener('lubayd-auth-ready', event => initialize(event.detail.user, event.detail.profile));
+  window.addEventListener('lubayd-signed-out', reset);
+  window.addEventListener('beforeunload', stopCamera);
+
+  window.LubaydAttendance = {
+    refreshMyAttendance,
+    refreshManagerAttendance,
+    getCurrent: () => state.current,
+    getRecords: () => state.records.slice(),
+    isManager
+  };
 })();

@@ -1,1548 +1,543 @@
-'use strict';
+/* Lubayd SA V20.2 - Aplicación principal */
+(function () {
+  'use strict';
 
-const STORAGE_KEY = 'lubayd_partes_v3';
-const LEGACY_KEYS = ['lubayd_partes_v2', 'lubayd_partes'];
-const DRAFT_KEY = 'lubayd_parte_draft_v16';
-const TOTAL_STEPS = 5;
-const CHECK_IDS = ['agua', 'aceite', 'valvulina', 'giro', 'chequeoGral', 'cabezal', 'grua'];
-const CHECK_LABELS = {
-  agua: 'Agua',
-  aceite: 'Aceite',
-  valvulina: 'Valvulina',
-  giro: 'Giro',
-  chequeoGral: 'Chequeo general',
-  cabezal: 'Cabezal',
-  grua: 'Grúa'
-};
-const DRAFT_FIELDS = [
-  'monte', 'fecha', 'maquina', 'operador', 'trozaCantidad', 'pulpaCantidad', 'largo',
-  'horometroInicio', 'horometroFinal', 'arbolesIniciales', 'arbolesFinales', 'carros',
-  'desde1', 'hasta1', 'trabajo1', 'mecanico1', 'observaciones', 'combustible',
-  'hidraulico', 'controlado', 'firma', ...CHECK_IDS
-];
+  const VERSION = '20.2.0';
+  const $ = selector => document.querySelector(selector);
+  const $$ = selector => Array.from(document.querySelectorAll(selector));
+  const state = {
+    user: null,
+    profile: null,
+    parts: [],
+    partsUnsubscribe: null,
+    users: [],
+    currentPartGps: null,
+    toastTimer: null,
+    deferredInstall: null,
+    waitingWorker: null
+  };
 
-let step = 1;
-let currentGps = null;
-let gpsInProgress = false;
-let gpsAttemptedThisForm = false;
-let signatureData = '';
-let signatureStrokes = [];
-let activeSignatureStroke = null;
-let signatureDrawing = false;
-let deferredInstall = null;
-let waitingWorker = null;
-let cloudUnsubscribe = null;
-let draftTimer = null;
-let toastTimer = null;
-let formInitialized = false;
-let authenticatedUser = null;
-let authenticatedProfile = null;
-let authChangeSequence = 0;
-let currentCloudStatus = {
-  text: 'Conectando…',
-  ok: false,
-  detail: 'Esperando datos'
-};
+  const db = () => window.LubaydFirebase?.db;
+  const FieldValue = () => window.LubaydFirebase?.FieldValue;
+  const localDateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const todayKey = () => localDateKey(new Date());
+  const isManager = () => ['admin', 'supervisor'].includes(state.profile?.role);
+  const isAdmin = () => state.profile?.role === 'admin';
 
-const $ = selector => document.querySelector(selector);
-const $$ = selector => [...document.querySelectorAll(selector)];
-
-function loadRecords() {
-  let raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    for (const key of LEGACY_KEYS) {
-      raw = localStorage.getItem(key);
-      if (raw) {
-        localStorage.setItem(STORAGE_KEY, raw);
-        break;
-      }
-    }
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
   }
-  try {
-    const parsed = JSON.parse(raw || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.warn('No se pudieron leer los registros locales:', error);
-    return [];
+
+  function formatNumber(value, digits) {
+    return new Intl.NumberFormat('es-UY', { maximumFractionDigits: digits ?? 0 }).format(Number(value) || 0);
   }
-}
 
-function sortRecords(records) {
-  return [...records].sort((a, b) => String(b.createdAt || b.fecha || '').localeCompare(String(a.createdAt || a.fecha || '')));
-}
+  function formatDate(value) {
+    if (!value) return '—';
+    const date = new Date(`${String(value).slice(0, 10)}T12:00:00`);
+    return new Intl.DateTimeFormat('es-UY', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+  }
 
-const state = {
-  get records() {
-    return sortRecords(loadRecords());
-  },
-  save(records) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sortRecords(records)));
-  },
-  async saveRecord(record) {
-    const records = this.records.filter(item => item.id !== record.id);
-    records.unshift(record);
-    this.save(records);
-    renderAll();
+  function formatDateTime(value) {
+    const date = value?.toDate ? value.toDate() : new Date(value || Date.now());
+    return new Intl.DateTimeFormat('es-UY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date);
+  }
 
-    if (window.LubaydCloud?.available) {
+  function initials(name) {
+    const parts = String(name || 'U').trim().split(/\s+/).filter(Boolean);
+    return (parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2)).toUpperCase();
+  }
+
+  function toast(title, text) {
+    const element = $('#toast');
+    $('#toastTitle').textContent = title;
+    $('#toastText').textContent = text || '';
+    element.classList.remove('hidden');
+    clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(() => element.classList.add('hidden'), 4200);
+  }
+
+  window.LubaydUI = { toast, escapeHtml, formatDateTime };
+
+  function setAuthMessage(text, success) {
+    const message = $('#authMessage');
+    message.textContent = text || '';
+    message.className = `form-message${success ? ' success' : ''}`;
+  }
+
+  function setAuthBusy(form, busy, label) {
+    const button = form.querySelector('button[type="submit"]');
+    if (!button.dataset.label) button.dataset.label = button.textContent;
+    button.disabled = busy;
+    button.textContent = busy ? `${label}…` : button.dataset.label;
+  }
+
+  function showAuthTab(tab) {
+    $$('[data-auth-tab]').forEach(button => button.classList.toggle('active', button.dataset.authTab === tab));
+    $('#loginForm').classList.toggle('active', tab === 'login');
+    $('#registerForm').classList.toggle('active', tab === 'register');
+    setAuthMessage('');
+  }
+
+  function bindAuth() {
+    $$('[data-auth-tab]').forEach(button => button.addEventListener('click', () => showAuthTab(button.dataset.authTab)));
+    $('#loginForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      setAuthBusy(form, true, 'Ingresando');
+      setAuthMessage('');
       try {
-        setCloudStatus('Sincronizando…', false, 'Guardando en la nube');
-        await window.LubaydCloud.save(record);
-        setCloudStatus('Sincronizado', true, `Actualizado ${formatTime(new Date())}`);
+        await window.LubaydFirebase.login($('#loginEmail').value, $('#loginPassword').value);
       } catch (error) {
-        console.error('Guardar en Firestore:', error);
-        this.save(this.records.filter(item => item.id !== record.id));
-        renderAll();
-        setCloudStatus('Error al guardar', false, 'El parte no fue confirmado por Firebase');
-        throw error;
+        setAuthMessage(window.LubaydFirebase.authErrorMessage(error));
+      } finally {
+        setAuthBusy(form, false, 'Ingresando');
       }
-    } else {
-      setCloudStatus('Solo local', false, 'Firebase no está disponible');
-    }
-  },
-  async deleteRecord(id) {
-    this.save(this.records.filter(item => item.id !== id));
-    renderAll();
-
-    if (window.LubaydCloud?.available) {
+    });
+    $('#registerForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      if ($('#registerPassword').value !== $('#registerConfirm').value) {
+        setAuthMessage('Las contraseñas no coinciden.');
+        return;
+      }
+      setAuthBusy(form, true, 'Creando usuario');
+      setAuthMessage('');
       try {
-        setCloudStatus('Sincronizando…', false, 'Eliminando registro');
-        await window.LubaydCloud.remove(id);
-        setCloudStatus('Sincronizado', true, `Actualizado ${formatTime(new Date())}`);
+        await window.LubaydFirebase.register($('#registerName').value, $('#registerEmail').value, $('#registerPassword').value);
       } catch (error) {
-        console.error('Eliminar en Firestore:', error);
-        setCloudStatus('Pendiente', false, 'No se confirmó la eliminación en la nube');
+        setAuthMessage(window.LubaydFirebase.authErrorMessage(error));
+      } finally {
+        setAuthBusy(form, false, 'Creando usuario');
       }
-    }
-  }
-};
-
-window.AppState = state;
-window.escapeHtml = escapeHtml;
-
-function currentUser() {
-  return authenticatedUser;
-}
-
-function userDisplayName(user = currentUser()) {
-  if (!user) return 'Usuario';
-  return String(authenticatedProfile?.nombre || user.displayName || user.email?.split('@')[0] || 'Usuario').trim();
-}
-
-function userInitials(user = currentUser()) {
-  const name = userDisplayName(user);
-  const parts = name.split(/\s+/).filter(Boolean);
-  return (parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : name.slice(0, 2)).toUpperCase();
-}
-
-function enforceAuthenticatedOperator() {
-  const input = $('#operador');
-  if (!input) return;
-  input.value = currentUser() ? userDisplayName() : '';
-  input.readOnly = true;
-}
-
-function updateUserInterface(user) {
-  const name = userDisplayName(user);
-  const email = user?.email || 'Sesión segura';
-  const initials = userInitials(user);
-  ['#sidebarUserName', '#topbarUserName'].forEach(selector => { if ($(selector)) $(selector).textContent = name; });
-  ['#sidebarUserEmail', '#topbarUserEmail'].forEach(selector => { if ($(selector)) $(selector).textContent = email; });
-  ['#sidebarAvatar', '#topbarAvatar', '#operatorWelcomeAvatar'].forEach(selector => { if ($(selector)) $(selector).textContent = initials; });
-  enforceAuthenticatedOperator();
-  updateGreeting();
-}
-
-function setAuthMessage(text = '', type = '') {
-  const message = $('#authMessage');
-  if (!message) return;
-  message.textContent = text;
-  message.className = `auth-message ${type}`.trim();
-}
-
-function setAuthBusy(form, busy, label) {
-  const button = form?.querySelector('button[type="submit"]');
-  if (!button) return;
-  if (!button.dataset.originalHtml) button.dataset.originalHtml = button.innerHTML;
-  button.disabled = busy;
-  button.innerHTML = busy ? `${escapeHtml(label)}…` : button.dataset.originalHtml;
-}
-
-function showAuthTab(tab) {
-  $$('[data-auth-tab]').forEach(button => button.classList.toggle('active', button.dataset.authTab === tab));
-  $('#loginForm')?.classList.toggle('active', tab === 'login');
-  $('#registerForm')?.classList.toggle('active', tab === 'register');
-  setAuthMessage('');
-}
-
-$$('[data-auth-tab]').forEach(button => button.addEventListener('click', () => showAuthTab(button.dataset.authTab)));
-
-$('#loginForm')?.addEventListener('submit', async event => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
-  }
-  setAuthBusy(form, true, 'Ingresando');
-  setAuthMessage('');
-  try {
-    await window.LubaydAuth.login($('#loginEmail').value, $('#loginPassword').value);
-  } catch (error) {
-    setAuthMessage(window.LubaydAuth?.errorMessage?.(error) || 'No se pudo iniciar sesión.');
-  } finally {
-    setAuthBusy(form, false, 'Ingresando');
-  }
-});
-
-$('#registerForm')?.addEventListener('submit', async event => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
-  }
-  if ($('#registerPassword').value !== $('#registerConfirm').value) {
-    setAuthMessage('Las contraseñas no coinciden.');
-    $('#registerConfirm').focus();
-    return;
-  }
-  setAuthBusy(form, true, 'Creando usuario');
-  setAuthMessage('');
-  try {
-    await window.LubaydAuth.register($('#registerName').value, $('#registerEmail').value, $('#registerPassword').value);
-  } catch (error) {
-    setAuthMessage(window.LubaydAuth?.errorMessage?.(error) || 'No se pudo crear el usuario.');
-  } finally {
-    setAuthBusy(form, false, 'Creando usuario');
-  }
-});
-
-$('#resetPasswordBtn')?.addEventListener('click', async () => {
-  const email = $('#loginEmail').value.trim();
-  if (!email) {
-    setAuthMessage('Escribe tu correo para enviarte el enlace de recuperación.');
-    $('#loginEmail').focus();
-    return;
-  }
-  try {
-    await window.LubaydAuth.resetPassword(email);
-    setAuthMessage('Te enviamos un correo para restablecer la contraseña.', 'success');
-  } catch (error) {
-    setAuthMessage(window.LubaydAuth?.errorMessage?.(error) || 'No se pudo enviar el correo.');
-  }
-});
-
-async function logout() {
-  if (!window.LubaydAuth?.available) return;
-  if (!confirm('¿Cerrar la sesión actual?')) return;
-  await window.LubaydAuth.logout();
-}
-
-$('#logoutBtn')?.addEventListener('click', logout);
-
-async function handleAuthChange(user) {
-  const sequence = ++authChangeSequence;
-  cloudUnsubscribe?.();
-  cloudUnsubscribe = null;
-  authenticatedUser = null;
-  authenticatedProfile = null;
-  window.LubaydCurrentProfile = null;
-
-  if (!user) {
-    document.body.classList.remove('auth-ready');
-    document.body.classList.add('auth-pending');
-    setCloudStatus('Sesión cerrada', false, 'Inicia sesión para sincronizar');
-    showAuthTab('login');
-    window.setTimeout(() => $('#loginEmail')?.focus(), 120);
-    return;
+    });
+    $('#resetPasswordButton').addEventListener('click', async () => {
+      const email = $('#loginEmail').value.trim();
+      if (!email) {
+        setAuthMessage('Escribe tu correo para recibir el enlace de recuperación.');
+        $('#loginEmail').focus();
+        return;
+      }
+      try {
+        await window.LubaydFirebase.resetPassword(email);
+        setAuthMessage('Se envió el correo para restablecer la contraseña.', true);
+      } catch (error) {
+        setAuthMessage(window.LubaydFirebase.authErrorMessage(error));
+      }
+    });
   }
 
-  document.body.classList.remove('auth-ready');
-  document.body.classList.add('auth-pending');
-  setAuthMessage('Verificando autorización…', 'success');
+  async function logout() {
+    try { await window.LubaydFirebase.logout(); } catch (error) { toast('No se pudo cerrar sesión', error.message || String(error)); }
+  }
 
-  try {
-    const profile = await window.LubaydAuth.getProfile(user);
-    if (sequence !== authChangeSequence) return;
+  function updateRoleVisibility() {
+    $$('.manager-only').forEach(element => element.classList.toggle('hidden', !isManager()));
+    $$('[data-view="users"]').forEach(element => element.classList.toggle('hidden', !isAdmin()));
+    $('#view-users').classList.toggle('hidden', !isAdmin());
+  }
 
-    if (!profile?.active) {
-      await window.LubaydAuth.logout();
-      window.setTimeout(() => {
-        showAuthTab('login');
-        $('#loginEmail').value = user.email || '';
-        setAuthMessage('La cuenta fue creada, pero todavía debe ser habilitada por el administrador en Firebase.');
-      }, 80);
+  function updateUserInterface() {
+    const name = state.profile?.nombre || state.user?.displayName || state.user?.email || 'Usuario';
+    const roleLabels = { admin: 'Administrador', supervisor: 'Supervisor', operador: 'Operador' };
+    $('#sidebarInitials').textContent = initials(name);
+    $('#sidebarUserName').textContent = name;
+    $('#sidebarUserRole').textContent = roleLabels[state.profile?.role] || state.profile?.role || 'Operador';
+    $('#dashboardGreeting').textContent = `Hola, ${name.split(/\s+/)[0]}`;
+    $('#dashboardDate').textContent = new Intl.DateTimeFormat('es-UY', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date());
+    $('#settingsUserText').textContent = `${name} · ${state.user?.email || ''} · ${roleLabels[state.profile?.role] || state.profile?.role}`;
+    updateRoleVisibility();
+  }
+
+  const viewMeta = {
+    dashboard: ['CENTRO DE OPERACIONES', 'Inicio'],
+    partes: ['REGISTRO OPERATIVO', 'Partes diarios'],
+    attendance: ['CONTROL HORARIO', 'Asistencia'],
+    chat: ['COMUNICACIÓN INTERNA', 'Mensajes'],
+    users: ['ADMINISTRACIÓN', 'Usuarios'],
+    settings: ['PREFERENCIAS', 'Configuración']
+  };
+
+  function showView(name) {
+    if (!state.user) return;
+    if (name === 'users' && !isAdmin()) {
+      toast('Acceso restringido', 'Solo el administrador puede gestionar usuarios.');
       return;
     }
-
-    authenticatedUser = user;
-    authenticatedProfile = profile;
-    window.LubaydCurrentProfile = profile;
-    document.body.classList.remove('auth-pending');
-    document.body.classList.add('auth-ready');
-    setAuthMessage('');
-    updateUserInterface(user);
-    window.dispatchEvent(new CustomEvent('lubayd-profile-ready', { detail: { user, profile } }));
-    initializeForm();
-    renderAll();
-    startCloudSync();
-  } catch (error) {
-    console.error('Verificación de usuario:', error);
-    await window.LubaydAuth.logout().catch(() => {});
-    window.setTimeout(() => setAuthMessage('No se pudo verificar la autorización del usuario. Revisa Firestore y vuelve a intentar.'), 80);
-  }
-}
-
-window.addEventListener('lubayd-auth-changed', event => handleAuthChange(event.detail?.user || null));
-
-const viewMeta = {
-  dashboard: ['Centro de operaciones', 'Panel operativo'],
-  asistencia: ['Control horario', 'Asistencia del equipo'],
-  nuevo: ['Registro guiado', 'Nuevo parte diario'],
-  historial: ['Registros', 'Historial de partes'],
-  graficos: ['Análisis operativo', 'Gráficos de producción'],
-  ubicaciones: ['Geolocalización', 'Ubicaciones GPS'],
-  chat: ['Comunicación interna', 'Mensajes del equipo'],
-  incidencias: ['Control de novedades', 'Incidencias y alertas'],
-  maquinas: ['Catálogo operativo', 'Máquinas'],
-  montes: ['Catálogo de campo', 'Montes y lotes'],
-  usuarios: ['Administración', 'Usuarios y permisos'],
-  reportes: ['Inteligencia operativa', 'Reportes avanzados'],
-  sincronizacion: ['Conectividad', 'Sincronización'],
-  configuracion: ['Preferencias', 'Configuración']
-};
-
-function showView(id) {
-  if (!currentUser()) return;
-  const targetView = document.getElementById(id);
-  if (!targetView) return;
-  if (targetView.classList.contains('admin-view') && authenticatedProfile?.role !== 'admin') {
-    showToast('Acceso restringido', 'Esta herramienta está disponible únicamente para administradores.');
-    return;
-  }
-
-  $$('.view').forEach(view => view.classList.toggle('active', view.id === id));
-  $$('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === id));
-
-  const [eyebrow, title] = viewMeta[id] || ['Gestión forestal', 'Lubayd SA'];
-  $('#pageEyebrow').textContent = eyebrow;
-  $('#pageTitle').textContent = title;
-
-  if (id === 'nuevo') {
-    initializeForm();
-    updateStep();
-  }
-  if (id === 'historial') renderHistory();
-  if (id === 'ubicaciones') renderLocations();
-  if (id === 'asistencia' && window.LubaydAttendanceUI?.show) window.LubaydAttendanceUI.show();
-  if (typeof window.LubaydOperations?.viewChanged === 'function') window.LubaydOperations.viewChanged(id);
-  if (id === 'graficos' && typeof window.renderCharts === 'function') window.renderCharts();
-  if (id === 'chat' && window.LubaydChatUI?.show) window.LubaydChatUI.show();
-
-  closeSidebar();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-window.LubaydShowView = showView;
-
-$$('[data-view], [data-view-link]').forEach(element => {
-  element.addEventListener('click', () => showView(element.dataset.view || element.dataset.viewLink));
-});
-$('#heroNewBtn')?.addEventListener('click', () => showView('nuevo'));
-$('#continueDraftBtn')?.addEventListener('click', () => showView('nuevo'));
-
-function initializeForm() {
-  if (formInitialized) {
-    if (!$('#fecha').value) $('#fecha').value = todayKey();
-    enforceAuthenticatedOperator();
-    return;
-  }
-
-  formInitialized = true;
-  if (!restoreDraft()) {
-    $('#fecha').value = todayKey();
-  }
-  enforceAuthenticatedOperator();
-  recalculateProduction();
-  updateCheckCards();
-  renderGpsState();
-  refreshSuggestions();
-  updateStep();
-}
-
-function updateStep() {
-  $$('.form-page').forEach(page => page.classList.toggle('active', Number(page.dataset.step) === step));
-  $$('.wizard-step').forEach((item, index) => {
-    const itemStep = index + 1;
-    item.classList.toggle('active', itemStep === step);
-    item.classList.toggle('completed', itemStep < step);
-    const button = item.querySelector('button');
-    button.disabled = itemStep > step;
-    button.setAttribute('aria-current', itemStep === step ? 'step' : 'false');
-  });
-
-  const labels = ['Datos generales', 'Producción', 'Chequeo', 'Ubicación', 'Resumen'];
-  $('#mobileStepLabel').textContent = `Paso ${step} de ${TOTAL_STEPS}`;
-  $('#stepText').textContent = labels[step - 1];
-  $('#stepProgressBar').style.width = `${(step / TOTAL_STEPS) * 100}%`;
-  $('#prevBtn').classList.toggle('hidden', step === 1);
-  $('#nextBtn').classList.toggle('hidden', step === TOTAL_STEPS);
-  $('#saveBtn').classList.toggle('hidden', step !== TOTAL_STEPS);
-  clearFormMessage();
-
-  if (step === 4 && !currentGps && !gpsInProgress && !gpsAttemptedThisForm) {
-    gpsAttemptedThisForm = true;
-    window.setTimeout(() => captureGps(true), 350);
-  }
-  if (step === 5) {
-    window.requestAnimationFrame(() => { resizeSignatureCanvas(); renderSignaturePad(); });
-    fillReview();
-  }
-}
-
-$$('.wizard-step').forEach(item => {
-  item.querySelector('button')?.addEventListener('click', () => {
-    const target = Number(item.dataset.stepTarget);
-    if (target < step) {
-      step = target;
-      updateStep();
-      scrollFormTop();
+    const view = $(`#view-${name}`);
+    if (!view) return;
+    $$('.view').forEach(item => item.classList.toggle('active', item === view));
+    $$('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === name));
+    const [eyebrow, title] = viewMeta[name] || viewMeta.dashboard;
+    $('#pageEyebrow').textContent = eyebrow;
+    $('#pageTitle').textContent = title;
+    if (name === 'users' && isAdmin()) loadUsers();
+    if (name === 'attendance') {
+      window.LubaydAttendance?.refreshMyAttendance?.();
+      if (isManager()) window.LubaydAttendance?.refreshManagerAttendance?.({ silent: true });
     }
-  });
-});
-
-function scrollFormTop() {
-  const shell = $('.wizard-shell');
-  if (!shell) return;
-  const offset = window.innerWidth <= 900 ? 82 : 96;
-  window.scrollTo({ top: Math.max(0, shell.getBoundingClientRect().top + window.scrollY - offset), behavior: 'smooth' });
-}
-
-function validateStep(stepNumber, options = {}) {
-  const page = $(`.form-page[data-step="${stepNumber}"]`);
-  if (!page) return true;
-
-  page.querySelectorAll('.field-error').forEach(field => field.classList.remove('field-error'));
-  const required = [...page.querySelectorAll('input[required], select[required], textarea[required]')];
-
-  for (const input of required) {
-    if (!input.checkValidity()) {
-      const field = input.closest('.field, .field-group') || input.parentElement;
-      field?.classList.add('field-error');
-      if (!options.silent) {
-        showFormMessage('Revisa el formato de los datos antes de continuar.', 'error');
-        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        window.setTimeout(() => input.focus({ preventScroll: true }), 260);
-      }
-      return false;
-    }
+    if (name === 'chat') window.LubaydChat?.loadContacts?.();
+    history.replaceState(null, '', `${location.pathname}${name === 'dashboard' ? '' : `?view=${encodeURIComponent(name)}`}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  if (stepNumber === 2) {
-    const hourStart = $('#horometroInicio')?.value;
-    const hourEnd = $('#horometroFinal')?.value;
-    if (hourStart !== '' && hourEnd !== '' && numberValue('#horometroFinal') < numberValue('#horometroInicio')) {
-      showFormMessage('El horómetro final no puede ser menor que el inicial.', 'error');
-      $('#horometroFinal').closest('.field')?.classList.add('field-error');
-      if (!options.silent) $('#horometroFinal').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return false;
-    }
-    const treeStart = $('#arbolesIniciales')?.value;
-    const treeEnd = $('#arbolesFinales')?.value;
-    if (treeStart !== '' && treeEnd !== '' && numberValue('#arbolesFinales') < numberValue('#arbolesIniciales')) {
-      showFormMessage('Los árboles finales no pueden ser menores que los iniciales.', 'error');
-      $('#arbolesFinales').closest('.field')?.classList.add('field-error');
-      if (!options.silent) $('#arbolesFinales').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return false;
-    }
+  function bindNavigation() {
+    $$('[data-view]').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
   }
 
-  if (stepNumber === 4 && currentGps) {
-    const captured = new Date(currentGps.capturedAt || currentGps.positionTimestamp || 0).getTime();
-    if (!captured || Date.now() - captured > 15 * 60 * 1000) {
-      currentGps = null;
-      renderGpsState('La ubicación venció. Puedes obtener una nueva captura o continuar sin GPS.');
-    }
-  }
-
-  return true;
-}
-
-function validateAllSteps() {
-  for (let target = 1; target <= 4; target += 1) {
-    if (!validateStep(target, { silent: true })) {
-      step = target;
-      updateStep();
-      validateStep(target);
-      scrollFormTop();
-      return false;
-    }
-  }
-  return true;
-}
-
-$('#nextBtn')?.addEventListener('click', () => {
-  if (!validateStep(step)) return;
-  step = Math.min(TOTAL_STEPS, step + 1);
-  updateStep();
-  scrollFormTop();
-});
-
-$('#prevBtn')?.addEventListener('click', () => {
-  step = Math.max(1, step - 1);
-  updateStep();
-  scrollFormTop();
-});
-
-$('#cancelBtn')?.addEventListener('click', () => {
-  saveDraft();
-  showToast('Borrador guardado', 'Puedes continuar el parte más tarde.');
-  showView('dashboard');
-});
-
-function numberValue(selector) {
-  return Number($(selector)?.value) || 0;
-}
-
-function radioValue(name) {
-  return document.querySelector(`input[name="${name}"]:checked`)?.value || '';
-}
-
-function setRadioValue(name, value) {
-  $$(`input[name="${name}"]`).forEach(input => {
-    input.checked = input.value === value;
-  });
-}
-
-function recalculateProduction() {
-  const hours = Math.max(0, numberValue('#horometroFinal') - numberValue('#horometroInicio'));
-  const trees = Math.max(0, numberValue('#arbolesFinales') - numberValue('#arbolesIniciales'));
-  const performance = hours > 0 ? trees / hours : 0;
-
-  $('#calcHoras').textContent = `${formatNumber(hours, 1)} h`;
-  $('#calcArboles').textContent = formatNumber(trees);
-  $('#calcRendimiento').textContent = `${formatNumber(performance, 1)} árb/h`;
-}
-
-['#horometroInicio', '#horometroFinal', '#arbolesIniciales', '#arbolesFinales'].forEach(selector => {
-  $(selector)?.addEventListener('input', recalculateProduction);
-});
-
-function updateCheckCards() {
-  CHECK_IDS.forEach(id => {
-    const input = document.getElementById(id);
-    const card = input?.closest('.check-card');
-    const stateLabel = card?.querySelector('.check-state');
-    if (stateLabel) stateLabel.textContent = input.checked ? 'Óptimo' : 'Pendiente';
-  });
-  const checkAllButton = $('#checkAllBtn');
-  if (checkAllButton) {
-    const allChecked = CHECK_IDS.every(id => document.getElementById(id)?.checked);
-    checkAllButton.innerHTML = allChecked
-      ? '<svg><use href="#i-check"></use></svg> Desmarcar todos'
-      : '<svg><use href="#i-check"></use></svg> Marcar todos';
-  }
-}
-
-CHECK_IDS.forEach(id => document.getElementById(id)?.addEventListener('change', updateCheckCards));
-
-$('#checkAllBtn')?.addEventListener('click', () => {
-  const shouldCheck = CHECK_IDS.some(id => !document.getElementById(id).checked);
-  CHECK_IDS.forEach(id => { document.getElementById(id).checked = shouldCheck; });
-  updateCheckCards();
-  scheduleDraftSave();
-  $('#checkAllBtn').innerHTML = shouldCheck
-    ? '<svg><use href="#i-check"></use></svg> Desmarcar todos'
-    : '<svg><use href="#i-check"></use></svg> Marcar todos';
-});
-
-function recordFromForm() {
-  const now = new Date().toISOString();
-  return {
-    id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    version: 16,
-    createdAt: now,
-    updatedAt: now,
-    monte: $('#monte').value.trim(),
-    fecha: $('#fecha').value,
-    maquina: $('#maquina').value.trim(),
-    operador: userDisplayName(),
-    createdByUid: currentUser()?.uid || '',
-    createdByEmail: currentUser()?.email || '',
-    createdByName: userDisplayName(),
-    turno: radioValue('turno'),
-    trozaCantidad: numberValue('#trozaCantidad'),
-    pulpaCantidad: numberValue('#pulpaCantidad'),
-    largo: numberValue('#largo'),
-    horometroInicio: numberValue('#horometroInicio'),
-    horometroFinal: numberValue('#horometroFinal'),
-    horas: Math.max(0, numberValue('#horometroFinal') - numberValue('#horometroInicio')),
-    arbolesIniciales: numberValue('#arbolesIniciales'),
-    arbolesFinales: numberValue('#arbolesFinales'),
-    arboles: Math.max(0, numberValue('#arbolesFinales') - numberValue('#arbolesIniciales')),
-    carros: numberValue('#carros'),
-    actividad: radioValue('actividad'),
-    desde: $('#desde1').value,
-    hasta: $('#hasta1').value,
-    trabajo: $('#trabajo1').value.trim(),
-    mecanico: $('#mecanico1').value.trim(),
-    checks: Object.fromEntries(CHECK_IDS.map(id => [id, document.getElementById(id).checked])),
-    observaciones: $('#observaciones').value.trim(),
-    combustible: numberValue('#combustible'),
-    hidraulico: numberValue('#hidraulico'),
-    controlado: $('#controlado').value.trim(),
-    firma: $('#firma').value.trim(),
-    firmaDigital: signatureData || '',
-    firmaDigitalAt: signatureData ? now : '',
-    gps: currentGps ? { ...currentGps } : null
-  };
-}
-
-function fillReview() {
-  const record = recordFromForm();
-  const completedChecks = CHECK_IDS.filter(id => record.checks[id]);
-  const gpsText = record.gps
-    ? `${record.gps.latitude.toFixed(5)}, ${record.gps.longitude.toFixed(5)} · ±${Math.round(record.gps.accuracy)} m`
-    : 'Sin ubicación GPS';
-
-  $('#reviewContent').innerHTML = `
-    <div class="review-hero">
-      <div>
-        <span>PARTE LISTO PARA GUARDAR</span>
-        <h4>${escapeHtml(record.monte) || 'Monte sin definir'}</h4>
-        <p>${escapeHtml(record.operador)} · ${escapeHtml(record.maquina)} · ${formatDate(record.fecha)}</p>
-      </div>
-      <div class="review-production">
-        <div><strong>${formatNumber(record.arboles)}</strong><small>Árboles</small></div>
-        <div><strong>${formatNumber(record.horas, 1)} h</strong><small>Horas</small></div>
-      </div>
-    </div>
-    <div class="review-grid">
-      ${reviewItem('Fecha', formatDate(record.fecha))}
-      ${reviewItem('Turno', record.turno || '—')}
-      ${reviewItem('Troza', formatNumber(record.trozaCantidad))}
-      ${reviewItem('Pulpa', formatNumber(record.pulpaCantidad))}
-      ${reviewItem('Actividad', record.actividad || '—')}
-      ${reviewItem('Carros', formatNumber(record.carros))}
-      ${reviewItem('Rendimiento', `${formatNumber(record.horas ? record.arboles / record.horas : 0, 1)} árb/h`)}
-      ${reviewItem('Combustible', `${formatNumber(record.combustible, 1)} L`)}
-      ${reviewItem('Hidráulico', `${formatNumber(record.hidraulico, 1)} L`)}
-      ${reviewItem('Ubicación', gpsText)}
-    </div>
-    <div class="review-checks">
-      <span>Chequeos confirmados: ${completedChecks.length} de ${CHECK_IDS.length}</span>
-      <div class="review-check-list">
-        ${CHECK_IDS.map(id => `<b class="${record.checks[id] ? 'ok' : ''}">${record.checks[id] ? '✓' : '○'} ${CHECK_LABELS[id]}</b>`).join('')}
-      </div>
-    </div>
-    ${record.observaciones ? `<div class="review-checks"><span>Observaciones</span><p style="margin:0;color:#425466;font-size:11px;white-space:pre-wrap">${escapeHtml(record.observaciones)}</p></div>` : ''}
-    ${record.firmaDigital ? `<div class="review-signature"><span>Firma digital</span><img src="${record.firmaDigital}" alt="Firma digital del responsable"></div>` : '<div class="review-signature"><span>Firma digital</span><p style="margin:0;color:#7b8b83;font-size:10px">Sin firma registrada.</p></div>'}
-  `;
-}
-
-function reviewItem(label, value) {
-  return `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`;
-}
-
-$('#parteForm')?.addEventListener('submit', async event => {
-  event.preventDefault();
-  if (!currentUser()) {
-    showFormMessage('Tu sesión terminó. Vuelve a ingresar.', 'error');
-    return;
-  }
-  if (!validateAllSteps()) return;
-
-  const saveButton = $('#saveBtn');
-  const original = saveButton.innerHTML;
-  saveButton.disabled = true;
-  saveButton.innerHTML = '<svg><use href="#i-cloud"></use></svg> Guardando…';
-
-  try {
-    const record = recordFromForm();
-    await state.saveRecord(record);
-    resetForm({ clearDraft: true });
-    showToast('Parte guardado', 'El registro quedó disponible en los dispositivos sincronizados.');
-    showView('dashboard');
-  } catch (error) {
-    console.error('Guardar parte:', error);
-    showFormMessage('No se pudo guardar el parte. Revisa la conexión e inténtalo nuevamente.', 'error');
-  } finally {
-    saveButton.disabled = false;
-    saveButton.innerHTML = original;
-  }
-});
-
-function resetForm({ clearDraft = false } = {}) {
-  $('#parteForm').reset();
-  currentGps = null;
-  gpsInProgress = false;
-  gpsAttemptedThisForm = false;
-  clearSignaturePad({ silent: true });
-  step = 1;
-  $('#fecha').value = todayKey();
-  enforceAuthenticatedOperator();
-  if (clearDraft) localStorage.removeItem(DRAFT_KEY);
-  recalculateProduction();
-  updateCheckCards();
-  renderGpsState();
-  updateStep();
-  setDraftStatus('Guardado automático', 'Comienza a completar el nuevo parte');
-}
-
-function serializeDraft() {
-  const values = {};
-  DRAFT_FIELDS.forEach(id => {
-    const element = document.getElementById(id);
-    if (!element) return;
-    values[id] = element.type === 'checkbox' ? element.checked : element.value;
-  });
-
-  return {
-    values,
-    turno: radioValue('turno'),
-    actividad: radioValue('actividad'),
-    signatureData,
-    signatureStrokes,
-    savedAt: new Date().toISOString()
-  };
-}
-
-function saveDraft() {
-  if (!formInitialized) return;
-  try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(serializeDraft()));
-    setDraftStatus('Borrador guardado', `Actualizado ${formatTime(new Date())}`);
-  } catch (error) {
-    console.warn('No se pudo guardar el borrador:', error);
-    setDraftStatus('Borrador no guardado', 'El almacenamiento del navegador no está disponible');
-  }
-}
-
-function scheduleDraftSave() {
-  window.clearTimeout(draftTimer);
-  setDraftStatus('Guardando…', 'Conservando los cambios en este dispositivo');
-  draftTimer = window.setTimeout(saveDraft, 380);
-}
-
-function restoreDraft() {
-  const raw = localStorage.getItem(DRAFT_KEY);
-  if (!raw) return false;
-
-  try {
-    const draft = JSON.parse(raw);
-    Object.entries(draft.values || {}).forEach(([id, value]) => {
-      const element = document.getElementById(id);
-      if (!element) return;
-      if (element.type === 'checkbox') element.checked = Boolean(value);
-      else element.value = value ?? '';
-    });
-    setRadioValue('turno', draft.turno || '');
-    setRadioValue('actividad', draft.actividad || '');
-    signatureData = String(draft.signatureData || '');
-    signatureStrokes = Array.isArray(draft.signatureStrokes) ? draft.signatureStrokes : [];
-    activeSignatureStroke = null;
-    renderSignaturePad();
-    currentGps = null;
-    enforceAuthenticatedOperator();
-    updateCheckCards();
-    renderGpsState();
-    setDraftStatus('Borrador recuperado', draft.savedAt ? `Guardado ${formatDateTime(draft.savedAt)}` : 'Puedes continuar donde lo dejaste');
-    return true;
-  } catch (error) {
-    console.warn('No se pudo restaurar el borrador:', error);
-    localStorage.removeItem(DRAFT_KEY);
-    return false;
-  }
-}
-
-$('#parteForm')?.addEventListener('input', scheduleDraftSave);
-$('#parteForm')?.addEventListener('change', scheduleDraftSave);
-
-$('#clearDraftBtn')?.addEventListener('click', () => {
-  if (!confirm('¿Limpiar todos los campos del parte actual?')) return;
-  resetForm({ clearDraft: true });
-  showToast('Formulario limpio', 'El borrador anterior fue eliminado.');
-});
-
-$('#useLastRecordBtn')?.addEventListener('click', () => {
-  const last = state.records[0];
-  if (!last) {
-    showToast('Sin registros anteriores', 'Guarda un parte para poder reutilizar sus datos frecuentes.');
-    return;
-  }
-
-  $('#monte').value = last.monte || '';
-  $('#maquina').value = last.maquina || '';
-  enforceAuthenticatedOperator();
-  $('#trozaCantidad').value = last.trozaCantidad || '';
-  $('#pulpaCantidad').value = last.pulpaCantidad || '';
-  $('#largo').value = last.largo || '';
-  setRadioValue('turno', last.turno || '');
-  setRadioValue('actividad', last.actividad || '');
-  clearSignaturePad({ silent: true });
-  scheduleDraftSave();
-  showToast('Datos reutilizados', 'Se cargaron el monte, la máquina y otros datos frecuentes. El operador corresponde al usuario conectado.');
-});
-
-function setDraftStatus(title, text) {
-  $('#draftStatusTitle').textContent = title;
-  $('#draftStatusText').textContent = text;
-}
-
-function showFormMessage(text, type = '') {
-  const message = $('#message');
-  message.textContent = text;
-  message.className = `form-message ${type}`.trim();
-}
-
-function clearFormMessage() {
-  const message = $('#message');
-  message.textContent = '';
-  message.className = 'form-message';
-}
-
-function refreshSuggestions() {
-  const records = state.records;
-  fillDatalist('#monteOptions', records.map(record => record.monte));
-  fillDatalist('#maquinaOptions', records.map(record => record.maquina));
-  fillDatalist('#operadorOptions', records.map(record => record.operador));
-}
-
-function fillDatalist(selector, values) {
-  const unique = [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, 'es'));
-  $(selector).innerHTML = unique.map(value => `<option value="${escapeHtml(value)}"></option>`).join('');
-}
-
-function renderAll() {
-  const records = state.records;
-  const totalTrees = records.reduce((sum, record) => sum + (Number(record.arboles) || 0), 0);
-  const totalHours = records.reduce((sum, record) => sum + (Number(record.horas) || 0), 0);
-  const complete = records.filter(record => CHECK_IDS.every(id => Boolean(record.checks?.[id]))).length;
-  const today = todayKey();
-  const todayRecords = records.filter(record => record.fecha === today);
-  const todayTrees = todayRecords.reduce((sum, record) => sum + (Number(record.arboles) || 0), 0);
-  const todayHours = todayRecords.reduce((sum, record) => sum + (Number(record.horas) || 0), 0);
-  const lastSevenCutoff = new Date();
-  lastSevenCutoff.setHours(0, 0, 0, 0);
-  lastSevenCutoff.setDate(lastSevenCutoff.getDate() - 6);
-  const lastSeven = records.filter(record => {
-    const date = parseRecordDate(record.fecha);
-    return date && date >= lastSevenCutoff;
-  });
-  const sevenTrees = lastSeven.reduce((sum, record) => sum + (Number(record.arboles) || 0), 0);
-  const sevenHours = lastSeven.reduce((sum, record) => sum + (Number(record.horas) || 0), 0);
-
-  $('#kpiTotal').textContent = formatNumber(records.length);
-  $('#kpiArboles').textContent = formatNumber(totalTrees);
-  $('#kpiHoras').textContent = formatNumber(totalHours, 1);
-  $('#kpiChequeos').textContent = `${records.length ? Math.round((complete / records.length) * 100) : 0}%`;
-  $('#kpiTotalDelta').textContent = `${formatNumber(todayRecords.length)} hoy`;
-  $('#kpiTreesDelta').textContent = `${formatNumber(todayTrees)} hoy`;
-  $('#kpiHoursDelta').textContent = `${formatNumber(todayHours, 1)} h hoy`;
-  $('#kpiChecksDelta').textContent = records.length ? `${complete} de ${records.length} completos` : 'Sin registros';
-  $('#dashboardTrees7').textContent = formatNumber(sevenTrees);
-  $('#dashboardHours7').textContent = `${formatNumber(sevenHours, 1)} h`;
-  $('#dashboardAverage7').textContent = formatNumber(lastSeven.length ? sevenTrees / lastSeven.length : 0, 1);
-  $('#lastUpdate').textContent = formatDateTime(new Date().toISOString());
-
-  updateGreeting();
-  renderRecent(records);
-  refreshSuggestions();
-  refreshOperatorFilters();
-
-  if (typeof window.refreshChartOperators === 'function') window.refreshChartOperators();
-  if (typeof window.renderDashboardTrend === 'function') window.renderDashboardTrend();
-  if (typeof window.renderCharts === 'function' && $('#graficos')?.classList.contains('active')) window.renderCharts();
-  if ($('#historial')?.classList.contains('active')) renderHistory();
-  if ($('#ubicaciones')?.classList.contains('active')) renderLocations();
-
-  window.dispatchEvent(new CustomEvent('lubayd-records-updated'));
-}
-
-function updateGreeting() {
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
-  $('#greetingTitle').textContent = `${greeting}, ${userDisplayName()}`;
-  $('#currentDateText').textContent = new Date().toLocaleDateString('es-UY', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-  });
-}
-
-function renderRecent(records) {
-  const root = $('#recentList');
-  if (!records.length) {
-    root.className = 'recent-list empty-state';
-    root.textContent = 'Todavía no hay partes guardados.';
-    return;
-  }
-
-  root.className = 'recent-list';
-  root.innerHTML = records.slice(0, 5).map(record => `
-    <article class="recent-item" data-detail="${escapeHtml(record.id)}" tabindex="0">
-      <span class="recent-icon"><svg><use href="#i-tree"></use></svg></span>
-      <div class="recent-copy"><strong>${escapeHtml(record.monte)} · ${escapeHtml(record.maquina)}</strong><span>${formatDate(record.fecha)} · ${escapeHtml(record.operador)} · ${escapeHtml(record.actividad || 'Sin actividad')}</span></div>
-      <div class="recent-value"><strong>${formatNumber(record.arboles)}</strong><small>árboles</small></div>
-      <svg><use href="#i-arrow"></use></svg>
-    </article>
-  `).join('');
-
-  root.querySelectorAll('[data-detail]').forEach(item => {
-    item.addEventListener('click', () => openDetail(item.dataset.detail));
-    item.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') openDetail(item.dataset.detail);
-    });
-  });
-}
-
-function refreshOperatorFilters() {
-  const operators = [...new Set(state.records.map(record => String(record.operador || '').trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, 'es'));
-  const select = $('#historyOperatorFilter');
-  const current = select.value;
-  select.innerHTML = '<option value="">Todos los operadores</option>' + operators.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
-  if (operators.includes(current)) select.value = current;
-}
-
-function filteredRecords() {
-  const query = $('#historySearch').value.trim().toLowerCase();
-  const date = $('#historyDateFilter').value;
-  const activity = $('#activityFilter').value;
-  const operator = $('#historyOperatorFilter').value;
-  return state.records.filter(record => {
-    const matchesQuery = !query || [record.monte, record.maquina, record.operador]
-      .some(value => String(value || '').toLowerCase().includes(query));
-    return matchesQuery
-      && (!date || record.fecha === date)
-      && (!activity || record.actividad === activity)
-      && (!operator || record.operador === operator);
-  });
-}
-
-function renderHistory() {
-  const records = filteredRecords();
-  const body = $('#historyBody');
-  const cards = $('#historyCards');
-  const empty = $('#historyEmpty');
-
-  empty.classList.toggle('show', records.length === 0);
-  $('#historyResultCount').textContent = `${formatNumber(records.length)} ${records.length === 1 ? 'registro' : 'registros'}`;
-  const selectedDate = $('#historyDateFilter').value;
-  $('#historyDateLabel').textContent = selectedDate ? `Día: ${formatDate(selectedDate)}` : 'Todos los días';
-  body.innerHTML = records.map(record => `
-    <tr>
-      <td>${formatDate(record.fecha)}</td>
-      <td><strong>${escapeHtml(record.monte)}</strong></td>
-      <td>${escapeHtml(record.maquina)}</td>
-      <td>${escapeHtml(record.operador)}</td>
-      <td>${escapeHtml(record.actividad || '—')}</td>
-      <td><strong>${formatNumber(record.arboles)}</strong></td>
-      <td>
-        <div class="table-actions">
-          <button class="table-action" data-detail="${escapeHtml(record.id)}" aria-label="Ver detalle"><svg><use href="#i-eye"></use></svg></button>
-          ${record.gps ? `<a class="table-action" href="${mapUrl(record.gps)}" target="_blank" rel="noopener" aria-label="Abrir mapa"><svg><use href="#i-pin"></use></svg></a>` : ''}
-          ${canDeleteRecord(record) ? `<button class="table-action danger" data-delete="${escapeHtml(record.id)}" aria-label="Eliminar"><svg><use href="#i-trash"></use></svg></button>` : ''}
-        </div>
-      </td>
-    </tr>
-  `).join('');
-
-  cards.innerHTML = records.map(record => `
-    <article class="history-card">
-      <div class="history-card-head">
-        <div><strong>${escapeHtml(record.monte)} · ${escapeHtml(record.maquina)}</strong><span>${formatDate(record.fecha)} · ${escapeHtml(record.operador)}</span></div>
-        <div class="history-card-value"><b>${formatNumber(record.arboles)}</b><small>árboles</small></div>
-      </div>
-      <div class="history-card-meta"><span>${escapeHtml(record.actividad || 'Sin actividad')}</span><span>${formatNumber(record.horas, 1)} h</span><span>${formatNumber(record.combustible, 1)} L</span></div>
-      <div class="history-card-actions">
-        <button data-detail="${escapeHtml(record.id)}"><svg><use href="#i-eye"></use></svg>Ver</button>
-        ${record.gps ? `<a href="${mapUrl(record.gps)}" target="_blank" rel="noopener"><svg><use href="#i-pin"></use></svg>Mapa</a>` : '<span></span>'}
-        ${canDeleteRecord(record) ? `<button class="danger" data-delete="${escapeHtml(record.id)}"><svg><use href="#i-trash"></use></svg>Eliminar</button>` : '<span></span>'}
-      </div>
-    </article>
-  `).join('');
-
-  bindRecordActions(body);
-  bindRecordActions(cards);
-}
-
-function canDeleteRecord(record) {
-  const user = currentUser();
-  return Boolean(user && record?.createdByUid && record.createdByUid === user.uid);
-}
-
-function bindRecordActions(root) {
-  root.querySelectorAll('[data-detail]').forEach(button => button.addEventListener('click', () => openDetail(button.dataset.detail)));
-  root.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', () => deleteRecord(button.dataset.delete)));
-}
-
-$('#historySearch')?.addEventListener('input', renderHistory);
-$('#historyDateFilter')?.addEventListener('change', renderHistory);
-$('#activityFilter')?.addEventListener('change', renderHistory);
-$('#historyOperatorFilter')?.addEventListener('change', renderHistory);
-$('#clearHistoryFilters')?.addEventListener('click', () => {
-  $('#historySearch').value = '';
-  $('#historyDateFilter').value = '';
-  $('#activityFilter').value = '';
-  $('#historyOperatorFilter').value = '';
-  renderHistory();
-});
-
-async function deleteRecord(id) {
-  if (!confirm('¿Eliminar este parte? Esta acción también lo eliminará de los dispositivos sincronizados.')) return;
-  await state.deleteRecord(id);
-  renderHistory();
-  renderLocations();
-  showToast('Parte eliminado', 'El registro fue retirado del historial.');
-}
-
-function openDetail(id) {
-  const record = state.records.find(item => item.id === id);
-  if (!record) return;
-
-  const fields = {
-    Fecha: formatDate(record.fecha),
-    Operador: record.operador || '—',
-    Máquina: record.maquina || '—',
-    Turno: record.turno || '—',
-    Troza: formatNumber(record.trozaCantidad || 0),
-    Pulpa: formatNumber(record.pulpaCantidad || 0),
-    Actividad: record.actividad || '—',
-    'Horas trabajadas': `${formatNumber(record.horas, 1)} h`,
-    'Árboles procesados': formatNumber(record.arboles),
-    Rendimiento: `${formatNumber(record.horas ? record.arboles / record.horas : 0, 1)} árb/h`,
-    Carros: formatNumber(record.carros),
-    Combustible: `${formatNumber(record.combustible, 1)} L`,
-    Hidráulico: `${formatNumber(record.hidraulico, 1)} L`,
-    GPS: record.gps ? `${record.gps.latitude.toFixed(6)}, ${record.gps.longitude.toFixed(6)} (±${Math.round(record.gps.accuracy)} m)` : 'Sin ubicación',
-    Observaciones: record.observaciones || 'Sin observaciones'
-  };
-
-  $('#detailContent').innerHTML = `
-    <span class="detail-eyebrow">DETALLE DEL PARTE</span>
-    <h2 class="detail-title">${escapeHtml(record.monte)} · ${escapeHtml(record.maquina)}</h2>
-    <p class="detail-subtitle">Registrado ${formatDateTime(record.createdAt)} por ${escapeHtml(record.operador || 'Operador')}.</p>
-    <div class="detail-grid">${Object.entries(fields).map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></article>`).join('')}</div>
-    ${record.firmaDigital ? `<div class="detail-signature"><span>Firma digital</span><img src="${record.firmaDigital}" alt="Firma digital del parte"></div>` : ''}
-    ${record.gps ? `<a class="btn btn-primary detail-map" href="${mapUrl(record.gps)}" target="_blank" rel="noopener"><svg><use href="#i-pin"></use></svg> Abrir ubicación en el mapa</a>` : ''}
-  `;
-  $('#detailModal').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeDetail() {
-  $('#detailModal').classList.add('hidden');
-  document.body.style.overflow = '';
-}
-
-$('#detailClose')?.addEventListener('click', closeDetail);
-$('#detailModal')?.addEventListener('click', event => {
-  if (event.target.id === 'detailModal') closeDetail();
-});
-window.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && !$('#detailModal').classList.contains('hidden')) closeDetail();
-});
-
-$('#exportBtn')?.addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(state.records, null, 2)], { type: 'application/json' });
-  const anchor = document.createElement('a');
-  anchor.href = URL.createObjectURL(blob);
-  anchor.download = `partes-forestales-${todayKey()}.json`;
-  anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(anchor.href), 700);
-  showToast('Archivo preparado', 'Se descargó una copia JSON del historial.');
-});
-
-
-function signatureCanvasElements() {
-  return {
-    canvas: $('#signatureCanvas'),
-    placeholder: $('#signaturePlaceholder'),
-    status: $('#signatureStatus'),
-    undo: $('#signatureUndoBtn'),
-    clear: $('#signatureClearBtn'),
-    wrap: $('.signature-pad-wrap')
-  };
-}
-
-function resizeSignatureCanvas() {
-  const { canvas } = signatureCanvasElements();
-  if (!canvas) return;
-  const rect = canvas.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
-  const ratio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
-  const width = Math.round(rect.width * ratio);
-  const height = Math.round(rect.height * ratio);
-  if (canvas.width === width && canvas.height === height) return;
-  canvas.width = width;
-  canvas.height = height;
-  renderSignaturePad();
-}
-
-function signatureContext() {
-  const { canvas } = signatureCanvasElements();
-  if (!canvas) return null;
-  const context = canvas.getContext('2d');
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / Math.max(rect.width, 1);
-  const scaleY = canvas.height / Math.max(rect.height, 1);
-  context.setTransform(scaleX, 0, 0, scaleY, 0, 0);
-  context.lineCap = 'round';
-  context.lineJoin = 'round';
-  context.strokeStyle = '#10261b';
-  context.lineWidth = 2.4;
-  return { context, rect };
-}
-
-function drawSignatureStroke(context, stroke) {
-  if (!stroke?.length) return;
-  context.beginPath();
-  context.moveTo(stroke[0].x, stroke[0].y);
-  if (stroke.length === 1) {
-    context.lineTo(stroke[0].x + 0.1, stroke[0].y + 0.1);
-  } else {
-    for (let index = 1; index < stroke.length; index += 1) {
-      const point = stroke[index];
-      const previous = stroke[index - 1];
-      const middleX = (previous.x + point.x) / 2;
-      const middleY = (previous.y + point.y) / 2;
-      context.quadraticCurveTo(previous.x, previous.y, middleX, middleY);
-    }
-  }
-  context.stroke();
-}
-
-function renderSignaturePad() {
-  const elements = signatureCanvasElements();
-  const setup = signatureContext();
-  if (!setup || !elements.canvas) return;
-  const { context, rect } = setup;
-  context.clearRect(0, 0, rect.width, rect.height);
-  context.fillStyle = '#ffffff';
-  context.fillRect(0, 0, rect.width, rect.height);
-
-  if (signatureStrokes.length) {
-    signatureStrokes.forEach(stroke => drawSignatureStroke(context, stroke));
-  } else if (signatureData) {
-    const image = new Image();
-    image.onload = () => {
-      const current = signatureContext();
-      if (!current) return;
-      current.context.drawImage(image, 0, 0, current.rect.width, current.rect.height);
-    };
-    image.src = signatureData;
-  }
-
-  const hasSignature = Boolean(signatureData || signatureStrokes.length);
-  elements.placeholder?.classList.toggle('hidden', hasSignature);
-  elements.status?.classList.toggle('signed', hasSignature);
-  if (elements.status) elements.status.textContent = hasSignature ? 'Firma registrada' : 'Sin firma';
-  if (elements.undo) elements.undo.disabled = signatureStrokes.length === 0;
-  if (elements.clear) elements.clear.disabled = !hasSignature;
-}
-
-function updateSignatureData() {
-  const { canvas } = signatureCanvasElements();
-  if (!canvas || !signatureStrokes.length) {
-    signatureData = '';
-    renderSignaturePad();
-    return;
-  }
-  signatureData = canvas.toDataURL('image/png');
-  renderSignaturePad();
-  scheduleDraftSave();
-  if (step === 5) fillReview();
-}
-
-function clearSignaturePad(options = {}) {
-  signatureData = '';
-  signatureStrokes = [];
-  activeSignatureStroke = null;
-  signatureDrawing = false;
-  renderSignaturePad();
-  if (!options.silent) {
-    scheduleDraftSave();
-    if (step === 5) fillReview();
-  }
-}
-
-function signaturePoint(event) {
-  const { canvas } = signatureCanvasElements();
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: Math.max(0, Math.min(rect.width, event.clientX - rect.left)),
-    y: Math.max(0, Math.min(rect.height, event.clientY - rect.top))
-  };
-}
-
-function beginSignature(event) {
-  const { canvas, wrap } = signatureCanvasElements();
-  if (!canvas || (event.pointerType === 'mouse' && event.button !== 0)) return;
-  event.preventDefault();
-  resizeSignatureCanvas();
-  signatureDrawing = true;
-  activeSignatureStroke = [signaturePoint(event)];
-  signatureStrokes.push(activeSignatureStroke);
-  canvas.setPointerCapture?.(event.pointerId);
-  wrap?.classList.add('drawing');
-  renderSignaturePad();
-}
-
-function moveSignature(event) {
-  if (!signatureDrawing || !activeSignatureStroke) return;
-  event.preventDefault();
-  activeSignatureStroke.push(signaturePoint(event));
-  renderSignaturePad();
-}
-
-function endSignature(event) {
-  if (!signatureDrawing) return;
-  event.preventDefault();
-  signatureDrawing = false;
-  activeSignatureStroke = null;
-  signatureCanvasElements().wrap?.classList.remove('drawing');
-  updateSignatureData();
-}
-
-function initializeSignaturePad() {
-  const { canvas, undo, clear } = signatureCanvasElements();
-  if (!canvas) return;
-  canvas.addEventListener('pointerdown', beginSignature, { passive: false });
-  canvas.addEventListener('pointermove', moveSignature, { passive: false });
-  canvas.addEventListener('pointerup', endSignature, { passive: false });
-  canvas.addEventListener('pointercancel', endSignature, { passive: false });
-  canvas.addEventListener('pointerleave', event => {
-    if (signatureDrawing && event.pointerType === 'mouse') endSignature(event);
-  });
-  undo?.addEventListener('click', () => {
-    if (signatureStrokes.length) signatureStrokes.pop();
-    signatureData = '';
-    if (signatureStrokes.length) {
-      renderSignaturePad();
-      const currentCanvas = signatureCanvasElements().canvas;
-      signatureData = currentCanvas.toDataURL('image/png');
-    }
-    renderSignaturePad();
-    scheduleDraftSave();
-    if (step === 5) fillReview();
-  });
-  clear?.addEventListener('click', () => clearSignaturePad());
-  window.addEventListener('resize', () => window.requestAnimationFrame(resizeSignatureCanvas));
-  window.requestAnimationFrame(() => { resizeSignatureCanvas(); renderSignaturePad(); });
-}
-
-initializeSignaturePad();
-
-function mapUrl(gps) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${gps.latitude},${gps.longitude}`)}`;
-}
-
-function renderGpsState(message = '') {
-  const stateBox = $('#gpsState');
-  const coordinates = $('#gpsCoordinates');
-  const link = $('#gpsPreviewLink');
-  const pin = $('#gpsMapPin');
-  const mapText = $('#mapStatusText');
-  const button = $('#gpsCaptureBtn');
-  if (!stateBox) return;
-
-  stateBox.className = 'gps-state';
-  pin?.classList.toggle('active', Boolean(currentGps));
-
-  if (currentGps) {
-    stateBox.classList.add('success', 'locked');
-    stateBox.innerHTML = '<strong>Ubicación registrada y bloqueada</strong><small>Estas coordenadas no pueden modificarse dentro del parte.</small>';
-    coordinates.classList.remove('hidden');
-    coordinates.innerHTML = `
-      <div><span>Latitud</span><strong>${currentGps.latitude.toFixed(6)}</strong></div>
-      <div><span>Longitud</span><strong>${currentGps.longitude.toFixed(6)}</strong></div>
-      <div><span>Precisión</span><strong>±${Math.round(currentGps.accuracy)} m</strong></div>
-    `;
-    link.href = mapUrl(currentGps);
-    link.classList.remove('hidden');
-    mapText.textContent = `Ubicación bloqueada · ±${Math.round(currentGps.accuracy)} m`;
-    if (button) {
-      button.disabled = true;
-      button.classList.add('gps-locked-button');
-      button.innerHTML = '<svg><use href="#i-lock"></use></svg> Ubicación bloqueada';
-    }
-  } else {
-    stateBox.classList.add(message ? 'error' : 'idle');
-    stateBox.innerHTML = `<strong>${escapeHtml(message || 'Ubicación pendiente')}</strong><small>${message ? 'Revisa el permiso y vuelve a intentarlo.' : 'Debes obtener la ubicación actual para continuar.'}</small>`;
-    coordinates.classList.add('hidden');
-    link.classList.add('hidden');
-    mapText.textContent = message || 'Esperando ubicación';
-    if (button) {
-      button.disabled = gpsInProgress;
-      button.classList.remove('gps-locked-button');
-      if (!gpsInProgress) button.innerHTML = '<svg><use href="#i-pin"></use></svg> Obtener ubicación actual';
-    }
-  }
-}
-
-function captureGps(automatic = false) {
-  if (currentGps) {
-    showToast('Ubicación bloqueada', 'La captura ya quedó asociada al parte y no puede modificarse.');
-    return;
-  }
-  if (gpsInProgress) return;
-  const button = $('#gpsCaptureBtn');
-
-  if (!navigator.geolocation) {
-    renderGpsState('Este dispositivo no admite ubicación GPS');
-    updateGpsSystem(false);
-    return;
-  }
-
-  gpsInProgress = true;
-  if (button) {
-    button.disabled = true;
-    button.innerHTML = '<svg><use href="#i-refresh"></use></svg> Buscando ubicación…';
-  }
-  const stateBox = $('#gpsState');
-  stateBox.className = 'gps-state loading';
-  stateBox.innerHTML = `<strong>Buscando ubicación actual…</strong><small>${automatic ? 'Mantén activa la ubicación del teléfono.' : 'Esto puede demorar algunos segundos.'}</small>`;
-  $('#mapStatusText').textContent = 'Buscando señal GPS…';
-
-  const finish = () => {
-    gpsInProgress = false;
-    renderGpsState();
-  };
-
-  navigator.geolocation.getCurrentPosition(position => {
-    const capturedAt = new Date().toISOString();
-    currentGps = Object.freeze({
+  function getGps() {
+    if (!navigator.geolocation) return Promise.reject(new Error('El dispositivo no dispone de GPS.'));
+    return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(position => resolve({
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
       accuracy: position.coords.accuracy,
-      altitude: position.coords.altitude,
-      heading: position.coords.heading,
-      speed: position.coords.speed,
-      positionTimestamp: new Date(position.timestamp || Date.now()).toISOString(),
-      capturedAt
-    });
-    updateGpsSystem(true);
-    scheduleDraftSave();
-    finish();
-  }, error => {
-    const messages = {
-      1: 'Permiso de ubicación denegado',
-      2: 'No se pudo determinar la ubicación',
-      3: 'La búsqueda de GPS demoró demasiado'
-    };
-    gpsInProgress = false;
-    renderGpsState(messages[error.code] || 'No se pudo obtener la ubicación');
-    updateGpsSystem(false);
-  }, {
-    enableHighAccuracy: true,
-    timeout: 20000,
-    maximumAge: 0
-  });
-}
-
-function updateGpsSystem(ok) {
-  $('#gpsSystemStatus').textContent = ok ? 'Disponible' : 'Revisar permiso';
-  $('#gpsStatusDot').classList.toggle('ok', ok);
-}
-
-$('#gpsCaptureBtn')?.addEventListener('click', () => captureGps(false));
-
-function renderLocations() {
-  const records = state.records.filter(record => record.gps);
-  const list = $('#locationList');
-  $('#gpsRecordCount').textContent = formatNumber(records.length);
-  $('#gpsAverageAccuracy').textContent = records.length
-    ? `±${Math.round(records.reduce((sum, record) => sum + (Number(record.gps.accuracy) || 0), 0) / records.length)} m`
-    : '—';
-  $('#gpsLastCapture').textContent = records[0]?.gps?.capturedAt ? formatDateTime(records[0].gps.capturedAt) : '—';
-
-  if (!records.length) {
-    list.innerHTML = '<div class="empty-state">Todavía no hay partes con ubicación GPS.</div>';
-    return;
+      capturedAtClient: new Date().toISOString()
+    }), error => reject(new Error(error.code === 1 ? 'Debes permitir la ubicación.' : 'No se pudo obtener la ubicación.')), { enableHighAccuracy: true, timeout: 18000, maximumAge: 0 }));
   }
 
-  list.innerHTML = records.map(record => `
-    <article class="location-item">
-      <span class="location-pin"><svg><use href="#i-pin"></use></svg></span>
-      <div class="location-copy"><strong>${escapeHtml(record.monte)} · ${escapeHtml(record.maquina)}</strong><span>${formatDate(record.fecha)} · ${escapeHtml(record.operador)}</span><small>${record.gps.latitude.toFixed(6)}, ${record.gps.longitude.toFixed(6)} · ±${Math.round(record.gps.accuracy)} m</small></div>
-      <a class="btn btn-soft" href="${mapUrl(record.gps)}" target="_blank" rel="noopener"><svg><use href="#i-external"></use></svg> Abrir mapa</a>
-    </article>
-  `).join('');
-}
-
-$('#gpsRefreshBtn')?.addEventListener('click', renderLocations);
-
-function showToast(title, text) {
-  window.clearTimeout(toastTimer);
-  $('#toastTitle').textContent = title;
-  $('#toastText').textContent = text;
-  $('#toast').classList.remove('hidden');
-  toastTimer = window.setTimeout(() => $('#toast').classList.add('hidden'), 3200);
-}
-
-window.LubaydToast = showToast;
-
-function syncNetworkStatus() {
-  if (!navigator.onLine) {
-    applyCloudStatus('Sin conexión', false, 'Trabajando con datos locales');
-  } else {
-    applyCloudStatus(currentCloudStatus.text, currentCloudStatus.ok, currentCloudStatus.detail);
-  }
-}
-
-function setCloudStatus(text, ok, detail = '') {
-  currentCloudStatus = { text, ok, detail: detail || (ok ? 'Datos actualizados' : 'Revisando conexión') };
-  syncNetworkStatus();
-}
-
-function applyCloudStatus(text, ok, detail) {
-  const network = $('#networkStatus');
-  network.classList.toggle('offline', !ok || !navigator.onLine);
-  network.querySelector('b').textContent = text;
-  $('#lastSyncLabel').textContent = detail;
-  $('#sidebarSyncTitle').textContent = navigator.onLine ? text : 'Sin conexión';
-  $('#sidebarSyncText').textContent = navigator.onLine ? detail : 'Los cambios quedarán pendientes';
-  $('#cloudSystemStatus').textContent = text;
-}
-
-window.addEventListener('online', () => {
-  syncNetworkStatus();
-  if (window.LubaydCloud?.available && !cloudUnsubscribe) startCloudSync();
-});
-window.addEventListener('offline', syncNetworkStatus);
-
-function closeSidebar() {
-  $('#sidebar').classList.remove('open');
-  $('#sidebarOverlay').classList.remove('show');
-}
-
-$('#menuBtn')?.addEventListener('click', () => {
-  $('#sidebar').classList.toggle('open');
-  $('#sidebarOverlay').classList.toggle('show');
-});
-$('#sidebarOverlay')?.addEventListener('click', closeSidebar);
-
-window.addEventListener('beforeinstallprompt', event => {
-  event.preventDefault();
-  deferredInstall = event;
-  $('#installBtn').classList.remove('hidden');
-});
-
-$('#installBtn')?.addEventListener('click', async () => {
-  if (!deferredInstall) return;
-  deferredInstall.prompt();
-  await deferredInstall.userChoice;
-  deferredInstall = null;
-  $('#installBtn').classList.add('hidden');
-});
-
-window.addEventListener('appinstalled', () => $('#installBtn').classList.add('hidden'));
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
+  async function capturePartGps() {
+    const button = $('#capturePartGpsButton');
+    button.disabled = true;
+    button.textContent = 'Obteniendo…';
+    $('#partGpsState').textContent = 'Consultando el GPS del dispositivo…';
     try {
-      const registration = await navigator.serviceWorker.register('./service-worker.js?v=20.1.0', { scope: './', updateViaCache: 'none' });
+      state.currentPartGps = await getGps();
+      $('#partGpsState').textContent = `Ubicación lista: ${state.currentPartGps.latitude.toFixed(5)}, ${state.currentPartGps.longitude.toFixed(5)} · ±${Math.round(state.currentPartGps.accuracy)} m.`;
+    } catch (error) {
+      state.currentPartGps = null;
+      $('#partGpsState').textContent = error.message || String(error);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Obtener ubicación';
+    }
+  }
+
+  function calculatePartValues() {
+    const hours = Math.max(0, (Number($('#partHourEnd').value) || 0) - (Number($('#partHourStart').value) || 0));
+    const trees = Math.max(0, (Number($('#partTreesEnd').value) || 0) - (Number($('#partTreesStart').value) || 0));
+    return { hours, trees };
+  }
+
+  async function savePart(event) {
+    event.preventDefault();
+    if (!state.user) return;
+    const button = event.currentTarget.querySelector('button[type="submit"]');
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Guardando…';
+    $('#partMessage').textContent = '';
+    try {
+      if (!state.currentPartGps) await capturePartGps();
+      if (!state.currentPartGps) throw new Error('No se pudo obtener la ubicación requerida.');
+      const values = calculatePartValues();
+      const ref = db().collection('partes').doc();
+      await ref.set({
+        createdByUid: state.user.uid,
+        createdByName: state.profile?.nombre || state.user.displayName || state.user.email,
+        createdByEmail: state.user.email || '',
+        dateKey: $('#partDate').value,
+        machine: $('#partMachine').value.trim(),
+        forest: $('#partForest').value.trim(),
+        shift: $('#partShift').value,
+        hourStart: Number($('#partHourStart').value) || 0,
+        hourEnd: Number($('#partHourEnd').value) || 0,
+        hours: values.hours,
+        treesStart: Number($('#partTreesStart').value) || 0,
+        treesEnd: Number($('#partTreesEnd').value) || 0,
+        trees: values.trees,
+        fuel: Number($('#partFuel').value) || 0,
+        notes: $('#partNotes').value.trim(),
+        gps: Object.assign({}, state.currentPartGps),
+        createdAt: FieldValue().serverTimestamp(),
+        createdAtClient: new Date().toISOString()
+      });
+      event.currentTarget.reset();
+      $('#partDate').value = todayKey();
+      state.currentPartGps = null;
+      $('#partGpsState').textContent = 'Ubicación todavía no capturada.';
+      $('#partMessage').textContent = 'Parte guardado correctamente.';
+      $('#partMessage').className = 'form-message success';
+      toast('Parte guardado', 'El registro quedó sincronizado con Firestore.');
+    } catch (error) {
+      $('#partMessage').textContent = error.message || String(error);
+      $('#partMessage').className = 'form-message';
+    } finally {
+      button.disabled = false;
+      button.textContent = original;
+    }
+  }
+
+  function subscribeParts() {
+    state.partsUnsubscribe?.();
+    if (!state.user || !db()) return;
+    let query = db().collection('partes');
+    if (!isManager()) query = query.where('createdByUid', '==', state.user.uid);
+    state.partsUnsubscribe = query.onSnapshot(snapshot => {
+      state.parts = snapshot.docs.map(doc => Object.assign({ id: doc.id }, doc.data())).sort((a, b) => {
+        const av = a.createdAt?.toMillis?.() || new Date(a.createdAtClient || a.dateKey || 0).getTime();
+        const bv = b.createdAt?.toMillis?.() || new Date(b.createdAtClient || b.dateKey || 0).getTime();
+        return bv - av;
+      });
+      renderParts();
+      renderDashboard();
+    }, error => {
+      console.error('Partes:', error);
+      $('#partsList').className = 'card-list empty-state';
+      $('#partsList').textContent = `No se pudieron cargar los partes: ${error.message || error}`;
+    });
+  }
+
+  function partCard(part) {
+    return `<article class="part-card"><header><div><h4>${escapeHtml(part.machine || 'Máquina')}</h4><p>${escapeHtml(part.forest || 'Monte')} · ${formatDate(part.dateKey)}</p></div><span class="status-pill online">Sincronizado</span></header><footer><span>${formatNumber(part.hours, 1)} h</span><span>${formatNumber(part.trees)} árboles</span><span>${formatNumber(part.fuel, 1)} L</span><span>${escapeHtml(part.createdByName || '')}</span></footer></article>`;
+  }
+
+  function renderParts() {
+    const list = $('#partsList');
+    if (!state.parts.length) {
+      list.className = 'card-list empty-state';
+      list.textContent = 'Sin registros.';
+      return;
+    }
+    list.className = 'card-list';
+    list.innerHTML = state.parts.slice(0, 30).map(partCard).join('');
+  }
+
+  function renderDashboard() {
+    const records = window.LubaydAttendance?.getRecords?.() || [];
+    const current = window.LubaydAttendance?.getCurrent?.();
+    const attendance = isManager() ? records : (current ? [current] : []);
+    const present = attendance.filter(item => item.entrada?.at).length;
+    const working = attendance.filter(item => item.entrada?.at && !item.salida?.at).length;
+    const finished = attendance.filter(item => item.salida?.at).length;
+    const todayParts = state.parts.filter(item => item.dateKey === todayKey());
+    $('#metricPresent').textContent = present;
+    $('#metricWorking').textContent = working;
+    $('#metricFinished').textContent = finished;
+    $('#metricParts').textContent = todayParts.length;
+
+    const attendanceBox = $('#dashboardAttendance');
+    if (!attendance.length) {
+      attendanceBox.className = 'compact-list empty-state';
+      attendanceBox.textContent = 'Sin marcas para mostrar.';
+    } else {
+      attendanceBox.className = 'compact-list';
+      attendanceBox.innerHTML = attendance.slice(0, 5).map(item => `<div class="compact-item"><div><strong>${escapeHtml(item.userName || item.userEmail || 'Usuario')}</strong><small>${item.salida?.at ? 'Jornada finalizada' : 'Trabajando'}</small></div><time>${item.entrada?.at ? formatDateTime(item.entrada.at).split(' ').slice(-1)[0] : '--:--'}</time></div>`).join('');
+    }
+
+    const partsBox = $('#dashboardParts');
+    if (!state.parts.length) {
+      partsBox.className = 'compact-list empty-state';
+      partsBox.textContent = 'Sin partes para mostrar.';
+    } else {
+      partsBox.className = 'compact-list';
+      partsBox.innerHTML = state.parts.slice(0, 5).map(item => `<div class="compact-item"><div><strong>${escapeHtml(item.machine || 'Máquina')}</strong><small>${escapeHtml(item.forest || '')} · ${formatNumber(item.trees)} árboles</small></div><time>${formatDate(item.dateKey)}</time></div>`).join('');
+    }
+  }
+
+  async function loadUsers() {
+    if (!isAdmin() || !db()) return;
+    const list = $('#usersList');
+    list.className = 'user-admin-list empty-state';
+    list.textContent = 'Cargando usuarios…';
+    try {
+      const snapshot = await db().collection('usuarios').get();
+      state.users = snapshot.docs.map(doc => Object.assign({ uid: doc.id }, doc.data())).sort((a, b) => String(a.nombre || a.email).localeCompare(String(b.nombre || b.email), 'es'));
+      renderUsers();
+    } catch (error) {
+      list.textContent = `No se pudieron cargar los usuarios: ${error.message || error}`;
+    }
+  }
+
+  function renderUsers() {
+    const list = $('#usersList');
+    if (!state.users.length) {
+      list.className = 'user-admin-list empty-state';
+      list.textContent = 'No hay usuarios.';
+      return;
+    }
+    list.className = 'user-admin-list';
+    list.innerHTML = state.users.map(user => `<article class="user-row" data-user-id="${escapeHtml(user.uid)}"><header><div><h3>${escapeHtml(user.nombre || user.email || 'Usuario')}</h3><p>${escapeHtml(user.email || '')}</p></div><span class="contact-avatar">${escapeHtml(initials(user.nombre || user.email))}</span></header><div class="controls"><select data-user-role ${user.uid === state.user.uid ? 'disabled' : ''}><option value="operador" ${user.role === 'operador' ? 'selected' : ''}>Operador</option><option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>Supervisor</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option></select><label class="toggle"><input type="checkbox" data-user-active ${user.active !== false ? 'checked' : ''} ${user.uid === state.user.uid ? 'disabled' : ''}> Activo</label></div></article>`).join('');
+  }
+
+  async function updateUser(uid, changes) {
+    if (!isAdmin()) return;
+    try {
+      await db().collection('usuarios').doc(uid).update(Object.assign({}, changes, { updatedAt: FieldValue().serverTimestamp() }));
+      toast('Usuario actualizado', 'Los permisos se aplicarán en el próximo acceso.');
+      await loadUsers();
+    } catch (error) {
+      toast('No se pudo actualizar', error.message || String(error));
+    }
+  }
+
+  function updatePushUI(detail) {
+    const stateInfo = detail || window.LubaydPush?.state?.() || {};
+    const text = $('#pushStatusText');
+    const iosHint = $('#iosInstallHint');
+    iosHint.classList.toggle('hidden', !(stateInfo.ios && !stateInfo.standalone));
+    if (stateInfo.ios && !stateInfo.standalone) text.textContent = 'En Safari normal no se activan. Instala la PWA y ábrela desde el icono.';
+    else if (stateInfo.enabled && stateInfo.permission === 'granted') text.textContent = 'Notificaciones activadas en este dispositivo.';
+    else if (stateInfo.permission === 'denied') text.textContent = 'Las notificaciones están bloqueadas en los ajustes del dispositivo.';
+    else if (stateInfo.supported === false) text.textContent = 'Este navegador no admite notificaciones push web.';
+    else text.textContent = 'Las notificaciones todavía no están activadas.';
+    $('#enablePushButton').disabled = Boolean(stateInfo.enabled) || (stateInfo.ios && !stateInfo.standalone);
+    $('#disablePushButton').disabled = !stateInfo.enabled;
+  }
+
+  async function enablePush() {
+    const button = $('#enablePushButton');
+    button.disabled = true;
+    button.textContent = 'Activando…';
+    try {
+      await window.LubaydPush.enable();
+      toast('Notificaciones activadas', 'El dispositivo quedó registrado en push_tokens.');
+    } catch (error) {
+      toast('No se pudieron activar', error.message || String(error));
+    } finally {
+      button.textContent = 'Activar notificaciones';
+      updatePushUI(window.LubaydPush.state());
+    }
+  }
+
+  async function disablePush() {
+    try {
+      await window.LubaydPush.disable();
+      toast('Notificaciones desactivadas', 'El token de este dispositivo fue eliminado.');
+    } catch (error) {
+      toast('No se pudieron desactivar', error.message || String(error));
+    }
+  }
+
+  async function forceUpdate() {
+    const registrations = await navigator.serviceWorker?.getRegistrations?.() || [];
+    const keys = await caches.keys();
+    await Promise.all(keys.map(key => caches.delete(key)));
+    await Promise.all(registrations.map(registration => registration.update().catch(() => null)));
+    location.reload();
+  }
+
+  function setConnectionStatus() {
+    const badge = $('#connectionBadge');
+    if (navigator.onLine) {
+      badge.textContent = 'En línea';
+      badge.className = 'status-pill online';
+    } else {
+      badge.textContent = 'Sin conexión';
+      badge.className = 'status-pill warning';
+    }
+  }
+
+  function bindApplicationEvents() {
+    $('#logoutButton').addEventListener('click', logout);
+    $('#settingsLogoutButton').addEventListener('click', logout);
+    $('#capturePartGpsButton').addEventListener('click', capturePartGps);
+    $('#partForm').addEventListener('submit', savePart);
+    $('#refreshPartsButton').addEventListener('click', () => { subscribeParts(); toast('Partes actualizados', 'Se volvió a consultar Firestore.'); });
+    $('#refreshUsersButton').addEventListener('click', loadUsers);
+    $('#usersList').addEventListener('change', event => {
+      const row = event.target.closest('[data-user-id]');
+      if (!row) return;
+      if (event.target.matches('[data-user-role]')) updateUser(row.dataset.userId, { role: event.target.value });
+      if (event.target.matches('[data-user-active]')) updateUser(row.dataset.userId, { active: event.target.checked });
+    });
+    $('#enablePushButton').addEventListener('click', enablePush);
+    $('#disablePushButton').addEventListener('click', disablePush);
+    $('#forceUpdateButton').addEventListener('click', forceUpdate);
+    $('#applyUpdateButton').addEventListener('click', () => state.waitingWorker?.postMessage({ type: 'SKIP_WAITING' }));
+    $('#installButton').addEventListener('click', async () => {
+      if (!state.deferredInstall) return;
+      state.deferredInstall.prompt();
+      await state.deferredInstall.userChoice;
+      state.deferredInstall = null;
+      $('#installButton').classList.add('hidden');
+    });
+    window.addEventListener('lubayd-attendance-updated', renderDashboard);
+    window.addEventListener('lubayd-push-state', event => updatePushUI(event.detail));
+    window.addEventListener('online', setConnectionStatus);
+    window.addEventListener('offline', setConnectionStatus);
+    window.addEventListener('beforeinstallprompt', event => {
+      event.preventDefault();
+      state.deferredInstall = event;
+      $('#installButton').classList.remove('hidden');
+    });
+  }
+
+  async function handleAuthState(user, profile, error) {
+    state.partsUnsubscribe?.();
+    state.partsUnsubscribe = null;
+    state.user = null;
+    state.profile = null;
+    window.LubaydCurrentProfile = null;
+
+    if (error) {
+      document.body.classList.remove('auth-ready');
+      document.body.classList.add('auth-pending');
+      setAuthMessage(window.LubaydFirebase.authErrorMessage(error));
+      return;
+    }
+    if (!user) {
+      document.body.classList.remove('auth-ready');
+      document.body.classList.add('auth-pending');
+      setAuthMessage('');
+      window.dispatchEvent(new CustomEvent('lubayd-signed-out'));
+      return;
+    }
+    if (profile?.active === false) {
+      await window.LubaydFirebase.logout();
+      setAuthMessage('Esta cuenta está desactivada. Contacta al administrador.');
+      return;
+    }
+    state.user = user;
+    state.profile = profile || { role: 'operador', active: true };
+    window.LubaydCurrentProfile = state.profile;
+    document.body.classList.remove('auth-pending');
+    document.body.classList.add('auth-ready');
+    updateUserInterface();
+    $('#partDate').value = todayKey();
+    subscribeParts();
+    window.dispatchEvent(new CustomEvent('lubayd-auth-ready', { detail: { user, profile: state.profile } }));
+    const requested = new URLSearchParams(location.search).get('view') || 'dashboard';
+    showView(requested === 'users' && !isAdmin() ? 'dashboard' : requested);
+    updatePushUI(window.LubaydPush?.state?.());
+  }
+
+  async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+      const registration = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
       if (registration.waiting) {
-        waitingWorker = registration.waiting;
+        state.waitingWorker = registration.waiting;
         $('#updateBanner').classList.remove('hidden');
       }
       registration.addEventListener('updatefound', () => {
         const worker = registration.installing;
         worker?.addEventListener('statechange', () => {
           if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-            waitingWorker = worker;
+            state.waitingWorker = registration.waiting || worker;
             $('#updateBanner').classList.remove('hidden');
           }
         });
       });
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading) return;
+        reloading = true;
+        location.reload();
+      });
     } catch (error) {
-      console.error('Registro PWA:', error);
+      console.error('Service worker:', error);
     }
-  });
-  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
-}
-
-$('#updateBtn')?.addEventListener('click', () => waitingWorker?.postMessage({ type: 'SKIP_WAITING' }));
-
-async function startCloudSync() {
-  if (!currentUser()) {
-    setCloudStatus('Sesión requerida', false, 'Inicia sesión para sincronizar');
-    return;
-  }
-  if (!window.LubaydCloud?.available) {
-    setCloudStatus('Solo local', false, 'Firebase no está disponible');
-    return;
   }
 
-  setCloudStatus('Conectando…', false, 'Iniciando sincronización segura');
-  try {
-    cloudUnsubscribe?.();
-    cloudUnsubscribe = window.LubaydCloud.subscribe((records, metadata) => {
-      state.save(records);
-      renderAll();
-      if ($('#historial')?.classList.contains('active')) renderHistory();
-      if ($('#ubicaciones')?.classList.contains('active')) renderLocations();
-      if (typeof window.renderCharts === 'function' && $('#graficos')?.classList.contains('active')) window.renderCharts();
-
-      const detail = metadata.fromCache ? 'Mostrando caché local' : `Actualizado ${formatTime(new Date())}`;
-      setCloudStatus(metadata.hasPendingWrites ? 'Sincronizando…' : (metadata.fromCache ? 'Datos locales' : 'Sincronizado'), !metadata.hasPendingWrites, detail);
-    }, error => {
-      console.error('Escucha Firestore:', error);
-      setCloudStatus('Error de sincronización', false, 'Los datos locales siguen disponibles');
-    });
-  } catch (error) {
-    console.error('Inicio Firestore:', error);
-    setCloudStatus('Pendiente', false, 'No se pudo iniciar la nube');
+  bindAuth();
+  bindNavigation();
+  bindApplicationEvents();
+  setConnectionStatus();
+  registerServiceWorker();
+  window.addEventListener('lubayd-auth-state', event => handleAuthState(event.detail.user, event.detail.profile, event.detail.error));
+  if (window.LubaydLastAuthState) {
+    const detail = window.LubaydLastAuthState;
+    queueMicrotask(() => handleAuthState(detail.user, detail.profile, detail.error));
   }
-}
-
-window.addEventListener('lubayd-firebase-ready', () => { if (currentUser()) startCloudSync(); });
-window.addEventListener('lubayd-firebase-error', () => setCloudStatus('Solo local', false, 'Firebase no está disponible'));
-
-function todayKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
-function parseRecordDate(value) {
-  if (!value) return null;
-  const date = new Date(`${value}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function formatDate(value) {
-  const date = parseRecordDate(value);
-  return date ? date.toLocaleDateString('es-UY') : '—';
-}
-
-function formatDateTime(value) {
-  if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('es-UY', { dateStyle: 'short', timeStyle: 'short' });
-}
-
-function formatTime(date) {
-  return date.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatNumber(value, digits = 0) {
-  return Number(value || 0).toLocaleString('es-UY', { maximumFractionDigits: digits, minimumFractionDigits: digits > 0 ? 0 : 0 });
-}
-
-function escapeHtml(value = '') {
-  return String(value).replace(/[&<>'"]/g, character => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-  }[character]));
-}
-
-syncNetworkStatus();
-const initialView = new URLSearchParams(window.location.search).get('view');
-let initialViewApplied = false;
-window.addEventListener('lubayd-auth-changed', event => {
-  if (!initialViewApplied && event.detail?.user && initialView && viewMeta[initialView]) {
-    initialViewApplied = true;
-    window.setTimeout(() => showView(initialView), 0);
-  }
-});
-if (window.LubaydCurrentUser) handleAuthChange(window.LubaydCurrentUser);
+  window.LubaydApp = { version: VERSION, showView, renderDashboard, forceUpdate };
+})();
