@@ -1,0 +1,8 @@
+LUBAYD SA V20.9.2 - INSTALACION
+
+1. Subir todos los archivos del ZIP completo a GitHub.
+2. Desplegar functions:syncFuelRecord desde Cloud Shell.
+3. No borrar la PWA ni sus datos si existen registros pendientes.
+4. Actualizar la aplicacion desde Mas > Configuracion > Actualizar aplicacion.
+5. Confirmar que la aplicacion indique V20.9.2.
+6. Iniciar sesion con un operador activo y pulsar Sincronizar en Combustible.

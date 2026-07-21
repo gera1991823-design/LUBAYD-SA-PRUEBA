@@ -1,0 +1,11 @@
+VALIDACION TECNICA V20.9.2
+
+[OK] Sintaxis JavaScript del cliente.
+[OK] Sintaxis de Cloud Functions.
+[OK] getFuelState exige token Firebase y usuario activo.
+[OK] Administración filtra registros locales no confirmados.
+[OK] La cola solo se elimina después de verificar el ID en el servidor.
+[OK] Reconstrucción de cola para registros locales falsamente marcados como sincronizados.
+[OK] Cache y referencias actualizadas a V20.9.2.
+
+Pendiente de validación real: despliegue en Firebase y prueba con el teléfono que conserva los registros.
