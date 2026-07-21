@@ -1,0 +1,18 @@
+VALIDACION TECNICA V20.9.1
+
+[OK] Sintaxis JavaScript validada con node --check.
+[OK] Versiones y cache actualizados a V20.9.1.
+[OK] La cola de combustible procesa registros de todos los usuarios guardados en el mismo dispositivo.
+[OK] Orden de sincronizacion: fuel_load, fuel_refill, fuel_check/fuel_usage.
+[OK] La Function permite que un operador activo sincronice el control compartido sin alterar el autor original.
+[OK] Se conserva createdByUid y se agrega syncedByUid.
+[OK] Se envia la carga inicial local como respaldo para recuperar dependencias faltantes.
+[OK] La Function reconstruye una carga inicial validada cuando el movimiento llega antes que el documento padre.
+[OK] Las operaciones continúan siendo idempotentes mediante recordId.
+[OK] El service worker usa un cache nuevo para evitar archivos V20.9.0.
+
+PRUEBA REAL REQUERIDA
+- Desplegar syncFuelRecord.
+- Actualizar la PWA sin borrar IndexedDB.
+- Pulsar Sincronizar desde el celular que conserva la cola.
+- Confirmar los documentos en la PC o en una ventana de incognito.
