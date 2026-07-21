@@ -1,0 +1,22 @@
+LUBAYD SA V20.6.1 - VALIDACION TECNICA
+======================================
+
+[OK] Sintaxis app.js
+[OK] Sintaxis attendance.js
+[OK] Sintaxis offline-store.js
+[OK] Sintaxis firebase-init.js
+[OK] Sintaxis chat.js
+[OK] Sintaxis push-notifications.js
+[OK] Sintaxis service-worker.js
+[OK] JSON manifest.json
+[OK] JSON firebase.json
+[OK] Visor de fotografía con timeout
+[OK] Validación de data:image
+[OK] Evento onload/onerror de la imagen
+[OK] Limpieza de fotografía anterior
+[OK] Firebase server con respaldo de caché
+[OK] Caché PWA V20.6.1
+
+Resultado: 15/15 controles locales correctos.
+
+La lectura real de fotografías depende de que firestore.rules esté publicada y de que el documento exista en asistencia_fotos.
