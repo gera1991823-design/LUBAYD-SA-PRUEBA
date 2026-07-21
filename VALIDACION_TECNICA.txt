@@ -1,0 +1,11 @@
+LUBAYD SA V20.8.4 - VALIDACION TECNICA
+
+[OK] Función authorizeOfflineDevice incluida
+[OK] Autorización mediante Firebase ID token
+[OK] Un usuario puede estar autorizado en varios deviceId
+[OK] La autorización de un celular no elimina otros dispositivos
+[OK] Preparación administrativa autoriza celulares nuevos automáticamente
+[OK] Inicio de sesión online autoriza el dispositivo del operador
+[OK] Cola local de partes conservada
+[OK] Cola local de asistencia conservada
+[OK] Cache PWA actualizado a V20.8.4
