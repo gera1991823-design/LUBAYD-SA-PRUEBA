@@ -1,5 +1,0 @@
-LUBAYD SA V20.8.4 - SINCRONIZACION MULTIDISPOSITIVO
-
-Subir todo el contenido del ZIP a GitHub.
-Desplegar authorizeOfflineDevice, syncOfflineAttendance y syncOfflinePart.
-No borrar la PWA de celulares con registros pendientes.
