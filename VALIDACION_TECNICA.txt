@@ -1,0 +1,43 @@
+LUBAYD SA V20.6 - VALIDACION TECNICA
+==========================================
+
+[OK] Sintaxis app.js
+[OK] Sintaxis attendance.js
+[OK] Sintaxis charts.js
+[OK] Sintaxis chat.js
+[OK] Sintaxis firebase-init.js
+[OK] Sintaxis offline-store.js
+[OK] Sintaxis operations.js
+[OK] Sintaxis push-notifications.js
+[OK] Sintaxis service-worker.js
+[OK] Sintaxis functions/index.js
+[OK] JSON manifest.json
+[OK] JSON firebase.json
+[OK] JSON functions/package.json
+[OK] IDs HTML únicos
+[OK] Recursos locales presentes
+[OK] Llaves CSS style.css
+[OK] Llaves CSS operations.css
+[OK] Llaves CSS attendance.css
+[OK] Llaves firestore.rules
+[OK] IndexedDB incluido
+[OK] PIN protegido con PBKDF2
+[OK] Cola de fotografías y GPS
+[OK] Acceso por PIN offline
+[OK] Autorización offline con vencimiento
+[OK] Solo operador registra
+[OK] Sincronización manual y automática
+[OK] Horarios America/Montevideo
+[OK] Carga de marcas históricas registerQueued
+[OK] Conversión administrativa Uruguay
+[OK] Reglas limitan marcación a operador
+[OK] Reglas permiten hasta 7 días offline
+[OK] Caché PWA V20.6
+[OK] offline-store en app shell
+[OK] Messaging tolera falta de red
+[OK] Logos incluidos
+[OK] Iconos PWA incluidos
+
+Resultado: 36/36 controles correctos.
+
+Nota: la validación comprueba sintaxis, estructura y coherencia local. La prueba real de Firebase, cámara, GPS, permisos del iPhone/Android y sincronización debe realizarse después de publicar.
