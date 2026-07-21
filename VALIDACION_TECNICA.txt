@@ -1,0 +1,18 @@
+VALIDACIÓN TÉCNICA V20.8.7
+Resultado: 15/15 controles aprobados
+
+[OK] Versión visible 20.8.7
+[OK] Caché PWA 20.8.7
+[OK] Sesión online no depende de navigator.onLine
+[OK] Sincronización de partes no depende de navigator.onLine
+[OK] Transporte de partes intenta red real
+[OK] Reintento al recuperar foco
+[OK] Reintento al volver visible
+[OK] Reintento cada 15 segundos
+[OK] Navegación persistente localStorage
+[OK] IndexedDB recuperable
+[OK] Confirmación servidor antes de sincronizado
+[OK] Actualización activa PWA
+[OK] Timeout de navegación PWA
+[OK] Ajuste móvil Android
+[OK] Asistencia reintenta en foco
