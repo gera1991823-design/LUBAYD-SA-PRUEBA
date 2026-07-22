@@ -1,0 +1,48 @@
+LUBAYD SA V21.3.0 - VALIDACIÓN TÉCNICA
+====================================================
+
+[OK] JSON válido: manifest.webmanifest
+[OK] JSON válido: firebase.json
+[OK] JSON válido: .firebaserc
+[OK] JSON válido: functions/package.json
+[OK] Sintaxis JavaScript: admin.js
+[OK] Sintaxis JavaScript: app.js
+[OK] Sintaxis JavaScript: attendance.js
+[OK] Sintaxis JavaScript: auth.js
+[OK] Sintaxis JavaScript: breaks.js
+[OK] Sintaxis JavaScript: chat.js
+[OK] Sintaxis JavaScript: config.js
+[OK] Sintaxis JavaScript: core.js
+[OK] Sintaxis JavaScript: data.js
+[OK] Sintaxis JavaScript: firebase-init.js
+[OK] Sintaxis JavaScript: fuel.js
+[OK] Sintaxis JavaScript: functions/index.js
+[OK] Sintaxis JavaScript: offline-db.js
+[OK] Sintaxis JavaScript: parts.js
+[OK] Sintaxis JavaScript: push-notifications.js
+[OK] Sintaxis JavaScript: service-worker.js
+[OK] IDs HTML únicos
+[OK] Selectores JavaScript presentes en HTML
+[OK] Recursos locales del HTML presentes
+[OK] Archivos locales del cache PWA presentes
+[OK] Texto bloqueante eliminado del runtime
+[OK] Clase auth-pending eliminada
+[OK] Versión central 21.3.0
+[OK] Service worker elimina caches Lubayd anteriores
+[OK] Service worker no reemplaza index al abrir reset.html
+[OK] Service worker incluye app shell offline
+[OK] Cloud Function incluida: authorizeOfflineDevice
+[OK] Cloud Function incluida: syncOfflineRecord
+[OK] Cloud Function incluida: getFuelFlowState
+[OK] Cloud Function incluida: notifyNewChatMessage
+[OK] Reglas Firestore incluidas
+[OK] Base IndexedDB y cola incluidas
+[OK] Login online y offline incluidos
+[OK] Página de limpieza de caché incluida
+[OK] Archivos de despliegue incluidos
+
+Resultado: 39/39 controles correctos.
+
+La validación comprueba estructura, sintaxis y coherencia local. La prueba real de Firebase,
+permisos de cámara/GPS, instalación PWA y sincronización debe hacerse después de publicar
+GitHub Pages, las Cloud Functions y las reglas de Firestore.

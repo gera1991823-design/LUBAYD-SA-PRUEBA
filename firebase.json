@@ -1,0 +1,13 @@
+{
+  "firestore": {"rules": "firestore.rules"},
+  "functions": [{"source": "functions", "codebase": "default", "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log"]}],
+  "hosting": {
+    "public": ".",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "functions/**"],
+    "headers": [
+      {"source": "/service-worker.js", "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]},
+      {"source": "**/*.@(js|css|html|webmanifest)", "headers": [{"key": "Cache-Control", "value": "no-cache"}]}
+    ],
+    "rewrites": [{"source": "**", "destination": "/index.html"}]
+  }
+}
