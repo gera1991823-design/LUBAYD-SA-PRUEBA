@@ -1,0 +1,177 @@
+/* Lubayd SA V21.2.0 — rediseño visual verde unificado.
+   Solo presentación: no cambia IDs, datos, Firebase ni sincronización. */
+:root{
+  --primary:#0b7a45;
+  --primary-2:#119454;
+  --primary-3:#e8f7ef;
+  --primary-dark:#075b35;
+  --sidebar:#063728;
+  --sidebar-2:#0a4936;
+  --text:#102236;
+  --muted:#6b7b8d;
+  --line:#dce7e1;
+  --surface:#ffffff;
+  --surface-soft:#f3f8f5;
+  --page:#eef4f1;
+  --success:#0b8b50;
+  --warning:#d88a12;
+  --danger:#d94b4b;
+  --radius-sm:12px;
+  --radius-md:18px;
+  --radius-lg:24px;
+  --shadow-sm:0 5px 18px rgba(7,65,40,.07);
+  --shadow-md:0 14px 38px rgba(7,65,40,.11);
+}
+html,body{background:linear-gradient(145deg,#eef5f1 0%,#f8faf9 42%,#edf5f1 100%)}
+body{color:var(--text)}
+
+/* Navegación principal */
+.sidebar{
+  background:
+    radial-gradient(circle at 100% 0,rgba(48,190,110,.22),transparent 34%),
+    linear-gradient(180deg,#053b2b 0%,#063225 56%,#041f18 100%);
+  border-right:1px solid rgba(255,255,255,.07);
+  box-shadow:12px 0 38px rgba(0,36,24,.12)
+}
+.sidebar::after{background:radial-gradient(circle,rgba(47,190,109,.13),transparent 70%)}
+.brand{padding:14px 10px 21px}
+.brand img{background:#fff;border-radius:13px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.nav-item{min-height:44px;margin:3px 0;border-radius:12px;color:rgba(255,255,255,.78);font-weight:720}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav-item.active{color:#fff;background:linear-gradient(135deg,#129c59,#087443);box-shadow:0 10px 24px rgba(0,0,0,.18)}
+.nav-section-label{color:rgba(255,255,255,.36)}
+.sidebar-sync{border:1px solid rgba(103,224,157,.15);background:rgba(255,255,255,.055)}
+.sidebar-profile{border-top-color:rgba(255,255,255,.10)}
+
+/* Barra superior y contenido */
+.topbar{background:rgba(255,255,255,.91);border-bottom:1px solid rgba(14,74,48,.09);box-shadow:0 5px 22px rgba(7,65,40,.05);backdrop-filter:blur(16px)}
+.main{background:transparent}
+.view>.section-heading-row,.view>.section-heading,.wizard-heading{margin-bottom:18px}
+.section-heading-row h2,.section-heading h2,.wizard-title-row h2{letter-spacing:-.035em;color:#102237}
+.section-heading-row p,.section-heading p,.wizard-title-row p{max-width:760px;color:#728092}
+.section-kicker{color:var(--primary);font-weight:900}
+
+/* Botones */
+.btn,.icon-button,.table-action{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease}
+.btn:hover,.icon-button:hover,.table-action:hover{transform:translateY(-1px)}
+.btn-primary{border:1px solid #087443;background:linear-gradient(135deg,#12a45e,#087443);box-shadow:0 10px 24px rgba(8,116,67,.22)}
+.btn-primary:hover{box-shadow:0 13px 28px rgba(8,116,67,.29)}
+.btn-soft{color:#08623a;border-color:#b9dfca;background:#edf9f2}
+.btn-ghost{border-color:#d7e3dd;background:#fff}
+.btn-dark{color:#fff;background:linear-gradient(135deg,#174c3c,#082e24)}
+
+/* Tarjetas, tablas y formularios */
+.ops-card,.panel,.wizard-shell,.attendance-profile-card,.attendance-mark-card,.attendance-team-card,
+.fuel-flow-balance-card,.fuel-flow-machines-card,.fuel-flow-actions-card,.fuel-flow-day-card,.fuel-flow-panel,
+.analytics-card,.history-card,.admin-table-card,.form-section,.signature-card{
+  border:1px solid rgba(15,94,57,.10)!important;
+  border-radius:var(--radius-md)!important;
+  background:rgba(255,255,255,.96)!important;
+  box-shadow:var(--shadow-sm)!important
+}
+.ops-card:hover,.analytics-card:hover,.history-card:hover{box-shadow:var(--shadow-md)!important}
+.table-wrap{border-radius:14px;overflow:auto}
+table thead th{color:#526273;background:#f1f7f4;border-bottom:1px solid #dce8e2}
+table tbody tr:hover{background:#f3faf6}
+table td{border-bottom-color:#e9efec}
+.field input,.field select,.input-shell,.textarea-shell,.filter-field input,.filter-field select,
+.attendance-admin-filters input,.date-chip,.fuel-flow-date,.fuel-flow-form-grid input,.fuel-flow-form-grid select,.fuel-flow-form-grid textarea{
+  border-color:#d7e4dd!important;background:#fbfdfc!important;border-radius:12px!important
+}
+.field input:focus,.field select:focus,.input-shell:focus-within,.textarea-shell:focus-within,
+.attendance-admin-filters input:focus,.fuel-flow-form-grid input:focus,.fuel-flow-form-grid select:focus,.fuel-flow-form-grid textarea:focus{
+  border-color:#55b981!important;box-shadow:0 0 0 4px rgba(11,122,69,.10)!important
+}
+
+/* Inicio */
+#dashboard .admin-welcome-card,#dashboard .operator-hero{background:linear-gradient(135deg,#075f38 0%,#0b7a45 55%,#16a15d 100%)!important;color:#fff!important;border:0!important;box-shadow:0 18px 44px rgba(7,95,56,.23)!important}
+#dashboard .admin-welcome-card p,#dashboard .operator-hero p{color:rgba(255,255,255,.75)!important}
+#dashboard .ops-stat-card,#dashboard .quick-card{border-top:3px solid rgba(11,122,69,.72)!important}
+#dashboard .ops-stat-card strong{color:#075f38}
+#dashboard .quick-icon{background:#eaf8f0;color:#0b7a45}
+
+/* Descansos — operador */
+.attendance-break-view .attendance-heading{margin-bottom:12px}
+.attendance-break-operator{max-width:760px;margin-inline:auto}
+.attendance-break-profile{padding:26px!important;background:linear-gradient(145deg,#fff,#f1faf5)!important}
+.attendance-profile-top{align-items:center}
+.attendance-avatar{background:linear-gradient(145deg,#13a25d,#07703f)!important;box-shadow:0 10px 24px rgba(7,112,63,.22)}
+.attendance-status{border:1px solid #dce6e1}
+.attendance-duration{border-color:#d5e6dc!important;background:#fff!important}
+.attendance-duration strong{color:#102237;letter-spacing:-.04em}
+.attendance-action-bar{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.attendance-action-copy{display:none!important}
+.attendance-action-bar>div:last-child{width:100%;display:grid!important;grid-template-columns:1fr 1fr;gap:12px}
+.attendance-action-bar .btn{min-height:68px;border-radius:18px;font-size:16px;font-weight:850}
+.attendance-simple-detail{overflow:hidden}
+.attendance-manager-notice{border-left:4px solid var(--primary)!important}
+.attendance-summary-grid article{border-top:3px solid #0b7a45!important}
+.attendance-summary-grid article i{color:#0b7a45;background:#eaf8f0}
+
+/* Nuevo parte */
+.wizard-shell{overflow:hidden}
+.wizard-stepper{background:#f3f8f5;border-bottom:1px solid #deebe4}
+.wizard-step.active button>span{background:#0b7a45!important;border-color:#0b7a45!important}
+.form-section-number{color:#087443!important;border-color:#bde2cd!important;background:#eaf8f0!important}
+.check-card{border-radius:15px!important;background:#fbfdfc!important}
+.check-card:has(input:checked){border-color:#6dc092!important;background:#effaf4!important}
+.wizard-actions{background:rgba(255,255,255,.96);backdrop-filter:blur(12px)}
+
+/* Combustible */
+.fuel-flow-heading{padding-bottom:2px}
+.fuel-flow-overview{gap:14px!important}
+.fuel-flow-balance-card{position:relative;overflow:hidden}
+.fuel-flow-balance-card::before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:#0b7a45}
+.fuel-flow-balance-card.trailer::before{background:#6b9f38}
+.fuel-flow-machines-card::before{content:"";display:block;height:4px;margin:-1px -1px 12px;border-radius:18px 18px 0 0;background:linear-gradient(90deg,#0b7a45,#61b77e)}
+.fuel-flow-balance-card>strong,.fuel-flow-status-list strong{color:#075f38}
+.fuel-flow-quick-actions button{border-radius:14px!important}
+.fuel-flow-quick-actions button:hover{border-color:#6bc091!important;background:#effaf4!important}
+.fuel-flow-day-kpis>div{border-radius:13px;background:#f3f8f5}
+.fuel-flow-movement{border-radius:13px!important}
+.fuel-flow-donut{box-shadow:inset 0 0 0 1px rgba(11,122,69,.08)}
+
+/* Historial, administración y estados */
+.status-pill.success,.badge-success,.attendance-status.completado,.fuel-flow-sync-badge.synced{color:#087443!important;background:#e8f7ef!important}
+.status-pill.warning,.badge-warning,.fuel-flow-sync-badge.pending,.fuel-flow-sync-badge.syncing{color:#9b6508!important;background:#fff4dc!important}
+.status-pill.danger,.badge-danger,.fuel-flow-sync-badge.error{color:#b43d3d!important;background:#ffeded!important}
+.empty-state,.empty-table,.fuel-flow-empty{color:#718277;background:#f7faf8;border-color:#dce7e1}
+
+/* Modales */
+.modal-panel,.detail-panel,.fuel-flow-modal-panel{border:1px solid rgba(11,122,69,.12)!important;border-radius:24px!important;box-shadow:0 30px 90px rgba(1,41,26,.28)!important}
+.modal-backdrop,.fuel-flow-modal-backdrop{background:rgba(2,37,25,.66)!important}
+
+/* Navegación inferior móvil */
+.mobile-nav{background:linear-gradient(180deg,#123d31,#092c23)!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:0 14px 38px rgba(0,39,26,.30)!important}
+.mobile-nav button{color:rgba(255,255,255,.58)!important}
+.mobile-nav button.active{color:#fff!important;background:linear-gradient(145deg,#12a25d,#087443)!important;box-shadow:0 8px 22px rgba(3,83,46,.35)!important}
+.mobile-more-panel{background:#f7faf8!important}
+.mobile-more-grid button{border-color:#dce7e1!important;background:#fff!important}
+.mobile-more-grid button svg{color:#0b7a45}
+.mobile-logout-button{color:#b63737!important;background:#fff0f0!important;border-color:#f3caca!important}
+
+/* Accesibilidad y densidad */
+:focus-visible{outline:3px solid rgba(20,160,91,.32)!important;outline-offset:2px}
+@media (max-width:840px){
+  .main{padding-inline:14px!important;background:linear-gradient(180deg,#edf6f1 0,#f8faf9 250px)!important}
+  .section-heading-row h2,.section-heading h2,.wizard-title-row h2{font-size:30px!important}
+  .ops-card,.panel,.wizard-shell,.attendance-profile-card,.attendance-mark-card,.fuel-flow-balance-card,.fuel-flow-machines-card,.fuel-flow-actions-card,.fuel-flow-day-card,.fuel-flow-panel{border-radius:20px!important}
+  .attendance-break-operator{max-width:none}
+  .attendance-break-profile{padding:20px!important}
+  .attendance-action-bar>div:last-child{grid-template-columns:1fr}
+  .attendance-action-bar .btn{min-height:64px;font-size:17px}
+  .attendance-profile-top{grid-template-columns:auto 1fr!important}
+  .attendance-profile-top .attendance-status{grid-column:1/-1;justify-self:start}
+  .attendance-duration strong{font-size:38px!important}
+  .fuel-flow-heading-actions{gap:8px}
+  .fuel-flow-heading-actions .btn{min-height:46px}
+  .wizard-actions{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:520px){
+  .main{padding-inline:10px!important}
+  .section-heading-row h2,.section-heading h2,.wizard-title-row h2{font-size:28px!important}
+  .attendance-break-profile{padding:18px!important}
+  .attendance-duration{padding:18px!important}
+  .attendance-duration strong{font-size:34px!important}
+  .mobile-nav{left:10px!important;right:10px!important;bottom:calc(8px + env(safe-area-inset-bottom,0px))!important}
+}
