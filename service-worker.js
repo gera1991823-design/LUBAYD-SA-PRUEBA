@@ -1,11 +1,11 @@
-/* Lubayd SA V21.1.1 - diseño V20.1 + asistencia offline + push */
-const CACHE_NAME = 'lubayd-forestal-v21.1.1-break-mobile';
+/* Lubayd SA V21.1.2 - diseño V20.1 + asistencia offline + push */
+const CACHE_NAME = 'lubayd-forestal-v21.1.2-break-mobile-clean';
 const LOCAL_ASSETS = [
   './',
   './index.html',
   './style.css?v=21.0.0',
   './operations.css?v=21.0.0',
-  './attendance.css?v=21.0.0',
+  './attendance.css?v=21.1.2',
   './fuel.css?v=21.0.0',
   './firebase-init.js?v=21.0.0',
   './offline-store.js?v=21.0.0',

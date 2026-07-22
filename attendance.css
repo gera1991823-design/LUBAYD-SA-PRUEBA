@@ -73,3 +73,11 @@ body[data-theme="dark"] .attendance-profile-card,body[data-theme="dark"] .attend
   .attendance-camera-stage{aspect-ratio:3/4;max-height:58dvh}
   .attendance-camera-actions{position:sticky;bottom:0;padding-top:12px;background:#fff}
 }
+
+/* V21.1.2: encabezado móvil simplificado */
+@media (max-width:760px){
+  .attendance-break-view .attendance-heading{margin-bottom:14px}
+  .attendance-break-view .attendance-heading>div:first-child{width:100%}
+  .attendance-break-view .attendance-heading .section-kicker{display:none}
+  .attendance-break-view .attendance-heading h2{margin:0;font-size:clamp(36px,11vw,52px);line-height:1.02;letter-spacing:-.045em}
+}

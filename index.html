@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="Gestión Forestal">
   <link rel="stylesheet" href="./style.css?v=21.1.0">
   <link rel="stylesheet" href="./operations.css?v=21.1.0">
-  <link rel="stylesheet" href="./attendance.css?v=21.1.1">
+  <link rel="stylesheet" href="./attendance.css?v=21.1.2">
   <link rel="stylesheet" href="./fuel.css?v=21.1.0">
 
   <script>
@@ -165,7 +165,7 @@
         <div><strong id="sidebarUserName">Operador</strong><small id="sidebarUserEmail">Sesión segura</small></div>
         <svg><use href="#i-chevron-left"></use></svg>
       </button>
-      <div class="sidebar-version">V21.1.0 · Descansos + combustible</div>
+      <div class="sidebar-version">V21.1.2 · Descansos simplificados</div>
     </aside>
 
     <main class="main">
@@ -247,8 +247,7 @@
 
       <section id="asistencia" class="view attendance-view attendance-break-view">
         <div class="section-heading-row attendance-heading">
-          <div><span class="section-kicker"><svg><use href="#i-clock"></use></svg> CONTROL DE DESCANSOS</span><h2>Descansos</h2><p>Inicio y fin de descanso con fotografía, ubicación y hora de Uruguay. Sin conexión, el registro queda guardado en el teléfono.</p></div>
-          <div id="attendanceOnlineNotice" class="attendance-online-notice"><i></i><span><strong>Comprobando conexión</strong><small>Los descansos pueden guardarse en este teléfono y sincronizarse después.</small></span></div>
+          <div><span class="section-kicker"><svg><use href="#i-clock"></use></svg> CONTROL DE DESCANSOS</span><h2>Descansos</h2></div>
         </div>
 
         <div id="attendancePersonalArea" class="attendance-personal-grid attendance-break-operator attendance-simple-mobile">
@@ -658,7 +657,7 @@
 
       <section id="configuracion" class="view admin-view">
         <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-settings"></use></svg> PREFERENCIAS</span><h2>Configuración de la aplicación</h2><p>Ajusta apariencia, accesibilidad y comportamiento del sistema.</p></div></div>
-        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2 notification-settings-card"><div class="ops-card-head"><div><span>NOTIFICACIONES</span><h3>Avisos en celular y computadora</h3></div><span class="notification-settings-state" id="notificationSettingsState">Pendiente</span></div><div class="notification-settings-body"><div class="notification-settings-visual"><svg><use href="#i-bell"></use></svg><span></span></div><div><strong>Mensajes nuevos con nombre y vista previa</strong><p>Activa sonido, vibración y aviso del sistema. La prueba confirma que el teléfono puede mostrarlos.</p></div><div class="notification-settings-actions"><button type="button" class="btn btn-primary" data-enable-notifications><svg><use href="#i-bell"></use></svg><span data-notification-label>Activar notificaciones</span></button><button type="button" class="btn btn-soft hidden" data-test-notification><svg><use href="#i-check"></use></svg> Enviar prueba</button></div></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 21.1.0 · Descansos y control de combustible</span><small>Usuarios, asistencia con foto, firma digital, chat con notificaciones, sonido, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
+        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2 notification-settings-card"><div class="ops-card-head"><div><span>NOTIFICACIONES</span><h3>Avisos en celular y computadora</h3></div><span class="notification-settings-state" id="notificationSettingsState">Pendiente</span></div><div class="notification-settings-body"><div class="notification-settings-visual"><svg><use href="#i-bell"></use></svg><span></span></div><div><strong>Mensajes nuevos con nombre y vista previa</strong><p>Activa sonido, vibración y aviso del sistema. La prueba confirma que el teléfono puede mostrarlos.</p></div><div class="notification-settings-actions"><button type="button" class="btn btn-primary" data-enable-notifications><svg><use href="#i-bell"></use></svg><span data-notification-label>Activar notificaciones</span></button><button type="button" class="btn btn-soft hidden" data-test-notification><svg><use href="#i-check"></use></svg> Enviar prueba</button></div></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 21.1.2 · Descansos simplificados</span><small>Usuarios, asistencia con foto, firma digital, chat con notificaciones, sonido, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
       </section>
 
     </main>
@@ -748,7 +747,7 @@
   <script src="./app.js?v=21.1.0"></script>
   <script src="./charts.js?v=21.1.0"></script>
   <script src="./chat.js?v=21.1.0"></script>
-  <script src="./attendance.js?v=21.1.1"></script>
+  <script src="./attendance.js?v=21.1.2"></script>
   <script src="./fuel.js?v=21.1.0"></script>
   <script src="./operations.js?v=21.1.0"></script>
 </body>
