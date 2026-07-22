@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="Gestión Forestal">
   <link rel="stylesheet" href="./style.css?v=21.1.0">
   <link rel="stylesheet" href="./operations.css?v=21.1.0">
-  <link rel="stylesheet" href="./attendance.css?v=21.1.0">
+  <link rel="stylesheet" href="./attendance.css?v=21.1.1">
   <link rel="stylesheet" href="./fuel.css?v=21.1.0">
 
   <script>
@@ -251,18 +251,19 @@
           <div id="attendanceOnlineNotice" class="attendance-online-notice"><i></i><span><strong>Comprobando conexión</strong><small>Los descansos pueden guardarse en este teléfono y sincronizarse después.</small></span></div>
         </div>
 
-        <div id="attendancePersonalArea" class="attendance-personal-grid attendance-break-operator">
-          <article class="attendance-profile-card attendance-break-profile">
+        <div id="attendancePersonalArea" class="attendance-personal-grid attendance-break-operator attendance-simple-mobile">
+          <article class="attendance-profile-card attendance-break-profile attendance-simple-status">
             <div class="attendance-profile-top"><div id="attendanceUserAvatar" class="attendance-avatar">OP</div><div><span>DESCANSO DE HOY</span><h3 id="attendanceUserName">Operador</h3><p id="attendanceTodayDate">—</p></div><div id="attendanceStatusPill" class="attendance-status pendiente"><i></i>Sin registrar</div></div>
-            <div class="attendance-duration"><span>Duración del descanso</span><strong id="attendanceLiveDuration">0 h 00 min</strong><small>Se calcula entre el inicio y el fin.</small></div>
+            <div class="attendance-duration"><span>Duración actual</span><strong id="attendanceLiveDuration">0 h 00 min</strong><small>Se calcula automáticamente entre el inicio y el fin.</small></div>
           </article>
-          <article id="attendance-entry-card" class="attendance-mark-card attendance-break-card"></article>
-          <article id="attendance-exit-card" class="attendance-mark-card attendance-break-card"></article>
-        </div>
 
-        <div id="attendanceActionBar" class="attendance-action-bar attendance-break-actions">
-          <div><strong>Foto y ubicación obligatorias</strong><span>Al tocar un botón se abrirá la cámara y se capturará el GPS automáticamente.</span></div>
-          <div><button id="attendanceEntryBtn" type="button" class="btn btn-primary btn-lg"><svg><use href="#i-camera"></use></svg> Iniciar descanso</button><button id="attendanceExitBtn" type="button" class="btn btn-dark btn-lg" disabled><svg><use href="#i-camera"></use></svg> Finalizar descanso</button></div>
+          <div id="attendanceActionBar" class="attendance-action-bar attendance-break-actions attendance-simple-actions">
+            <div class="attendance-action-copy"><strong>Registrar descanso</strong><span>La cámara y la ubicación se capturan automáticamente.</span></div>
+            <div><button id="attendanceEntryBtn" type="button" class="btn btn-primary btn-lg"><svg><use href="#i-camera"></use></svg> Iniciar descanso</button><button id="attendanceExitBtn" type="button" class="btn btn-dark btn-lg" disabled><svg><use href="#i-camera"></use></svg> Finalizar descanso</button></div>
+          </div>
+
+          <article id="attendance-entry-card" class="attendance-mark-card attendance-break-card attendance-simple-detail"></article>
+          <article id="attendance-exit-card" class="attendance-mark-card attendance-break-card attendance-simple-detail"></article>
         </div>
 
         <article id="attendancePersonalHistoryCard" class="ops-card attendance-history-card">
@@ -747,7 +748,7 @@
   <script src="./app.js?v=21.1.0"></script>
   <script src="./charts.js?v=21.1.0"></script>
   <script src="./chat.js?v=21.1.0"></script>
-  <script src="./attendance.js?v=21.1.0"></script>
+  <script src="./attendance.js?v=21.1.1"></script>
   <script src="./fuel.js?v=21.1.0"></script>
   <script src="./operations.js?v=21.1.0"></script>
 </body>

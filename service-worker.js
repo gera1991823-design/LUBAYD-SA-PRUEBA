@@ -1,5 +1,5 @@
-/* Lubayd SA V21.1.0 - diseño V20.1 + asistencia offline + push */
-const CACHE_NAME = 'lubayd-forestal-v21.1.0-fuel-flow';
+/* Lubayd SA V21.1.1 - diseño V20.1 + asistencia offline + push */
+const CACHE_NAME = 'lubayd-forestal-v21.1.1-break-mobile';
 const LOCAL_ASSETS = [
   './',
   './index.html',

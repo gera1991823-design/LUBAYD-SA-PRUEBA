@@ -25,3 +25,51 @@ body[data-theme="dark"] .attendance-profile-card,body[data-theme="dark"] .attend
 .attendance-break-view{--break-green:#0b8b4b;--break-soft:#edf9f2}.attendance-break-operator{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}.attendance-break-profile{grid-column:1/-1;background:linear-gradient(135deg,#fff,#f2fbf6)}.attendance-break-card{min-height:190px;border:1px solid #dcebe3;background:#fff}.attendance-break-card .attendance-mark-content>span{color:var(--break-green)}.attendance-break-actions{margin-top:18px;border:1px solid #dcebe3;border-radius:20px;background:#fff;box-shadow:0 10px 30px rgba(12,56,38,.07)}.attendance-break-actions>div:last-child{min-width:420px}.attendance-break-admin .attendance-admin-heading{margin-top:8px}.attendance-admin-filters{display:flex;justify-content:flex-end;margin:0 0 14px}.attendance-admin-filters label{width:min(360px,100%)}.attendance-admin-filters label span{display:block;margin-bottom:6px;color:#53665c;font-size:9px;font-weight:800}.attendance-admin-filters input{width:100%;height:44px;padding:0 14px;border:1px solid #d8e5de;border-radius:12px;background:#fff;font:inherit;outline:none}.attendance-admin-filters input:focus{border-color:#27a967;box-shadow:0 0 0 4px rgba(39,169,103,.1)}.attendance-break-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.attendance-break-summary article:nth-child(1){background:linear-gradient(145deg,#f3fbf6,#fff)}.attendance-break-summary article:nth-child(2){background:linear-gradient(145deg,#fff8e7,#fff)}.attendance-break-summary article:nth-child(3){background:linear-gradient(145deg,#eef4fa,#fff)}.attendance-break-admin .attendance-team-card{border-radius:20px}.attendance-break-admin .attendance-table th{white-space:nowrap}.attendance-break-admin .attendance-table td{vertical-align:middle}.attendance-break-admin .attendance-person-cell>span{background:linear-gradient(145deg,#159557,#087342)}
 @media(max-width:900px){.attendance-break-operator{grid-template-columns:1fr}.attendance-break-profile{grid-column:auto}.attendance-break-actions{display:block}.attendance-break-actions>div:last-child{min-width:0;margin-top:14px}.attendance-break-summary{grid-template-columns:1fr 1fr 1fr}}
 @media(max-width:640px){.attendance-heading{align-items:flex-start}.attendance-heading>div:first-child p{font-size:12px}.attendance-break-profile{padding:18px}.attendance-break-card{min-height:160px}.attendance-break-actions{padding:16px}.attendance-break-actions>div:last-child{display:grid;grid-template-columns:1fr}.attendance-break-actions .btn{width:100%;min-height:58px;font-size:14px}.attendance-break-summary{grid-template-columns:1fr}.attendance-admin-filters{justify-content:stretch}.attendance-admin-filters label{width:100%}.attendance-break-admin .attendance-table{min-width:980px}.attendance-break-view{padding-bottom:110px}}
+
+
+/* V21.1.1 - Vista móvil simple para operadores */
+@media(max-width:640px){
+  .attendance-break-view{padding:8px 12px 118px!important;max-width:100%;overflow-x:hidden}
+  .attendance-break-view .attendance-heading{margin:0 0 14px;display:block}
+  .attendance-break-view .attendance-heading .section-kicker{display:none}
+  .attendance-break-view .attendance-heading h2{margin:0;font-size:34px;line-height:1.05;letter-spacing:-.045em}
+  .attendance-break-view .attendance-heading p{margin:8px 0 0;max-width:320px;font-size:14px;line-height:1.45}
+  .attendance-break-view .attendance-online-notice{width:100%;min-width:0;margin-top:12px;padding:10px 12px;border-radius:14px}
+  .attendance-break-view .attendance-online-notice small{display:none}
+
+  .attendance-simple-mobile{display:flex!important;flex-direction:column;gap:14px;margin:0 0 16px}
+  .attendance-simple-status{order:1;padding:18px;border-radius:22px;background:linear-gradient(145deg,#fff,#f2fbf6)}
+  .attendance-simple-status .attendance-profile-top{grid-template-columns:46px 1fr;gap:12px}
+  .attendance-simple-status .attendance-avatar{width:46px;height:46px;border-radius:50%;font-size:14px}
+  .attendance-simple-status .attendance-profile-top>div:nth-child(2) span{font-size:8px}
+  .attendance-simple-status .attendance-profile-top h3{font-size:18px}
+  .attendance-simple-status .attendance-profile-top p{font-size:10px}
+  .attendance-simple-status .attendance-status{grid-column:1/-1;justify-self:start;margin-top:4px;padding:7px 12px;font-size:10px}
+  .attendance-simple-status .attendance-duration{margin-top:14px;padding:14px;border-radius:16px}
+  .attendance-simple-status .attendance-duration strong{font-size:30px}
+
+  .attendance-simple-actions{order:2;display:block!important;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:inherit}
+  .attendance-simple-actions .attendance-action-copy{display:none}
+  .attendance-simple-actions>div:last-child{display:grid!important;grid-template-columns:1fr;gap:12px;min-width:0!important;margin:0!important}
+  .attendance-simple-actions .btn{width:100%;min-height:68px;justify-content:center;border-radius:18px;font-size:17px;font-weight:850;box-shadow:0 12px 26px rgba(11,139,75,.16)}
+  .attendance-simple-actions .btn svg{width:24px;height:24px}
+  .attendance-simple-actions .btn-dark{color:#087748;border:2px solid #15965a;background:#fff;box-shadow:none}
+  .attendance-simple-actions .btn:disabled{opacity:.42;filter:grayscale(.15)}
+
+  .attendance-simple-detail{order:3;min-height:auto!important;display:grid!important;grid-template-columns:50px 1fr auto;gap:12px;padding:16px;border-radius:18px}
+  .attendance-simple-detail+.attendance-simple-detail{order:4}
+  .attendance-simple-detail .attendance-mark-icon{width:50px;height:50px;border-radius:15px}
+  .attendance-simple-detail .attendance-mark-content>strong{font-size:23px}
+  .attendance-simple-detail .attendance-mark-content>small{font-size:9px;max-width:none}
+  .attendance-simple-detail .attendance-mark-actions{gap:6px}
+  .attendance-simple-detail .attendance-mark-actions button,
+  .attendance-simple-detail .attendance-mark-actions a{width:38px;height:38px}
+
+  #attendancePersonalHistoryCard{display:none!important}
+  #attendanceOfflineCard{margin-top:4px}
+  .attendance-manager-notice{display:none!important}
+
+  .attendance-camera-panel{width:100%;max-height:100dvh;margin:0;padding:16px 14px calc(18px + env(safe-area-inset-bottom));border-radius:0;min-height:100dvh}
+  .attendance-camera-stage{aspect-ratio:3/4;max-height:58dvh}
+  .attendance-camera-actions{position:sticky;bottom:0;padding-top:12px;background:#fff}
+}
