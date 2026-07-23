@@ -1,6 +1,6 @@
-/* Lubayd SA V22.1.1 - configuracion central */
+/* Lubayd SA V22.2.0 - configuracion central */
 window.LUBAYD_CONFIG = Object.freeze({
-  version: '22.1.1',
+  version: '22.2.0',
   projectId: 'lubayd-sa',
   functionsRegion: 'southamerica-east1',
   timeZone: 'America/Montevideo',
@@ -14,7 +14,7 @@ window.LUBAYD_CONFIG = Object.freeze({
     measurementId: 'G-LVP0TWS84N'
   },
   vapidPublicKey: 'BD2QB0qlQKnf4ZGV5pyoeAPwMA4Psj9j-tgpKdtb_A1b6bclmw_kUPFSdffyGpfPTXSF630SHbHgjCmirow-Imc',
-  offlineSessionHours: 12,
+  offlineSessionHours: 24,
   maxPhotoDimension: 1024,
   maxPhotoBytes: 520000,
   maxOriginalPhotoBytes: 31457280,

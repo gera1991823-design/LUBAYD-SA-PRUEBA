@@ -6,10 +6,31 @@
   <meta name="theme-color" content="#005f38">
   <meta name="description" content="Lubayd SA · Gestión operativa, asistencia, combustible y partes diarios con modo offline.">
   <title>Lubayd SA · Gestión Operativa</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=22.1.1">
-  <link rel="icon" href="./assets/icon-192.png?v=22.1.1">
-  <link rel="apple-touch-icon" href="./assets/icon-192.png?v=22.1.1">
-  <link rel="stylesheet" href="./styles.css?v=22.1.1">
+  <link rel="manifest" href="./manifest.webmanifest?v=22.2.0">
+  <link rel="icon" href="./assets/icon-192.png?v=22.2.0">
+  <link rel="apple-touch-icon" href="./assets/icon-192.png?v=22.2.0">
+  <link rel="stylesheet" href="./styles.css?v=22.2.0">
+  <script>
+    (function () {
+      try {
+        const uiKey = 'lubayd_ui_session_v22_2';
+        const viewKey = 'lubayd_last_view_v22_2';
+        const rawSession = localStorage.getItem(uiKey);
+        const session = rawSession ? JSON.parse(rawSession) : null;
+        const validUiSession = Boolean(session?.user?.uid && session?.profile && (!session.expiresAt || new Date(session.expiresAt).getTime() > Date.now()));
+        const offlineRaw = localStorage.getItem('lubayd_offline_session_v22_2') || localStorage.getItem('lubayd_offline_session_v22_1') || sessionStorage.getItem('lubayd_offline_session_v22_1');
+        const hasOfflineSession = Boolean(offlineRaw);
+        const hasFirebaseSession = Object.keys(localStorage).some(key => key.indexOf('firebase:authUser:') === 0 && localStorage.getItem(key));
+        const requestedView = new URLSearchParams(location.search).get('view') || localStorage.getItem(viewKey) || 'dashboard';
+        window.__LUBAYD_BOOT_SESSION = validUiSession ? session : null;
+        window.__LUBAYD_BOOT_VIEW = requestedView;
+        if (validUiSession || hasOfflineSession || hasFirebaseSession) {
+          document.documentElement.classList.add('lubayd-session-hint', 'lubayd-session-restoring');
+          document.documentElement.dataset.bootView = requestedView;
+        }
+      } catch (_) {}
+    })();
+  </script>
 </head>
 <body>
   <svg class="svg-sprite" aria-hidden="true">
@@ -77,7 +98,7 @@
         </form>
         <p id="authMessage" class="form-message" role="alert"></p>
         <div id="offlinePreparedNote" class="offline-note">Para ingresar sin internet, primero iniciá sesión online una vez en este teléfono.</div>
-        <small class="version-line">Lubayd SA · Versión 22.1.1</small>
+        <small class="version-line">Lubayd SA · Versión 22.2.0</small>
       </div>
     </section>
   </div>
@@ -99,7 +120,7 @@
       <div class="sidebar-footer">
         <div class="session-card"><div id="sidebarAvatar" class="avatar">OP</div><div><strong id="sidebarName">Operador</strong><small id="sidebarRole">Operador</small></div></div>
         <button class="btn btn-ghost btn-block" id="logoutButton" type="button">Cerrar sesión</button>
-        <small>Lubayd SA · V22.1.0</small>
+        <small>Lubayd SA · V22.2.0</small>
       </div>
     </aside>
 
@@ -264,7 +285,7 @@
         <div class="section-heading"><div><span>MODO SIN CONEXIÓN</span><h2>Estado del dispositivo</h2><p>La aplicación guarda los registros localmente y los envía cuando vuelve internet.</p></div></div>
         <div class="offline-page-grid">
           <article class="panel offline-main-card"><div class="offline-hero"><div class="offline-icon"><svg><use href="#i-cloud-off"/></svg></div><div><span class="status-chip success">Activo</span><h3>Sin conexión habilitado</h3><p>Podés registrar asistencia, combustible y partes diarios sin señal.</p></div></div><div id="offlineDetails" class="detail-list"></div><button id="refreshOfflineButton" class="btn btn-secondary btn-block" type="button">Actualizar estado</button><button id="syncSettingsButton" class="btn btn-primary btn-block" type="button">Sincronizar ahora</button></article>
-          <article class="panel"><div class="panel-heading"><div><span>PREPARACIÓN</span><h3>Controles offline</h3></div></div><div class="check-list"><div id="checkProfile">○ Perfil local</div><div id="checkCredential">○ Acceso offline</div><div id="checkDevice">○ Dispositivo autorizado</div><div id="checkStorage">○ Almacenamiento local</div></div><hr><p>Versión instalada: <b>22.1.0</b></p><button id="testGpsButton" class="btn btn-secondary btn-block" type="button">Probar ubicación GPS</button><button id="forceUpdateButton" class="btn btn-secondary btn-block" type="button">Buscar actualización</button><button id="enableNotificationsButton" class="btn btn-secondary btn-block online-only" type="button">Activar notificaciones</button><p id="settingsMessage" class="form-message"></p></article>
+          <article class="panel"><div class="panel-heading"><div><span>PREPARACIÓN</span><h3>Controles offline</h3></div></div><div class="check-list"><div id="checkProfile">○ Perfil local</div><div id="checkCredential">○ Acceso offline</div><div id="checkDevice">○ Dispositivo autorizado</div><div id="checkStorage">○ Almacenamiento local</div></div><hr><p>Versión instalada: <b>22.2.0</b></p><button id="testGpsButton" class="btn btn-secondary btn-block" type="button">Probar ubicación GPS</button><button id="forceUpdateButton" class="btn btn-secondary btn-block" type="button">Buscar actualización</button><button id="enableNotificationsButton" class="btn btn-secondary btn-block online-only" type="button">Activar notificaciones</button><p id="settingsMessage" class="form-message"></p></article>
         </div>
       </section>
 
@@ -296,25 +317,50 @@
   </div>
   <div id="adminEditModal" class="modal hidden"><form id="adminEditForm" class="modal-card admin-edit-card"><div class="modal-header"><div><span>ADMINISTRACIÓN</span><h3>Modificar registro</h3></div><button id="adminEditClose" type="button" aria-label="Cerrar">×</button></div><input id="adminEditId" type="hidden"><input id="adminEditType" type="hidden"><div id="adminEditFields" class="form-grid"></div><button class="btn btn-primary btn-block" type="submit">Guardar cambios</button><p id="adminEditMessage" class="form-message"></p></form></div>
 
+  <script>
+    (function () {
+      const view = window.__LUBAYD_BOOT_VIEW;
+      if (!view || !document.documentElement.classList.contains('lubayd-session-hint')) return;
+      const validViews = ['dashboard', 'asistencia', 'combustible', 'partes', 'administracion', 'chat', 'configuracion'];
+      const selected = validViews.includes(view) ? view : 'dashboard';
+      document.querySelectorAll('.view').forEach(element => element.classList.toggle('active', element.id === `view-${selected}`));
+      document.querySelectorAll('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === selected));
+      const labels = {
+        dashboard: ['RESUMEN GENERAL', 'Dashboard'],
+        asistencia: ['CONTROL HORARIO', 'Asistencia'],
+        combustible: ['CONTROL DE SALDOS', 'Combustible'],
+        partes: ['OPERACIÓN', 'Parte diario'],
+        administracion: ['ADMINISTRACIÓN', 'Control del sistema'],
+        chat: ['COMUNICACIÓN', 'Mensajes'],
+        configuracion: ['SINCRONIZACIÓN', 'Modo sin conexión']
+      };
+      const title = labels[selected] || labels.dashboard;
+      const eyebrow = document.getElementById('pageEyebrow');
+      const pageTitle = document.getElementById('pageTitle');
+      if (eyebrow) eyebrow.textContent = title[0];
+      if (pageTitle) pageTitle.textContent = title[1];
+    })();
+  </script>
+
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
-  <script src="./config.js?v=22.1.1"></script>
-  <script src="./core.js?v=22.1.1"></script>
-  <script src="./offline-db.js?v=22.1.1"></script>
-  <script src="./firebase-init.js?v=22.1.1"></script>
-  <script src="./data.js?v=22.1.1"></script>
-  <script src="./auth.js?v=22.1.1"></script>
-  <script src="./evidence.js?v=22.1.1"></script>
-  <script src="./parts.js?v=22.1.1"></script>
-  <script src="./attendance.js?v=22.1.1"></script>
-  <script src="./breaks.js?v=22.1.1"></script>
-  <script src="./fuel.js?v=22.1.1"></script>
-  <script src="./chat.js?v=22.1.1"></script>
-  <script src="./admin.js?v=22.1.1"></script>
-  <script src="./push-notifications.js?v=22.1.1"></script>
-  <script src="./app.js?v=22.1.1"></script>
+  <script src="./config.js?v=22.2.0"></script>
+  <script src="./core.js?v=22.2.0"></script>
+  <script src="./offline-db.js?v=22.2.0"></script>
+  <script src="./firebase-init.js?v=22.2.0"></script>
+  <script src="./data.js?v=22.2.0"></script>
+  <script src="./auth.js?v=22.2.0"></script>
+  <script src="./evidence.js?v=22.2.0"></script>
+  <script src="./parts.js?v=22.2.0"></script>
+  <script src="./attendance.js?v=22.2.0"></script>
+  <script src="./breaks.js?v=22.2.0"></script>
+  <script src="./fuel.js?v=22.2.0"></script>
+  <script src="./chat.js?v=22.2.0"></script>
+  <script src="./admin.js?v=22.2.0"></script>
+  <script src="./push-notifications.js?v=22.2.0"></script>
+  <script src="./app.js?v=22.2.0"></script>
 </body>
 </html>

@@ -1,15 +1,15 @@
-/* Lubayd SA V22.1.1 - PWA offline estable */
-const CACHE_NAME = 'lubayd-sa-v22.1.1-completo';
+/* Lubayd SA V22.2.0 - PWA offline estable */
+const CACHE_NAME = 'lubayd-sa-v22.2.0-completo';
 const SCOPE_URL = self.registration.scope;
 const INDEX_URL = new URL('./index.html', SCOPE_URL).href;
 const ROOT_URL = new URL('./', SCOPE_URL).href;
 const APP_SHELL = [
-  './', './index.html', './reset.html', './styles.css?v=22.1.1', './config.js?v=22.1.1', './core.js?v=22.1.1',
-  './offline-db.js?v=22.1.1', './firebase-init.js?v=22.1.1', './data.js?v=22.1.1', './auth.js?v=22.1.1', './evidence.js?v=22.1.1',
-  './parts.js?v=22.1.1', './attendance.js?v=22.1.1', './breaks.js?v=22.1.1', './fuel.js?v=22.1.1',
-  './chat.js?v=22.1.1', './admin.js?v=22.1.1', './push-notifications.js?v=22.1.1', './app.js?v=22.1.1',
-  './manifest.webmanifest?v=22.1.1', './assets/lubayd-logo.png?v=22.1.1',
-  './assets/icon-192.png?v=22.1.1', './assets/icon-512.png?v=22.1.1',
+  './', './index.html', './reset.html', './styles.css?v=22.2.0', './config.js?v=22.2.0', './core.js?v=22.2.0',
+  './offline-db.js?v=22.2.0', './firebase-init.js?v=22.2.0', './data.js?v=22.2.0', './auth.js?v=22.2.0', './evidence.js?v=22.2.0',
+  './parts.js?v=22.2.0', './attendance.js?v=22.2.0', './breaks.js?v=22.2.0', './fuel.js?v=22.2.0',
+  './chat.js?v=22.2.0', './admin.js?v=22.2.0', './push-notifications.js?v=22.2.0', './app.js?v=22.2.0',
+  './manifest.webmanifest?v=22.2.0', './assets/lubayd-logo.png?v=22.2.0',
+  './assets/icon-192.png?v=22.2.0', './assets/icon-512.png?v=22.2.0',
   'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js',
   'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js',

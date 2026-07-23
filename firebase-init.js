@@ -1,4 +1,4 @@
-/* Lubayd SA V22.1.1 - Firebase y sesion online no bloqueante */
+/* Lubayd SA V22.2.0 - Firebase y sesion online no bloqueante */
 (function () {
   'use strict';
   const { config, normalizeEmail, clone, emit } = window.Lubayd;
@@ -8,6 +8,10 @@
   let messaging = null;
   let ready = false;
   let observerStarted = false;
+  let authStateKnown = false;
+  let authStateUser = null;
+  let resolveFirstAuthState;
+  const firstAuthState = new Promise(resolve => { resolveFirstAuthState = resolve; });
 
   function normalize(value) {
     if (value && typeof value.toDate === 'function') return value.toDate().toISOString();
@@ -122,6 +126,20 @@
   }
   function collection(name) { if (!db) throw new Error('Firestore no está disponible.'); return db.collection(name); }
   function currentUser() { return auth?.currentUser || null; }
+  function settleAuthState(user) {
+    authStateKnown = true;
+    authStateUser = user || null;
+    if (resolveFirstAuthState) {
+      resolveFirstAuthState(authStateUser);
+      resolveFirstAuthState = null;
+    }
+  }
+  async function waitForAuthState(milliseconds = 8000) {
+    if (authStateKnown) return authStateUser;
+    let timer;
+    const timeoutPromise = new Promise(resolve => { timer = setTimeout(() => resolve(null), milliseconds); });
+    return Promise.race([firstAuthState, timeoutPromise]).finally(() => clearTimeout(timer));
+  }
 
   async function processPersistedUser(user) {
     if (!user || window.Lubayd.state.offlineSession) return;
@@ -141,6 +159,7 @@
   async function initialize() {
     if (!window.firebase) {
       console.warn('[Lubayd] Firebase SDK no cargó. El acceso offline sigue disponible.');
+      settleAuthState(null);
       emit('lubayd-cloud-ready', { available: false });
       return;
     }
@@ -161,18 +180,23 @@
     if (!observerStarted) {
       observerStarted = true;
       auth.onAuthStateChanged(user => {
+        settleAuthState(user);
         if (user) processPersistedUser(user);
         else emit('lubayd-cloud-signed-out', {});
-      }, error => console.warn('[Lubayd] Auth observer:', error));
+      }, error => {
+        settleAuthState(null);
+        console.warn('[Lubayd] Auth observer:', error);
+      });
     }
     emit('lubayd-cloud-ready', { available: true });
   }
 
   window.LubaydCloud = {
     get ready() { return ready; }, get auth() { return auth; }, get db() { return db; }, get functions() { return functions; }, get messaging() { return messaging; },
-    normalize, networkError, errorMessage, profileFor, authorizeDevice, loginOnline, register, logout, resetPassword, call, collection, currentUser
+    normalize, networkError, errorMessage, profileFor, authorizeDevice, loginOnline, register, logout, resetPassword, call, collection, currentUser, waitForAuthState
   };
   initialize().catch(error => {
+    settleAuthState(null);
     console.error('[Lubayd Firebase]', error);
     emit('lubayd-cloud-ready', { available: false, error });
   });

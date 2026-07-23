@@ -1,10 +1,11 @@
-/* Lubayd SA V22.1.1 - autenticacion y datos offline robustos */
+/* Lubayd SA V22.2.0 - autenticacion y datos offline robustos */
 (function () {
   'use strict';
   const { config, normalizeEmail, clone, uid } = window.Lubayd;
   const DB_NAME = 'lubayd-sa-v21-3';
   const DB_VERSION = 1;
-  const SESSION_KEY = 'lubayd_offline_session_v22_1';
+  const SESSION_KEY = 'lubayd_offline_session_v22_2';
+  const LEGACY_SESSION_KEYS = ['lubayd_offline_session_v22_1'];
   const ITERATIONS = 210000;
   let dbPromise = null;
 
@@ -159,7 +160,7 @@
     return { userId: record.uid, deviceId: record.deviceId, deviceSecret: record.deviceSecret };
   }
   function startSession(record) {
-    const hours = Math.max(1, Number(config.offlineSessionHours || 12));
+    const hours = Math.max(1, Number(config.offlineSessionHours || 24));
     const session = {
       uid: record.uid,
       email: record.email,
@@ -168,23 +169,71 @@
       startedAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + hours * 3600000).toISOString()
     };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
     return session;
   }
   function currentSession() {
     try {
-      const session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+      let raw = localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
+      if (!raw) {
+        for (const key of LEGACY_SESSION_KEYS) {
+          raw = localStorage.getItem(key) || sessionStorage.getItem(key);
+          if (raw) break;
+        }
+      }
+      const session = JSON.parse(raw || 'null');
       if (!session?.expiresAt || new Date(session.expiresAt).getTime() <= Date.now()) {
-        sessionStorage.removeItem(SESSION_KEY);
+        clearSession();
         return null;
       }
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
       return session;
     } catch (_) {
-      sessionStorage.removeItem(SESSION_KEY);
+      clearSession();
       return null;
     }
   }
-  function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
+  function clearSession() {
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
+    LEGACY_SESSION_KEYS.forEach(key => {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    });
+  }
+
+
+  function deleteMatchingWithCursor(store, allowedTypes) {
+    return new Promise((resolve, reject) => {
+      let deleted = 0;
+      const request = store.openCursor();
+      request.onerror = () => reject(request.error || new Error('No se pudieron borrar las marcas locales.'));
+      request.onsuccess = event => {
+        const cursor = event.target.result;
+        if (!cursor) { resolve(deleted); return; }
+        const value = cursor.value || {};
+        if (allowedTypes.has(value.type)) {
+          const deletion = cursor.delete();
+          deletion.onerror = () => reject(deletion.error || new Error('No se pudo borrar una marca local.'));
+          deletion.onsuccess = () => { deleted += 1; cursor.continue(); };
+        } else cursor.continue();
+      };
+    });
+  }
+
+  async function clearRecordTypes(types) {
+    const allowedTypes = new Set((types || []).map(String));
+    if (!allowedTypes.size) return { records: 0, queue: 0, total: 0 };
+    const result = await runMany(['records', 'queue'], 'readwrite', async stores => {
+      const records = await deleteMatchingWithCursor(stores.records, allowedTypes);
+      const queue = await deleteMatchingWithCursor(stores.queue, allowedTypes);
+      return { records, queue, total: records + queue };
+    });
+    window.Lubayd.emit('lubayd-marks-cleared', Object.assign({ types: Array.from(allowedTypes) }, result));
+    return result;
+  }
 
   async function saveRecord(record) {
     const normalized = Object.assign({}, clone(record), { updatedAtClient: new Date().toISOString() });
@@ -308,7 +357,7 @@
     available: Boolean(window.indexedDB && window.crypto?.subtle),
     open, put, get, remove, getAll, getByIndex, runMany,
     saveCredential, verifyCredential, findProfileByEmail, saveDeviceAuthorization, deviceAuthorization,
-    startSession, currentSession, clearSession,
+    startSession, currentSession, clearSession, clearRecordTypes,
     saveRecord, queueRecord, markSyncing, markSynced, markError, pendingQueue, pendingCount, listRecords,
     setCache, getCache, setSetting, getSetting, requestPersistence, storageInfo, status
   };
