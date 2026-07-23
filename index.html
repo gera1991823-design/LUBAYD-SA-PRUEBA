@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#005f38">
+  <meta name="description" content="Lubayd SA · Gestión operativa, asistencia, combustible y partes diarios con modo offline.">
+  <title>Lubayd SA · Gestión Operativa</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=22.0.0">
+  <link rel="icon" href="./assets/icon-192.png?v=22.0.0">
+  <link rel="apple-touch-icon" href="./assets/icon-192.png?v=22.0.0">
+  <link rel="stylesheet" href="./styles.css?v=22.0.0">
+</head>
+<body>
+  <svg class="svg-sprite" aria-hidden="true">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-fuel" viewBox="0 0 24 24"><path d="M5 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17M3 21h14M7 7h6v5H7zM16 8h2l2 3v7a2 2 0 0 1-4 0v-4"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M8 9h8M8 13h8M8 17h5"/></symbol>
+    <symbol id="i-cloud-off" viewBox="0 0 24 24"><path d="m3 3 18 18M8.5 8.5A5 5 0 0 1 17 11a4 4 0 0 1 1 7H8a5 5 0 0 1-4-8M13 5a7 7 0 0 1 6 7"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 20v-2a5 5 0 0 1 10 0v2M14 20v-1a4 4 0 0 1 7 0v1"/></symbol>
+    <symbol id="i-tractor" viewBox="0 0 24 24"><circle cx="7" cy="17" r="3"/><circle cx="18" cy="17" r="2"/><path d="M4 17H2v-4h4l2-5h5l2 5h4l2 4h-1M10 8V5h4l2 8M8 13h8"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7M2 20h20"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.7-.6-1.4.9-1.9-2.1-2.1-1.9.9-1.4-.6L10.5 3h-3l-.7 2-1.4.6-1.9-.9-2.1 2.1.9 1.9-.6 1.4-2 .7v3l2 .7.6 1.4-.9 1.9 2.1 2.1 1.9-.9 1.4.6.7 2h3l.7-2 1.4-.6 1.9.9 2.1-2.1-.9-1.9.6-1.4z"/></symbol>
+    <symbol id="i-login" viewBox="0 0 24 24"><path d="M10 5H5v14h5M13 8l4 4-4 4M8 12h9"/></symbol>
+    <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM17 10h2a2 2 0 0 1 0 4h-2M7 4v2M11 3v3M15 4v2"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 5h5v14h-5M11 8l-4 4 4 4M16 12H7"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h4l2-2h4l2 2h4v13H4z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+    <symbol id="i-sign" viewBox="0 0 24 24"><path d="m4 18 4-1 10-10-3-3L5 14zM13 6l3 3M4 21h16"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 7h-5V2M4 17h5v5M19 12a7 7 0 0 0-12-5L4 10M5 12a7 7 0 0 0 12 5l3-3"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/><path d="m8 12 2.5 2.5L16 9"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m4 20 4-1 11-11-3-3L5 16zM14 6l3 3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/></symbol>
+  </svg>
+
+  <div id="authScreen" class="auth-screen">
+    <section class="auth-brand-panel">
+      <div class="auth-brand-inner">
+        <img src="./assets/lubayd-logo.png?v=22.0.0" alt="Lubayd SA" class="auth-logo">
+        <span class="eyebrow light">PLATAFORMA OPERATIVA</span>
+        <h1>Gestión simple y segura, incluso sin conexión.</h1>
+        <p>Asistencia, descansos, combustible y partes diarios con fotografía, ubicación y firma digital.</p>
+        <div class="auth-feature-list">
+          <div><svg><use href="#i-cloud-off"/></svg><span>Trabajo offline con sincronización automática</span></div>
+          <div><svg><use href="#i-camera"/></svg><span>Evidencia mediante fotos y ubicación GPS</span></div>
+          <div><svg><use href="#i-shield"/></svg><span>Permisos separados para administradores y operadores</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="auth-form-panel">
+      <div class="auth-card">
+        <div class="mobile-auth-logo"><img src="./assets/lubayd-logo.png?v=22.0.0" alt="Lubayd SA"></div>
+        <div id="authConnectionBanner" class="connection-banner"><span></span><b>Comprobando conexión</b></div>
+        <div class="auth-tabs">
+          <button type="button" class="active" data-auth-tab="login">Ingresar</button>
+          <button type="button" data-auth-tab="register">Crear cuenta</button>
+        </div>
+        <form id="loginForm" class="auth-form active" novalidate>
+          <div class="form-title"><span>ACCESO</span><h2>Bienvenido</h2><p id="loginHelp">Usá tu correo y contraseña.</p></div>
+          <label>Correo electrónico<input id="loginEmail" type="email" autocomplete="email" required placeholder="nombre@correo.com"></label>
+          <label>Contraseña<input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••"></label>
+          <button class="btn btn-primary btn-block" type="submit" id="loginButton">Ingresar</button>
+          <button class="link-button" type="button" id="resetPasswordButton">Olvidé mi contraseña</button>
+        </form>
+        <form id="registerForm" class="auth-form" novalidate>
+          <div class="form-title"><span>NUEVO USUARIO</span><h2>Crear cuenta</h2><p>La cuenta queda pendiente de habilitación administrativa.</p></div>
+          <label>Nombre y apellido<input id="registerName" autocomplete="name" required></label>
+          <label>Correo electrónico<input id="registerEmail" type="email" autocomplete="email" required></label>
+          <label>Contraseña<input id="registerPassword" type="password" minlength="6" autocomplete="new-password" required></label>
+          <label>Repetir contraseña<input id="registerConfirm" type="password" minlength="6" autocomplete="new-password" required></label>
+          <button class="btn btn-primary btn-block" type="submit">Crear cuenta</button>
+        </form>
+        <p id="authMessage" class="form-message" role="alert"></p>
+        <div id="offlinePreparedNote" class="offline-note">Para ingresar sin internet, primero iniciá sesión online una vez en este teléfono.</div>
+        <small class="version-line">Lubayd SA · Versión 22.0.0</small>
+      </div>
+    </section>
+  </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="brand">
+        <img src="./assets/lubayd-logo.png?v=22.0.0" alt="Lubayd SA">
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-button active" data-view="dashboard"><svg><use href="#i-home"/></svg><span>Dashboard</span></button>
+        <button class="nav-button" data-view="asistencia"><svg><use href="#i-clock"/></svg><span>Asistencia</span></button>
+        <button class="nav-button" data-view="combustible"><svg><use href="#i-fuel"/></svg><span>Combustible</span></button>
+        <button class="nav-button" data-view="partes"><svg><use href="#i-clipboard"/></svg><span>Parte diario</span></button>
+        <button class="nav-button" data-view="configuracion"><svg><use href="#i-cloud-off"/></svg><span>Modo sin conexión</span></button>
+        <button class="nav-button admin-only" data-view="administracion"><svg><use href="#i-shield"/></svg><span>Administración</span></button>
+        <button class="nav-button online-only" data-view="chat"><svg><use href="#i-users"/></svg><span>Mensajes</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="session-card"><div id="sidebarAvatar" class="avatar">OP</div><div><strong id="sidebarName">Operador</strong><small id="sidebarRole">Operador</small></div></div>
+        <button class="btn btn-ghost btn-block" id="logoutButton" type="button">Cerrar sesión</button>
+        <small>Lubayd SA · V22.0.0</small>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title">
+          <button id="menuButton" class="menu-button" type="button" aria-label="Abrir menú"><svg><use href="#i-menu"/></svg></button>
+          <div><span id="pageEyebrow">RESUMEN GENERAL</span><h1 id="pageTitle">Dashboard</h1></div>
+        </div>
+        <div class="topbar-actions">
+          <div id="networkPill" class="network-pill"><span></span><div><b id="networkTitle">Sin conexión</b><small id="networkText">Guardando en este teléfono</small></div></div>
+          <button id="syncButton" class="btn btn-secondary sync-button" type="button"><svg><use href="#i-sync"/></svg><span>Sincronizar</span><b id="pendingBadge">0</b></button>
+          <button class="icon-button" type="button" aria-label="Notificaciones"><svg><use href="#i-bell"/></svg></button>
+        </div>
+      </header>
+
+      <div id="offlineSessionBanner" class="notice warning hidden">Estás usando una sesión offline. Todo lo que registres quedará guardado en este dispositivo.</div>
+      <div id="updateBanner" class="notice hidden">Hay una nueva versión disponible. <button id="applyUpdateButton" type="button">Actualizar ahora</button></div>
+
+      <section id="view-dashboard" class="view active">
+        <div class="dashboard-kpis">
+          <article class="kpi-card"><div class="kpi-icon"><svg><use href="#i-users"/></svg></div><div><span>ASISTENCIAS HOY</span><strong id="metricAttendanceCount">0</strong><small id="metricAttendance">Sin marcar</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon yellow"><svg><use href="#i-clipboard"/></svg></div><div><span>PARTES DE HOY</span><strong id="metricParts">0</strong><small>registrados</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon"><svg><use href="#i-fuel"/></svg></div><div><span>COMBUSTIBLE</span><strong id="metricFuel">0 L</strong><small>cargado hoy</small></div></article>
+          <article class="kpi-card"><div class="kpi-icon"><svg><use href="#i-sync"/></svg></div><div><span>PENDIENTES</span><strong id="metricPending">0</strong><small>por sincronizar</small></div></article>
+        </div>
+
+        <div class="dashboard-main-grid">
+          <article class="panel attendance-summary">
+            <div class="panel-heading"><span class="section-number">1</span><div><span>CONTROL HORARIO</span><h2>Asistencia</h2></div><button class="text-action" data-view-target="asistencia">Ver historial</button></div>
+            <div class="attendance-actions operator-only">
+              <button class="action-card green" data-view-target="asistencia"><svg><use href="#i-login"/></svg><strong>Ingreso</strong><span>Foto + GPS</span></button>
+              <button class="action-card yellow" data-view-target="asistencia"><svg><use href="#i-coffee"/></svg><strong>Descanso</strong><span>Inicio y fin</span></button>
+              <button class="action-card dark" data-view-target="asistencia"><svg><use href="#i-logout"/></svg><strong>Salida</strong><span>Foto + GPS</span></button>
+            </div>
+            <div class="mini-status-grid"><div><span>Jornada</span><strong id="dashboardAttendanceState">Sin marcar</strong></div><div><span>Descanso</span><strong id="metricBreak">Sin registrar</strong></div></div>
+            <div id="recentActivity" class="record-list compact empty">Todavía no hay registros.</div>
+          </article>
+
+          <article class="panel fuel-summary">
+            <div class="panel-heading"><span class="section-number">2</span><div><span>CONTROL DE SALDOS</span><h2>Combustible</h2></div><button class="text-action" data-view-target="combustible">Gestionar</button></div>
+            <div class="flow-diagram">
+              <div class="flow-node"><svg><use href="#i-fuel"/></svg><strong>Tanque principal</strong><span id="dashboardFuelTank">0 L</span></div><div class="flow-arrow">→</div>
+              <div class="flow-node"><svg><use href="#i-tractor"/></svg><strong>Tráiler</strong><span id="dashboardFuelTrailer">0 L</span></div><div class="flow-arrow">→</div>
+              <div class="flow-node"><svg><use href="#i-tractor"/></svg><strong>Máquina</strong><span id="dashboardFuelMachines">0 L</span></div>
+            </div>
+            <div class="flow-note"><b>Proceso operativo:</b> tanque principal → tráiler → máquina.</div>
+            <button class="btn btn-primary btn-block operator-only" data-view-target="combustible">Nueva transferencia</button>
+          </article>
+
+          <article class="panel part-summary">
+            <div class="panel-heading"><span class="section-number">3</span><div><span>OPERACIÓN</span><h2>Parte diario</h2></div><button class="text-action" data-view-target="partes">Abrir formulario</button></div>
+            <div class="evidence-grid">
+              <div><svg><use href="#i-camera"/></svg><strong>Foto obligatoria</strong><span>Evidencia del trabajo</span></div>
+              <div><svg><use href="#i-pin"/></svg><strong>Ubicación GPS</strong><span>Coordenadas y precisión</span></div>
+              <div><svg><use href="#i-sign"/></svg><strong>Firma digital</strong><span>Confirmación del operador</span></div>
+            </div>
+            <button class="btn btn-primary btn-block operator-only" data-view-target="partes">Crear parte diario</button>
+          </article>
+        </div>
+
+        <div class="dashboard-bottom-grid">
+          <article class="panel offline-summary">
+            <div class="panel-heading"><span class="section-number">4</span><div><span>SINCRONIZACIÓN</span><h2>Modo sin conexión</h2></div></div>
+            <div class="offline-hero"><div class="offline-icon"><svg><use href="#i-cloud-off"/></svg></div><div><strong>Funcionamiento offline habilitado</strong><p>Los registros se guardan en el dispositivo y se sincronizan al recuperar internet.</p></div></div>
+            <div class="mini-status-grid"><div><span>Registros pendientes</span><strong id="dashboardPending">0</strong></div><div><span>Última sincronización</span><strong id="lastSyncLabel">Sin datos</strong></div></div>
+            <button class="btn btn-primary btn-block" id="dashboardSyncButton" type="button"><svg><use href="#i-sync"/></svg> Sincronizar ahora</button>
+          </article>
+
+          <article class="panel permissions-summary">
+            <div class="panel-heading"><span class="section-number">5</span><div><span>SEGURIDAD</span><h2>Roles y permisos</h2></div></div>
+            <div class="permission-columns">
+              <div class="permission-card admin"><h3><svg><use href="#i-shield"/></svg>Administrador</h3><ul><li>Agregar información</li><li>Editar registros</li><li>Eliminar registros</li><li>Gestionar usuarios y catálogos</li></ul></div>
+              <div class="permission-card operator"><h3><svg><use href="#i-users"/></svg>Operador</h3><ul><li>Agregar información</li><li class="denied">No puede editar</li><li class="denied">No puede eliminar</li><li class="denied">No gestiona usuarios</li></ul></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="view-asistencia" class="view">
+        <div class="section-heading"><div><span>CONTROL HORARIO</span><h2>Asistencia y descansos</h2><p>Cada marca exige fotografía, ubicación GPS y hora del dispositivo.</p></div></div>
+        <div class="attendance-command panel operator-only">
+          <button id="attendanceEntryButton" class="attendance-command-button green" type="button"><svg><use href="#i-login"/></svg><span><strong>Ingreso</strong><small>Marcar llegada</small></span></button>
+          <button id="breakStartButton" class="attendance-command-button yellow" type="button"><svg><use href="#i-coffee"/></svg><span><strong>Iniciar descanso</strong><small>Foto y ubicación</small></span></button>
+          <button id="breakEndButton" class="attendance-command-button yellow-outline" type="button"><svg><use href="#i-coffee"/></svg><span><strong>Finalizar descanso</strong><small>Foto y ubicación</small></span></button>
+          <button id="attendanceExitButton" class="attendance-command-button dark" type="button"><svg><use href="#i-logout"/></svg><span><strong>Salida</strong><small>Marcar fin de jornada</small></span></button>
+        </div>
+        <input id="attendancePhotoInput" class="hidden" type="file" accept="image/*" capture="environment">
+        <input id="breakPhotoInput" class="hidden" type="file" accept="image/*" capture="environment">
+        <div class="two-columns">
+          <article class="panel"><div class="panel-heading"><div><span>JORNADA DE HOY</span><h3 id="attendanceStatus">Sin registrar</h3><p id="attendanceTimes">Todavía no registraste la llegada.</p></div></div><div id="attendanceList" class="record-list empty">Sin registros.</div></article>
+          <article class="panel"><div class="panel-heading"><div><span>DESCANSO DE HOY</span><h3 id="breakStatus">Sin registrar</h3><p id="breakTimes">Todavía no iniciaste el descanso.</p></div></div><div id="breakList" class="record-list empty">Sin registros.</div></article>
+        </div>
+      </section>
+
+      <section id="view-combustible" class="view">
+        <div class="section-heading"><div><span>CONTROL DE COMBUSTIBLE</span><h2>Tanque principal → Tráiler → Máquina</h2><p>Todos los movimientos requieren fotografía y ubicación GPS.</p></div></div>
+        <div class="fuel-flow-large panel">
+          <div class="flow-node large"><svg><use href="#i-fuel"/></svg><strong>Tanque principal</strong><b id="fuelTank">0 L</b><span>Saldo disponible</span></div><div class="flow-arrow large">→</div>
+          <div class="flow-node large"><svg><use href="#i-tractor"/></svg><strong>Tráiler</strong><b id="fuelTrailer">0 L</b><span>Saldo disponible</span></div><div class="flow-arrow large">→</div>
+          <div class="flow-node large"><svg><use href="#i-tractor"/></svg><strong>Máquinas</strong><b id="fuelMachinesTotal">0 L</b><span>Entregado acumulado</span></div>
+        </div>
+        <div class="two-columns form-layout">
+          <form id="fuelForm" class="panel form-panel operator-only">
+            <div class="panel-heading"><div><span>NUEVO MOVIMIENTO</span><h3>Registrar transferencia</h3></div></div>
+            <label>Tipo de movimiento<select id="fuelAction" required><option value="tank_load">Proveedor → Tanque principal</option><option value="trailer_load">Tanque principal → Tráiler</option><option value="machine_delivery">Tráiler → Máquina</option><option value="tank_adjust">Ajuste de tanque principal</option><option value="trailer_adjust">Ajuste de tráiler</option></select></label>
+            <label id="fuelMachineLabel" class="hidden">Máquina<input id="fuelMachine" list="machineOptions" placeholder="Seleccionar máquina"></label>
+            <label>Litros<input id="fuelLiters" type="number" min="0.1" step="0.1" required></label>
+            <label>Foto obligatoria<input id="fuelPhoto" type="file" accept="image/*" capture="environment" required></label>
+            <label>Observaciones<textarea id="fuelNotes" rows="3" placeholder="Dato adicional opcional"></textarea></label>
+            <button class="btn btn-primary btn-block" type="submit">Guardar movimiento</button>
+            <p id="fuelMessage" class="form-message"></p>
+          </form>
+          <article class="panel"><div class="panel-heading"><div><span>HISTORIAL</span><h3>Movimientos recientes</h3></div><button id="refreshFuelButton" class="btn btn-small" type="button">Actualizar</button></div><div id="fuelList" class="record-list empty">Sin movimientos.</div></article>
+        </div>
+      </section>
+
+      <section id="view-partes" class="view">
+        <div class="section-heading"><div><span>PARTE DIARIO</span><h2>Registro del trabajo realizado</h2><p>La foto, la ubicación GPS y la firma digital son obligatorias.</p></div></div>
+        <div class="two-columns form-layout part-layout">
+          <form id="partForm" class="panel form-panel operator-only">
+            <div class="form-grid">
+              <label>Fecha<input id="partDate" type="date" required></label>
+              <label>Turno<select id="partShift"><option>Mañana</option><option>Tarde</option><option>Noche</option></select></label>
+              <label>Máquina<input id="partMachine" list="machineOptions" required placeholder="Seleccionar o escribir"></label>
+              <label>Monte / Lote<input id="partForest" list="forestOptions" required placeholder="Seleccionar o escribir"></label>
+              <label>Horómetro inicial<input id="partHourStart" type="number" min="0" step="0.1" required></label>
+              <label>Horómetro final<input id="partHourEnd" type="number" min="0" step="0.1" required></label>
+              <label>Árboles inicial<input id="partTreesStart" type="number" min="0" step="1"></label>
+              <label>Árboles final<input id="partTreesEnd" type="number" min="0" step="1"></label>
+              <label>Combustible utilizado (L)<input id="partFuel" type="number" min="0" step="0.1"></label>
+              <label class="full">Tarea / Trabajo realizado<textarea id="partNotes" rows="4" required placeholder="Describí el trabajo realizado"></textarea></label>
+            </div>
+            <div class="evidence-fields">
+              <label class="evidence-upload"><span><svg><use href="#i-camera"/></svg>Foto obligatoria</span><input id="partPhoto" type="file" accept="image/*" capture="environment" required><small id="partPhotoLabel">Tomar o seleccionar fotografía</small></label>
+              <div class="gps-box"><svg><use href="#i-pin"/></svg><div><strong>Ubicación GPS</strong><span id="partGpsText">Se capturará al guardar.</span></div></div>
+              <div class="signature-box"><div class="signature-heading"><span><svg><use href="#i-sign"/></svg>Firma digital</span><button id="clearSignatureButton" type="button">Limpiar</button></div><canvas id="signatureCanvas" width="640" height="220" aria-label="Área de firma digital"></canvas><small>Firmá dentro del recuadro.</small></div>
+            </div>
+            <button class="btn btn-primary btn-block" type="submit">Guardar parte diario</button>
+            <p id="partMessage" class="form-message"></p>
+          </form>
+          <article class="panel"><div class="panel-heading"><div><span>HISTORIAL</span><h3>Partes recientes</h3></div><button class="btn btn-small" id="refreshPartsButton" type="button">Actualizar</button></div><div id="partsList" class="record-list empty">Sin registros.</div></article>
+        </div>
+      </section>
+
+      <section id="view-administracion" class="view">
+        <div class="section-heading"><div><span>ADMINISTRACIÓN</span><h2>Control completo del sistema</h2><p>Los administradores pueden modificar y eliminar registros, además de gestionar usuarios y catálogos.</p></div></div>
+        <div class="admin-tabs"><button class="active" data-admin-tab="records">Registros</button><button data-admin-tab="users">Usuarios</button><button data-admin-tab="catalogs">Máquinas y montes</button></div>
+        <div id="adminTab-records" class="admin-tab-panel active panel"><div class="panel-heading"><div><span>REGISTROS OPERATIVOS</span><h3>Editar o eliminar información</h3></div><button id="refreshAdminRecordsButton" class="btn btn-small" type="button">Actualizar</button></div><div class="admin-filter-row"><select id="adminRecordType"><option value="all">Todos</option><option value="part">Partes diarios</option><option value="attendance">Asistencias</option><option value="break">Descansos</option><option value="fuel">Combustible</option></select></div><div id="adminRecordsList" class="record-list empty">Sin registros.</div></div>
+        <div id="adminTab-users" class="admin-tab-panel panel"><div class="panel-heading"><div><span>USUARIOS</span><h3>Roles y habilitación</h3></div><button id="refreshUsersButton" class="btn btn-small" type="button">Actualizar</button></div><div id="usersList" class="record-list empty">Sin usuarios.</div></div>
+        <div id="adminTab-catalogs" class="admin-tab-panel panel"><div class="panel-heading"><div><span>CATÁLOGOS</span><h3>Máquinas y montes</h3></div></div><form id="catalogForm" class="compact-form"><label>Tipo<select id="catalogType"><option value="maquinas">Máquina</option><option value="montes">Monte / Lote</option></select></label><label>Nombre<input id="catalogName" required></label><button class="btn btn-primary" type="submit">Agregar</button></form><div id="catalogList" class="record-list empty">Sin elementos.</div></div>
+      </section>
+
+      <section id="view-chat" class="view">
+        <div class="section-heading"><div><span>COMUNICACIÓN</span><h2>Mensajes</h2><p>Disponible con conexión a internet.</p></div></div>
+        <div class="chat-layout panel"><aside class="chat-contacts"><input id="chatSearch" placeholder="Buscar usuario"><div id="chatContacts" class="contact-list"></div></aside><div class="chat-room"><div id="chatHeader" class="chat-header">Seleccioná un usuario</div><div id="chatMessages" class="chat-messages"><div class="empty">No hay conversación seleccionada.</div></div><form id="chatForm" class="chat-form"><input id="chatInput" maxlength="1000" placeholder="Escribir mensaje" disabled><button class="btn btn-primary" type="submit" disabled>Enviar</button></form></div></div>
+      </section>
+
+      <section id="view-configuracion" class="view">
+        <div class="section-heading"><div><span>MODO SIN CONEXIÓN</span><h2>Estado del dispositivo</h2><p>La aplicación guarda los registros localmente y los envía cuando vuelve internet.</p></div></div>
+        <div class="offline-page-grid">
+          <article class="panel offline-main-card"><div class="offline-hero"><div class="offline-icon"><svg><use href="#i-cloud-off"/></svg></div><div><span class="status-chip success">Activo</span><h3>Sin conexión habilitado</h3><p>Podés registrar asistencia, combustible y partes diarios sin señal.</p></div></div><div id="offlineDetails" class="detail-list"></div><button id="refreshOfflineButton" class="btn btn-secondary btn-block" type="button">Actualizar estado</button><button id="syncSettingsButton" class="btn btn-primary btn-block" type="button">Sincronizar ahora</button></article>
+          <article class="panel"><div class="panel-heading"><div><span>PREPARACIÓN</span><h3>Controles offline</h3></div></div><div class="check-list"><div id="checkProfile">○ Perfil local</div><div id="checkCredential">○ Acceso offline</div><div id="checkDevice">○ Dispositivo autorizado</div><div id="checkStorage">○ Almacenamiento local</div></div><hr><p>Versión instalada: <b>22.0.0</b></p><button id="forceUpdateButton" class="btn btn-secondary btn-block" type="button">Buscar actualización</button><button id="enableNotificationsButton" class="btn btn-secondary btn-block online-only" type="button">Activar notificaciones</button><p id="settingsMessage" class="form-message"></p></article>
+        </div>
+      </section>
+
+      <datalist id="machineOptions"></datalist>
+      <datalist id="forestOptions"></datalist>
+    </main>
+
+    <nav class="mobile-nav">
+      <button class="active" data-view="dashboard"><svg><use href="#i-home"/></svg><span>Inicio</span></button>
+      <button data-view="asistencia"><svg><use href="#i-clock"/></svg><span>Asistencia</span></button>
+      <button data-view="combustible"><svg><use href="#i-fuel"/></svg><span>Combustible</span></button>
+      <button data-view="partes"><svg><use href="#i-clipboard"/></svg><span>Parte</span></button>
+      <button data-view="configuracion"><svg><use href="#i-menu"/></svg><span>Más</span></button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast hidden"><strong id="toastTitle"></strong><span id="toastText"></span></div>
+  <div id="modal" class="modal hidden"><div class="modal-card"><h3 id="modalTitle">Confirmar</h3><p id="modalText"></p><div class="button-row"><button id="modalCancel" class="btn btn-secondary" type="button">Cancelar</button><button id="modalConfirm" class="btn btn-primary" type="button">Confirmar</button></div></div></div>
+  <div id="adminEditModal" class="modal hidden"><form id="adminEditForm" class="modal-card admin-edit-card"><div class="modal-header"><div><span>ADMINISTRACIÓN</span><h3>Modificar registro</h3></div><button id="adminEditClose" type="button" aria-label="Cerrar">×</button></div><input id="adminEditId" type="hidden"><input id="adminEditType" type="hidden"><div id="adminEditFields" class="form-grid"></div><button class="btn btn-primary btn-block" type="submit">Guardar cambios</button><p id="adminEditMessage" class="form-message"></p></form></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
+  <script src="./config.js?v=22.0.0"></script>
+  <script src="./core.js?v=22.0.0"></script>
+  <script src="./offline-db.js?v=22.0.0"></script>
+  <script src="./firebase-init.js?v=22.0.0"></script>
+  <script src="./data.js?v=22.0.0"></script>
+  <script src="./auth.js?v=22.0.0"></script>
+  <script src="./parts.js?v=22.0.0"></script>
+  <script src="./attendance.js?v=22.0.0"></script>
+  <script src="./breaks.js?v=22.0.0"></script>
+  <script src="./fuel.js?v=22.0.0"></script>
+  <script src="./chat.js?v=22.0.0"></script>
+  <script src="./admin.js?v=22.0.0"></script>
+  <script src="./push-notifications.js?v=22.0.0"></script>
+  <script src="./app.js?v=22.0.0"></script>
+</body>
+</html>
