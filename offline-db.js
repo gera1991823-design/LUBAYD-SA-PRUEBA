@@ -1,11 +1,11 @@
-/* Lubayd SA V22.2.0 - autenticacion y datos offline robustos */
+/* Lubayd SA V22.3.0 - autenticacion y datos offline robustos */
 (function () {
   'use strict';
   const { config, normalizeEmail, clone, uid } = window.Lubayd;
   const DB_NAME = 'lubayd-sa-v21-3';
   const DB_VERSION = 1;
-  const SESSION_KEY = 'lubayd_offline_session_v22_2';
-  const LEGACY_SESSION_KEYS = ['lubayd_offline_session_v22_1'];
+  const SESSION_KEY = 'lubayd_offline_session_v22_3';
+  const LEGACY_SESSION_KEYS = ['lubayd_offline_session_v22_2', 'lubayd_offline_session_v22_1'];
   const ITERATIONS = 210000;
   let dbPromise = null;
 

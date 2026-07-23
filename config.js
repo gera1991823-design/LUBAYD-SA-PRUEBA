@@ -1,6 +1,6 @@
-/* Lubayd SA V22.2.0 - configuracion central */
+/* Lubayd SA V22.3.0 - configuracion central */
 window.LUBAYD_CONFIG = Object.freeze({
-  version: '22.2.0',
+  version: '22.3.0',
   projectId: 'lubayd-sa',
   functionsRegion: 'southamerica-east1',
   timeZone: 'America/Montevideo',

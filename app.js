@@ -1,4 +1,4 @@
-/* Lubayd SA V22.2.0 - aplicación principal responsive y diagnósticos */
+/* Lubayd SA V22.3.0 - aplicación principal responsive y diagnósticos */
 (function () {
   'use strict';
   const { $, $$, state, config, initials, formatDateTime, escapeHtml, toast, emit, localDateKey, formatNumber, getGps, formatGps, setBusy } = window.Lubayd;
@@ -13,8 +13,10 @@
   };
   let updateReloading = false;
   let maintenancePromise = null;
-  const VIEW_KEY = 'lubayd_last_view_v22_2';
-  const UI_SESSION_KEY = 'lubayd_ui_session_v22_2';
+  const VIEW_KEY = 'lubayd_last_view_v22_3';
+  const UI_SESSION_KEY = 'lubayd_ui_session_v22_3';
+  const LEGACY_UI_SESSION_KEYS = ['lubayd_ui_session_v22_2'];
+  const ACCESS_MODE_KEY = 'lubayd_access_mode_v22_3';
   const LOCAL_MARKS_CLEAR_KEY = 'lubayd_marks_local_cleared_v22_2';
   const CLOUD_MARKS_CLEAR_KEY = 'lubayd_marks_cloud_cleared_v22_2';
 
@@ -29,6 +31,7 @@
       user: safeUser(detail.user),
       profile: detail.profile,
       offline: Boolean(detail.offline),
+      mode: detail.offline ? 'offline' : 'online',
       expiresAt: detail.session?.expiresAt || new Date(Date.now() + 30 * 24 * 3600000).toISOString(),
       savedAt: new Date().toISOString()
     };
@@ -36,6 +39,7 @@
   }
   function clearRememberedSession() {
     localStorage.removeItem(UI_SESSION_KEY);
+    LEGACY_UI_SESSION_KEYS.forEach(key => localStorage.removeItem(key));
     document.documentElement.classList.remove('lubayd-session-hint', 'lubayd-session-restoring');
     delete document.documentElement.dataset.bootView;
   }
@@ -98,7 +102,7 @@
     if (name === 'chat') window.LubaydChat?.loadContacts?.();
     if (name === 'administracion') { window.LubaydAdmin?.loadUsers?.(); window.LubaydAdmin?.loadCatalogs?.(); window.LubaydAdmin?.loadOperationalRecords?.(); }
     if (name === 'configuracion') updateOfflineStatus();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }
   async function updatePending() {
     const pending = state.user ? await window.LubaydData.pendingCount().catch(() => 0) : 0;
@@ -110,11 +114,17 @@
   }
   function updateNetwork() {
     const online = navigator.onLine;
+    const offlineMode = Boolean(state.offlineSession);
     const pill = $('#networkPill');
-    pill.classList.toggle('online', online); pill.classList.toggle('offline', !online);
-    $('#networkTitle').textContent = online ? 'Sincronizado' : 'Sin conexión';
-    $('#networkText').textContent = online ? 'Sincronización disponible' : 'Guardando en este teléfono';
-    applyRoleVisibility(); updatePending();
+    pill.classList.toggle('online', online && !offlineMode);
+    pill.classList.toggle('offline', !online);
+    pill.classList.toggle('mode-offline', offlineMode);
+    $('#networkTitle').textContent = offlineMode ? 'Modo offline' : online ? 'Online' : 'Sin conexión';
+    $('#networkText').textContent = offlineMode
+      ? (online ? 'Internet disponible' : 'Guardando en este teléfono')
+      : (online ? 'Sincronización disponible' : 'Esperando conexión');
+    applyRoleVisibility();
+    updatePending();
   }
   async function updateOfflineStatus() {
     if (!state.user) return;
@@ -164,7 +174,7 @@
     }
     const lastSync = localStorage.getItem('lubayd_last_sync_v22_1');
     $('#lastSyncLabel').textContent = lastSync ? formatDateTime(lastSync) : 'Sin datos';
-    updateOfflineStatus();
+    if (state.currentView === 'configuracion') updateOfflineStatus();
   }
   async function synchronize() {
     const buttons = [$('#syncButton'),$('#dashboardSyncButton'),$('#syncSettingsButton')].filter(Boolean);
@@ -184,6 +194,8 @@
     state.user = detail.user;
     state.profile = detail.profile;
     state.offlineSession = Boolean(detail.offline);
+    const accessMode = state.offlineSession ? 'offline' : 'online';
+    localStorage.setItem(ACCESS_MODE_KEY, accessMode);
     window.LubaydLastSession = detail;
     rememberSession(detail);
     document.documentElement.classList.add('lubayd-session-hint');
@@ -193,7 +205,7 @@
     const name = state.profile.nombre || state.user.displayName || state.user.email || 'Usuario';
     $('#sidebarAvatar').textContent = initials(name);
     $('#sidebarName').textContent = name;
-    $('#sidebarRole').textContent = `${roleLabel(state.profile.role)}${state.offlineSession ? ' · Offline' : ''}`;
+    $('#sidebarRole').textContent = `${roleLabel(state.profile.role)} · ${state.offlineSession ? 'Offline' : 'Online'}`;
     applyRoleVisibility();
     updateNetwork();
     const requested = new URLSearchParams(location.search).get('view') || localStorage.getItem(VIEW_KEY) || window.__LUBAYD_BOOT_VIEW || 'dashboard';
@@ -246,7 +258,7 @@
   async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     try {
-      const registration = await navigator.serviceWorker.register('./service-worker.js?v=22.2.0', { scope: './' });
+      const registration = await navigator.serviceWorker.register('./service-worker.js?v=22.3.0', { scope: './' });
       state.serviceWorkerRegistration = registration;
       if (registration.waiting) { state.waitingWorker = registration.waiting; $('#updateBanner').classList.remove('hidden'); }
       registration.addEventListener('updatefound', () => { const worker = registration.installing; worker?.addEventListener('statechange', () => { if (worker.state === 'installed' && navigator.serviceWorker.controller) { state.waitingWorker = registration.waiting || worker; $('#updateBanner').classList.remove('hidden'); } }); });
@@ -254,29 +266,38 @@
     } catch (error) { console.warn('[Lubayd] Service Worker:', error); }
   }
   async function restoreSession() {
-    const local = window.LubaydOffline.currentSession();
-    if (local) {
-      const user = { uid: local.uid, email: local.email, displayName: local.profile?.nombre || '', isOffline: true };
-      const detail = { user, profile: local.profile, offline: true, source: 'offline-session', session: local };
-      enterSession(detail);
-      emit('lubayd-session-ready', detail);
+    const remembered = window.__LUBAYD_BOOT_SESSION;
+    const selectedMode = localStorage.getItem(ACCESS_MODE_KEY) || window.__LUBAYD_BOOT_MODE || remembered?.mode || (remembered?.offline ? 'offline' : remembered ? 'online' : '');
+
+    if (selectedMode === 'offline') {
+      const local = window.LubaydOffline.currentSession();
+      if (local) {
+        const user = { uid: local.uid, email: local.email, displayName: local.profile?.nombre || '', isOffline: true };
+        const detail = { user, profile: local.profile, offline: true, mode: 'offline', source: 'offline-session', session: local };
+        enterSession(detail);
+        return;
+      }
+      localStorage.removeItem(ACCESS_MODE_KEY);
+      endSession();
+      window.LubaydAuth?.setMode?.('offline');
       return;
     }
 
-    const cloudUser = await window.LubaydCloud?.waitForAuthState?.(9000).catch(() => null);
+    const cloudUser = await window.LubaydCloud?.waitForAuthState?.(8000).catch(() => null);
     if (state.user) { finishBoot(); return; }
     if (cloudUser) {
       try {
         const profile = await window.LubaydCloud.profileFor(cloudUser);
-        const detail = { user: cloudUser, profile, offline: false, source: 'startup' };
+        const detail = { user: cloudUser, profile, offline: false, mode: 'online', source: 'startup' };
         enterSession(detail);
-        emit('lubayd-session-ready', detail);
         return;
       } catch (error) {
-        console.warn('[Lubayd] Sesión persistida:', error);
+        console.warn('[Lubayd] Sesión online persistida:', error);
       }
     }
+    localStorage.removeItem(ACCESS_MODE_KEY);
     endSession();
+    window.LubaydAuth?.setMode?.(selectedMode === 'offline' ? 'offline' : 'online');
   }
   function bind() {
     $$('[data-view]').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
@@ -289,7 +310,7 @@
     $('#applyUpdateButton').addEventListener('click', () => state.waitingWorker?.postMessage?.({ type: 'SKIP_WAITING' }));
     window.addEventListener('online', () => { updateNetwork(); if (state.user) synchronize().catch(() => {}); });
     window.addEventListener('offline', updateNetwork);
-    window.addEventListener('lubayd-session-ready', event => enterSession(event.detail)); window.addEventListener('lubayd-session-ended', endSession);
+    window.addEventListener('lubayd-session-ready', event => { const detail = event.detail || {}; const mode = localStorage.getItem(ACCESS_MODE_KEY); if (mode === 'offline' && !detail.offline) return; if (mode === 'online' && detail.offline) return; enterSession(detail); }); window.addEventListener('lubayd-session-ended', endSession);
     window.addEventListener('lubayd-queue-changed', () => { updatePending(); renderDashboard(); });
     window.addEventListener('lubayd-module-updated', renderDashboard);
     window.addEventListener('lubayd-sync-state', event => { [$('#syncButton'),$('#dashboardSyncButton'),$('#syncSettingsButton')].filter(Boolean).forEach(button => button.disabled = event.detail.syncing || !navigator.onLine); });
