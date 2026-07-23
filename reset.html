@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#005f38">
+  <title>Actualizar Lubayd SA</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(145deg,#f3f8f5,#fff);color:#17211d;font-family:Inter,Arial,sans-serif;padding:24px}.card{width:min(520px,100%);background:#fff;border:1px solid #dce7e1;border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,70,42,.13)}img{display:block;width:210px;max-height:160px;object-fit:contain;margin:0 auto 20px}h1{margin:0 0 12px;color:#005f38;text-align:center}p{line-height:1.55}.note{background:#edf8f2;border:1px solid #cde4d5;border-radius:14px;padding:14px;margin:18px 0}.btn{width:100%;border:0;border-radius:12px;padding:14px 18px;background:linear-gradient(135deg,#079447,#004b2c);color:#fff;font-size:16px;font-weight:750;cursor:pointer}.btn:disabled{opacity:.55}.status{min-height:24px;margin-top:14px;font-weight:700;text-align:center}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img src="./assets/lubayd-logo.png?v=22.1.1" alt="Lubayd SA">
+    <h1>Actualizar Lubayd SA</h1>
+    <p>Esta herramienta elimina únicamente los archivos temporales y los service workers anteriores.</p>
+    <div class="note"><b>No borra IndexedDB.</b> Los registros locales y las colas pendientes se conservan.</div>
+    <button class="btn" id="resetButton" type="button">Limpiar caché y abrir la aplicación</button>
+    <p class="status" id="status"></p>
+  </main>
+  <script>
+    document.getElementById('resetButton').addEventListener('click', async () => {
+      const button = document.getElementById('resetButton');
+      const status = document.getElementById('status');
+      button.disabled = true;
+      status.textContent = 'Limpiando archivos anteriores…';
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          const appScope = new URL('./', location.href).href;
+          await Promise.all(registrations.filter(registration => registration.scope === appScope).map(registration => registration.unregister()));
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.filter(key => key.toLowerCase().includes('lubayd')).map(key => caches.delete(key)));
+        }
+        status.textContent = 'Listo. Abriendo la versión nueva…';
+        location.replace(`./?fresh=${Date.now()}`);
+      } catch (error) {
+        status.textContent = error.message || String(error);
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
