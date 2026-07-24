@@ -1,0 +1,25 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "README.md",
+      "firestore.rules",
+      "storage.rules"
+    ],
+    "headers": [
+      {
+        "source": "service-worker.js",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      }
+    ]
+  }
+}

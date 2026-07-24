@@ -1,0 +1,17 @@
+LUBAYD SA - DESCANSOS V1.0.0
+
+1. En Firebase Authentication habilitar Correo electrónico/Contraseña.
+2. En Authentication > Settings > Authorized domains agregar TU-USUARIO.github.io.
+3. En Cloud Shell o una terminal con Firebase CLI:
+
+   firebase login
+   firebase use lubayd-sa
+   firebase deploy --only firestore:rules,storage
+
+4. Subir TODO el contenido interior de esta carpeta a la raíz del repositorio GitHub.
+5. En GitHub: Settings > Pages > Deploy from a branch > main > /(root).
+6. Abrir la URL publicada con HTTPS.
+7. Crear un usuario y probar inicio/final de descanso con cámara y GPS.
+8. Para forzar una actualización futura, abrir /reset.html.
+
+IMPORTANTE: la precisión real de GPS depende del teléfono y de la señal. La aplicación guarda la precisión informada en metros.

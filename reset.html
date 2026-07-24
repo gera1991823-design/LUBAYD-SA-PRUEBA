@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#087443">
+  <title>Actualizar Lubayd Descansos</title>
+  <style>
+    body{min-height:100vh;margin:0;display:grid;place-items:center;padding:20px;background:#f6f9f7;color:#13251e;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}.card{width:min(430px,100%);padding:30px;border:1px solid #dce6e1;border-radius:22px;background:#fff;box-shadow:0 20px 60px rgba(7,54,35,.12);text-align:center}h1{margin:0 0 10px;font-size:28px}p{color:#66756f;line-height:1.55}button{width:100%;min-height:50px;border:0;border-radius:13px;color:#fff;background:#087443;font:800 15px inherit;cursor:pointer}small{display:block;margin-top:14px;color:#66756f}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Actualizar aplicación</h1>
+    <p>Elimina la caché visual y el service worker anterior. Los datos guardados en Firebase no se eliminan.</p>
+    <button id="resetButton" type="button">Limpiar caché y abrir</button>
+    <small id="status">Listo para actualizar.</small>
+  </main>
+  <script>
+    document.getElementById('resetButton').addEventListener('click', async () => {
+      const status = document.getElementById('status');
+      status.textContent = 'Actualizando…';
+      try {
+        const registrations = await navigator.serviceWorker?.getRegistrations?.() || [];
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      } catch (error) {
+        console.warn(error);
+      }
+      location.replace('./?updated=' + Date.now());
+    });
+  </script>
+</body>
+</html>

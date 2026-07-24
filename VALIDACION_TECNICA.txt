@@ -1,0 +1,18 @@
+VALIDACION TECNICA - LUBAYD SA DESCANSOS V1.0.0
+
+[OK] Sintaxis JavaScript verificada con node --check.
+[OK] JSON del manifest y firebase.json validos.
+[OK] IDs HTML sin duplicados.
+[OK] Selectores directos de JavaScript presentes en HTML.
+[OK] Referencias locales principales existentes.
+[OK] Inicio de sesion y creacion de usuario con Firebase Authentication.
+[OK] Inicio y final de descanso con documentos separados por usuario.
+[OK] Foto obligatoria mediante camara directa y alternativa de captura.
+[OK] GPS con enableHighAccuracy, mejor lectura y precision guardada en metros.
+[OK] Hora del servidor mediante serverTimestamp y hora local de respaldo.
+[OK] Fotografias inmutables en Firebase Storage.
+[OK] Reglas Firestore y Storage limitadas al propietario.
+[OK] Interfaz responsive para celular y computadora.
+[OK] PWA, manifest, service worker y herramienta reset.html incluidos.
+
+Nota: la integracion real requiere habilitar Authentication, Firestore y Storage en Firebase y publicar las reglas.

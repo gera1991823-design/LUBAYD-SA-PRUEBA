@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow create: if isOwner(userId)
+                    && request.resource.data.uid == userId
+                    && request.resource.data.email == request.auth.token.email
+                    && request.resource.data.role == 'operator';
+      allow read: if isOwner(userId);
+      allow update: if isOwner(userId)
+                    && request.resource.data.uid == userId
+                    && request.resource.data.email == resource.data.email
+                    && request.resource.data.role == resource.data.role;
+      allow delete: if false;
+
+      match /breaks/{breakId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+                      && request.resource.data.userId == userId
+                      && request.resource.data.status == 'active'
+                      && request.resource.data.startLocation.latitude is number
+                      && request.resource.data.startLocation.longitude is number
+                      && request.resource.data.startLocation.accuracy is number
+                      && request.resource.data.startPhotoPath is string;
+        allow update: if isOwner(userId)
+                      && resource.data.userId == userId
+                      && request.resource.data.userId == userId
+                      && request.resource.data.status in ['active', 'completed'];
+        allow delete: if false;
+      }
+
+      match /current/{documentId} {
+        allow read, create, update, delete: if isOwner(userId);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
