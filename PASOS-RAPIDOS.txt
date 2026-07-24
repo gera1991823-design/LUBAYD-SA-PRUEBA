@@ -1,11 +1,11 @@
-LUBAYD SA - DESCANSOS V1.0.0
+LUBAYD SA - DESCANSOS V1.1.0
 
 1. En Firebase Authentication habilitar Correo electrónico/Contraseña.
 2. En Authentication > Settings > Authorized domains agregar TU-USUARIO.github.io.
 3. En Cloud Shell o una terminal con Firebase CLI:
 
    firebase login
-   firebase use lubayd-sa
+   firebase use app-lubayd
    firebase deploy --only firestore:rules,storage
 
 4. Subir TODO el contenido interior de esta carpeta a la raíz del repositorio GitHub.

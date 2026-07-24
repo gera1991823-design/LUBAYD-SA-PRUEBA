@@ -1,4 +1,4 @@
-# Lubayd SA — Gestión de descansos V1.0.0
+# Lubayd SA — Gestión de descansos V1.1.0
 
 Aplicación web progresiva (PWA) para celular y computadora.
 
@@ -21,7 +21,7 @@ Aplicación web progresiva (PWA) para celular y computadora.
 El archivo `js/firebase-config.js` ya apunta al proyecto:
 
 ```text
-lubayd-sa
+app-lubayd
 ```
 
 La clave web de Firebase no es una contraseña. La protección depende de `firestore.rules`, `storage.rules` y de mantener habilitados únicamente los métodos de autenticación necesarios.
@@ -30,7 +30,7 @@ La clave web de Firebase no es una contraseña. La protección depende de `fires
 
 En Firebase Console:
 
-1. Abrir el proyecto `lubayd-sa`.
+1. Abrir el proyecto `app-lubayd`.
 2. En **Authentication → Sign-in method**, habilitar **Correo electrónico/Contraseña**.
 3. Crear **Cloud Firestore** si todavía no existe.
 4. Habilitar **Firebase Storage** si todavía no existe.
@@ -46,7 +46,7 @@ Con Firebase CLI instalado:
 
 ```bash
 firebase login
-firebase use lubayd-sa
+firebase use app-lubayd
 firebase deploy --only firestore:rules,storage
 ```
 
@@ -96,3 +96,7 @@ Fotografías:
 breaks/{uid}/{breakId}/start.jpg
 breaks/{uid}/{breakId}/end.jpg
 ```
+
+## Configuracion incluida en V1.1.0
+
+Esta entrega ya contiene la configuracion web proporcionada para `APP LUBAYD`, incluido el bucket `app-lubayd.firebasestorage.app`. No es necesario volver a editar `js/firebase-config.js`.
