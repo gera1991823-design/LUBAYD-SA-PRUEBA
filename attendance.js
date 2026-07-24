@@ -1,4 +1,4 @@
-/* Lubayd SA V17 - Asistencia con gestión administrativa, foto, GPS y hora de servidor */
+/* Lubayd SA V21.1.0 - Asistencia simple con foto, GPS obligatorio y sincronización robusta */
 (function () {
   'use strict';
 
@@ -103,7 +103,11 @@
   function syncChip(record, kind) {
     const status = markSyncStatus(record, kind);
     if (!status || status === 'synced') return status === 'synced' ? '<span class="attendance-sync-chip synced">Sincronizada</span>' : '';
-    if (status === 'error') return '<span class="attendance-sync-chip error">Error de sincronización</span>';
+    if (status === 'error') {
+      const prefix = kind === 'exit' ? 'exit' : 'entry';
+      const detail = String(record?.[`${prefix}SyncError`] || 'No se pudo enviar la marca.').slice(0, 180);
+      return `<span class="attendance-sync-chip error" title="${escapeHtml(detail)}">Error · toca Sincronizar</span>`;
+    }
     return '<span class="attendance-sync-chip">Pendiente de sincronización</span>';
   }
 
@@ -134,8 +138,9 @@
     const box = $('#attendanceQueueState');
     if (box) {
       box.className = `attendance-queue-state ${errors.length ? 'error' : totalPending ? 'pending' : ''}`;
+      const firstError = errors[0]?.lastError ? String(errors[0].lastError).slice(0, 150) : '';
       box.innerHTML = errors.length
-        ? `<i></i><span><strong>${errors.length} registro(s) con error</strong><small>Conéctate e intenta sincronizar nuevamente.</small></span>`
+        ? `<i></i><span><strong>${errors.length} registro(s) con error</strong><small>${escapeHtml(firstError || 'Conéctate e intenta sincronizar nuevamente.')}</small></span>`
         : totalPending
           ? `<i></i><span><strong>${totalPending} registro(s) pendiente(s)</strong><small>${items.length} marca(s) y ${partItems.length} parte(s) guardados en este teléfono.</small></span>`
           : '<i></i><span><strong>Todo sincronizado</strong><small>Las marcas y los partes ya están disponibles para administración.</small></span>';
@@ -152,46 +157,98 @@
   async function syncPending(options = {}) {
     if (state.syncing || !window.LubaydOffline?.available) {
       await updateOfflineState();
-      return;
+      return { synced: 0, errors: 0, skipped: true };
     }
+
     const identity = await deviceSyncIdentity();
-    const onlineUid = window.firebase?.auth?.().currentUser?.uid || '';
+    const firebaseUser = window.firebase?.auth?.().currentUser || null;
+    const onlineUid = firebaseUser?.uid || '';
     const userId = options.allUsers ? null : (state.user?.uid || null);
-    if (!identity && !onlineUid) {
-      await updateOfflineState();
-      return;
+    let idToken = '';
+    if (firebaseUser?.uid) {
+      try { idToken = await firebaseUser.getIdToken(); } catch (_) { idToken = ''; }
     }
+
+    if (!identity && !idToken) {
+      await updateOfflineState();
+      return { synced: 0, errors: 0, skipped: true };
+    }
+
     state.syncing = true;
     if (userId) await window.LubaydOffline.retryErrors(userId).catch(() => {});
     else {
       const failed = await window.LubaydOffline.listQueue({ statuses: ['error'] }).catch(() => []);
-      for (const item of failed) await window.LubaydOffline.updateQueue(item.id, { status: 'pending', lastError: '' }).catch(() => {});
+      for (const item of failed) {
+        await window.LubaydOffline.updateQueue(item.id, { status: 'pending', lastError: '' }).catch(() => {});
+      }
     }
     await updateOfflineState();
+
     let synced = 0;
+    let errors = 0;
+    let lastError = '';
+    let repairGps = null;
+
     try {
       const items = await window.LubaydOffline.listQueue({ userId, statuses: ['pending', 'error', 'syncing'] });
-      for (const item of items) {
+      for (const originalItem of items) {
+        let item = originalItem;
         try {
+          if (!item.gps) {
+            if (options.silent) {
+              throw new Error('La marca no tiene ubicación GPS. Abre Asistencia y toca “Sincronizar ahora” para repararla.');
+            }
+            if (!repairGps) {
+              notify('Actualizando ubicación', 'Permite el acceso al GPS para reparar la marca pendiente.');
+              repairGps = await obtainGps();
+            }
+            item = await window.LubaydOffline.attachGpsToQueue(item.id, repairGps);
+          }
+
           await window.LubaydOffline.updateQueue(item.id, { status: 'syncing', lastError: '' });
-          let remote;
-          const canUseFirebaseUser = Boolean(item.gps) && onlineUid === item.userId && window.LubaydCurrentProfile?.role === 'operador' && window.LubaydAttendanceData?.available;
-          if (canUseFirebaseUser) {
+          const transport = window.LubaydOffline?.syncQueueItemWithDevice || window.LubaydOfflineDeviceCloud?.syncQueueItem;
+          const canUseOnlineSession = Boolean(idToken && onlineUid === item.userId);
+          let remote = null;
+
+          if (transport && (canUseOnlineSession || identity)) {
+            try {
+              remote = await transport(item, identity, { idToken: canUseOnlineSession ? idToken : '' });
+            } catch (transportError) {
+              // Respaldo cuando la Function actualizada todavía no fue publicada.
+              if (canUseOnlineSession && item.gps && window.LubaydAttendanceData?.available) {
+                remote = await window.LubaydAttendanceData.registerQueued(item);
+              } else {
+                throw transportError;
+              }
+            }
+          } else if (canUseOnlineSession && item.gps && window.LubaydAttendanceData?.available) {
             remote = await window.LubaydAttendanceData.registerQueued(item);
           } else {
-            const transport = window.LubaydOffline?.syncQueueItemWithDevice || window.LubaydOfflineDeviceCloud?.syncQueueItem;
-            if (!identity || !transport) throw new Error('Este dispositivo no fue habilitado por un administrador para sincronizar sin sesión de Firebase.');
-            remote = await transport(item, identity);
+            throw new Error('Inicia sesión con el mismo operador o prepara este teléfono para sincronizar.');
           }
+
           await window.LubaydOffline.markSynced(item.id, remote);
           synced += 1;
         } catch (error) {
+          errors += 1;
+          lastError = String(error?.message || error || 'No se pudo sincronizar la marca.');
           await window.LubaydOffline.markError(item.id, error);
-          if (/network|conexi|offline|fetch|failed to fetch|load failed/i.test(String(error?.message || error))) break;
+          if (/network|conexi|offline|fetch|failed to fetch|load failed|demoró demasiado/i.test(lastError)) break;
         }
       }
+
       if (state.user?.uid) await loadLocalRecords();
-      if (!options.silent && synced) notify('Sincronización completada', `${synced} marca(s) enviada(s) a Firebase.`);
+      const remainingErrors = await window.LubaydOffline.listQueue({ userId, statuses: ['error'] }).catch(() => []);
+      if (!options.silent) {
+        if (synced && !remainingErrors.length) {
+          notify('Sincronización completada', `${synced} marca(s) enviada(s) correctamente.`);
+        } else if (remainingErrors.length) {
+          notify('No se pudo sincronizar', remainingErrors[0]?.lastError || lastError || 'La marca continúa guardada en este teléfono.', 'error');
+        } else {
+          notify('Sin marcas pendientes', 'No había registros nuevos para enviar.');
+        }
+      }
+      return { synced, errors: Math.max(errors, remainingErrors.length), lastError };
     } finally {
       state.syncing = false;
       await updateOfflineState();
@@ -228,6 +285,26 @@
     return `https://www.google.com/maps?q=${encodeURIComponent(`${gps.latitude},${gps.longitude}`)}`;
   }
 
+  function coordinatesText(gps) {
+    if (!gps || !Number.isFinite(Number(gps.latitude)) || !Number.isFinite(Number(gps.longitude))) return '';
+    return `${Number(gps.latitude).toFixed(6)}, ${Number(gps.longitude).toFixed(6)}`;
+  }
+
+  function renderLocationSummary(record) {
+    const root = $('#attendanceLocationSummary');
+    if (!root) return;
+    const gps = record?.exitGps || record?.entryGps || null;
+    const kind = record?.exitGps ? 'salida' : record?.entryGps ? 'llegada' : '';
+    if (!gps) {
+      root.className = 'attendance-location-summary empty';
+      root.innerHTML = `<span class="attendance-location-icon"><svg><use href="#i-pin"></use></svg></span><div><span>UBICACIÓN DE LA MARCA</span><strong>Se mostrará después de registrar la llegada</strong><small>La ubicación GPS es obligatoria para sincronizar.</small></div>`;
+      return;
+    }
+    const quality = gpsQuality(gps.accuracy);
+    root.className = `attendance-location-summary ${quality.className}`;
+    root.innerHTML = `<span class="attendance-location-icon"><svg><use href="#i-pin"></use></svg></span><div><span>UBICACIÓN DE ${kind.toUpperCase()}</span><strong>${escapeHtml(coordinatesText(gps))}</strong><small>${escapeHtml(quality.label)} · precisión aproximada ±${Math.round(Number(gps.accuracy || 0))} m</small></div><a href="${mapUrl(gps)}" target="_blank" rel="noopener"><svg><use href="#i-map"></use></svg> Ver mapa</a>`;
+  }
+
   function renderPersonal() {
     const manager = state.profile?.role === 'admin' || state.profile?.role === 'supervisor';
     $('#attendancePersonalArea')?.classList.toggle('hidden', manager);
@@ -258,6 +335,7 @@
     if (!manager) {
       renderMarkCard('entry', record);
       renderMarkCard('exit', record);
+      renderLocationSummary(record);
       renderPersonalHistory();
     }
 
@@ -267,13 +345,13 @@
       entryButton.disabled = !canRegister() || Boolean(record?.entryAt) || state.busy;
       entryButton.innerHTML = record?.entryAt
         ? '<svg><use href="#i-check"></use></svg> Llegada registrada'
-        : '<svg><use href="#i-camera"></use></svg> Registrar llegada';
+        : '<svg><use href="#i-log-in"></use></svg> Marcar llegada';
     }
     if (exitButton) {
       exitButton.disabled = !canRegister() || !record?.entryAt || Boolean(record?.exitAt || record?.exitPhotoId) || state.busy;
       exitButton.innerHTML = record?.exitAt || record?.exitPhotoId
         ? '<svg><use href="#i-check"></use></svg> Salida registrada'
-        : '<svg><use href="#i-camera"></use></svg> Registrar salida';
+        : '<svg><use href="#i-log-out"></use></svg> Marcar salida';
     }
 
     const onlineNotice = $('#attendanceOnlineNotice');
@@ -308,7 +386,7 @@
         <span>${isEntry ? 'LLEGADA' : 'SALIDA'}</span>
         <strong>${hasMark ? formatTime(time) : 'Pendiente'}</strong>
         <small>${hasMark ? (status === 'synced' ? 'Hora sincronizada con Firebase' : 'Hora guardada en este teléfono') : isEntry ? 'Inicia tu jornada con una fotografía' : 'Finaliza tu jornada con una fotografía'}</small>
-        ${gps ? `<div class="attendance-gps-chip ${quality.className}"><svg><use href="#i-pin"></use></svg>${quality.label} · ±${Math.round(Number(gps.accuracy || 0))} m</div>` : ''}
+        ${gps ? `<div class="attendance-gps-chip ${quality.className}"><svg><use href="#i-pin"></use></svg>${quality.label} · ±${Math.round(Number(gps.accuracy || 0))} m</div><div class="attendance-coordinate-text">${escapeHtml(coordinatesText(gps))}</div>` : ''}
         ${hasMark ? syncChip(record, kind) : ''}
       </div>
       ${hasMark ? `<div class="attendance-mark-actions"><button type="button" data-attendance-photo="${escapeHtml(photoId)}" aria-label="Ver foto"><svg><use href="#i-camera"></use></svg></button><a href="${mapUrl(gps)}" target="_blank" rel="noopener" aria-label="Ver ubicación"><svg><use href="#i-map"></use></svg></a></div>` : ''}
@@ -532,6 +610,45 @@ La acción quedará registrada y no se puede deshacer.`);
     node.innerHTML = `<span class="camera-state-icon"><svg><use href="#${kind}"></use></svg></span><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(text)}</small></div>`;
   }
 
+  function updateGpsPreview(status, title, text, gps) {
+    const root = $('#attendanceGpsPreview');
+    const titleNode = $('#attendanceGpsPreviewTitle');
+    const textNode = $('#attendanceGpsPreviewText');
+    const retry = $('#attendanceRetryGpsBtn');
+    if (root) root.className = `attendance-gps-preview ${status || ''}`;
+    if (titleNode) titleNode.textContent = title;
+    if (textNode) textNode.textContent = text;
+    retry?.classList.toggle('hidden', status !== 'error');
+    if (gps && root) root.dataset.coordinates = coordinatesText(gps);
+  }
+
+  function updateConfirmAvailability() {
+    const button = $('#attendanceConfirmBtn');
+    if (!button || button.classList.contains('hidden')) return;
+    const ready = Boolean(state.photoBlob && state.gps && !state.busy);
+    button.disabled = !ready;
+    button.innerHTML = ready
+      ? '<svg><use href="#i-check"></use></svg> Confirmar registro'
+      : '<span class="button-spinner"></span> Esperando ubicación';
+  }
+
+  async function retryGps() {
+    if (state.busy) return;
+    updateGpsPreview('loading', 'Buscando ubicación…', 'Mantén habilitada la ubicación del teléfono.');
+    try {
+      const gps = await obtainGps();
+      state.gps = gps;
+      const quality = gpsQuality(gps.accuracy);
+      updateGpsPreview('success', coordinatesText(gps), `${quality.label} · precisión aproximada ±${Math.round(gps.accuracy)} m`, gps);
+      updateCameraState('i-check', 'Foto y GPS listos', 'Ya puedes confirmar la marca.', 'success');
+    } catch (error) {
+      state.gps = null;
+      updateGpsPreview('error', 'No se obtuvo la ubicación', error.message || 'Activa la ubicación y vuelve a intentar.');
+      updateCameraState('i-alert', 'Ubicación requerida', 'No se puede confirmar sin GPS.', 'warning');
+    }
+    updateConfirmAvailability();
+  }
+
   function getPosition(options) {
     return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, options));
   }
@@ -629,17 +746,22 @@ La acción quedará registrada y no se puede deshacer.`);
     if (modal) modal.classList.remove('hidden');
     document.body.classList.add('camera-open');
     updateCameraState('i-camera', 'Preparando cámara', 'Permite el acceso a la cámara del teléfono.', 'loading');
+    updateGpsPreview('loading', 'Buscando ubicación…', 'La ubicación debe quedar confirmada antes de guardar.');
 
     const gpsPromise = obtainGps()
       .then(gps => {
         state.gps = gps;
         const quality = gpsQuality(gps.accuracy);
-        updateCameraState('i-check', 'Cámara y GPS listos', `${quality.label} · precisión aproximada ±${Math.round(gps.accuracy)} m`, 'success');
+        updateGpsPreview('success', coordinatesText(gps), `${quality.label} · precisión aproximada ±${Math.round(gps.accuracy)} m`, gps);
+        updateCameraState('i-check', 'Cámara y GPS listos', 'Toma la foto y confirma la marca.', 'success');
+        updateConfirmAvailability();
         return gps;
       })
       .catch(error => {
         state.gps = null;
-        updateCameraState('i-alert', 'Cámara lista · GPS no disponible', `${error.message || 'No se obtuvo ubicación.'} Puedes tomar la foto y la marca quedará identificada como “Sin GPS”.`, 'warning');
+        updateGpsPreview('error', 'No se obtuvo la ubicación', error.message || 'Activa la ubicación y vuelve a intentar.');
+        updateCameraState('i-alert', 'Ubicación requerida', 'Puedes tomar la foto, pero no confirmar hasta obtener GPS.', 'warning');
+        updateConfirmAvailability();
         return null;
       });
 
@@ -650,7 +772,7 @@ La acción quedará registrada y no se puede deshacer.`);
       await video.play();
       await waitForVideo(video);
       if (captureBtn) captureBtn.disabled = false;
-      if (!state.gps) updateCameraState('i-pin', 'Cámara lista · buscando GPS', 'Ya puedes tomar la foto. La ubicación continuará intentando en segundo plano.', 'loading');
+      if (!state.gps) updateCameraState('i-pin', 'Cámara lista · buscando GPS', 'Toma la foto mientras esperamos la ubicación.', 'loading');
       gpsPromise.catch(() => {});
     } catch (error) {
       stopStream();
@@ -707,7 +829,8 @@ La acción quedará registrada y no se puede deshacer.`);
     $('#attendanceCaptureBtn')?.classList.add('hidden');
     $('#attendanceConfirmBtn')?.classList.remove('hidden');
     $('#attendanceRetakeBtn')?.classList.remove('hidden');
-    updateCameraState('i-check', 'Fotografía capturada', 'Verifica la imagen antes de confirmar la marcación.', 'success');
+    updateCameraState('i-check', 'Fotografía capturada', state.gps ? 'Foto y ubicación listas para confirmar.' : 'Foto lista. Falta confirmar la ubicación GPS.', state.gps ? 'success' : 'warning');
+    updateConfirmAvailability();
   }
 
   async function retakePhoto() {
@@ -720,6 +843,7 @@ La acción quedará registrada y no se puede deshacer.`);
     $('#attendanceConfirmBtn')?.classList.add('hidden');
     $('#attendanceRetakeBtn')?.classList.add('hidden');
     updateCameraState('i-camera', 'Cámara lista', 'Coloca tu rostro dentro del recuadro y toma la foto.', 'success');
+    updateConfirmAvailability();
   }
 
   async function blobToDataUrl(blob) {
@@ -733,6 +857,10 @@ La acción quedará registrada y no se puede deshacer.`);
 
   async function confirmMark() {
     if (state.busy || !state.photoBlob || !canRegister()) return;
+    if (!state.gps) {
+      notify('Ubicación requerida', 'Activa el GPS y toca Reintentar antes de confirmar.', 'error');
+      return;
+    }
     if (!window.LubaydOffline?.available) return notify('Modo offline no disponible', 'Este navegador no permite guardar la marca en el teléfono.', 'error');
     state.busy = true;
     const button = $('#attendanceConfirmBtn');
@@ -759,8 +887,7 @@ La acción quedará registrada y no se puede deshacer.`);
         photoId,
         imageData,
         capturedAt,
-        gps: state.gps || null,
-        gpsUnavailable: !state.gps,
+        gps: state.gps,
         offlineCaptured: !hasOnlineFirebaseSession()
       });
       await loadLocalRecords();
@@ -880,6 +1007,7 @@ La acción quedará registrada y no se puede deshacer.`);
     $('.attendance-camera-backdrop')?.addEventListener('click', closeCamera);
     $('#attendanceCaptureBtn')?.addEventListener('click', capturePhoto);
     $('#attendanceRetakeBtn')?.addEventListener('click', retakePhoto);
+    $('#attendanceRetryGpsBtn')?.addEventListener('click', retryGps);
     $('#attendanceConfirmBtn')?.addEventListener('click', confirmMark);
     $('#attendanceAdminDate')?.addEventListener('change', renderTeam);
     $('#attendanceAdminRefresh')?.addEventListener('click', () => subscribe());

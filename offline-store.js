@@ -1,4 +1,4 @@
-/* Lubayd SA V21.0.1 - acceso local, asistencia y partes completos sin conexión */
+/* Lubayd SA V21.1.0 - acceso local, asistencia y partes completos sin conexión */
 (function () {
   'use strict';
 
@@ -410,46 +410,45 @@
 
   const OFFLINE_SYNC_URL = 'https://southamerica-east1-lubayd-sa.cloudfunctions.net/syncOfflineAttendance';
 
-  async function syncQueueItemWithDevice(item, identity) {
-    if (!identity?.deviceId || !identity?.deviceToken) throw new Error('Este dispositivo no fue preparado por un administrador.');
+  async function syncQueueItemWithDevice(item, identity, options = {}) {
+    const idToken = String(options?.idToken || '').trim();
+    const hasDeviceCredential = Boolean(identity?.deviceId && identity?.deviceToken);
+    if (!idToken && !hasDeviceCredential) {
+      throw new Error('Inicia sesión con el mismo operador o prepara este teléfono para sincronizar.');
+    }
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30000);
+    const timer = setTimeout(() => controller.abort(), 45000);
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (idToken) headers.Authorization = `Bearer ${idToken}`;
       const response = await fetch(OFFLINE_SYNC_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId: identity.deviceId, deviceToken: identity.deviceToken, item }),
+        headers,
+        body: JSON.stringify({
+          deviceId: identity?.deviceId || '',
+          deviceToken: identity?.deviceToken || '',
+          item
+        }),
         signal: controller.signal
       });
       let result = {};
       try { result = await response.json(); } catch (_) { result = {}; }
-      if (!response.ok || result.ok !== true) throw new Error(result.error || `No se pudo sincronizar la marca (${response.status}).`);
+      if (!response.ok || result.ok !== true) {
+        const message = result.error || `No se pudo sincronizar la marca (${response.status}).`;
+        const error = new Error(message);
+        error.status = response.status;
+        throw error;
+      }
       return result.record || null;
     } catch (error) {
-      if (error?.name === 'AbortError') throw new Error('La sincronización demoró demasiado. Vuelve a intentar.');
+      if (error?.name === 'AbortError') throw new Error('La sincronización demoró demasiado. Vuelve a intentar con buena señal.');
+      if (/failed to fetch|load failed|networkerror/i.test(String(error?.message || error))) {
+        throw new Error('No se pudo conectar con el servidor. La marca sigue guardada en este teléfono.');
+      }
       throw error;
     } finally {
       clearTimeout(timer);
     }
-  }
-
-  function normalizeRecord(record) {
-    if (!record) return null;
-    return {
-      ...clone(record),
-      id: record.id || `${record.userId}_${record.dateKey}`,
-      userId: record.userId || '',
-      userName: record.userName || '',
-      userEmail: record.userEmail || '',
-      dateKey: record.dateKey || '',
-      entrySyncStatus: record.entrySyncStatus || (record.entryAt ? 'synced' : ''),
-      exitSyncStatus: record.exitSyncStatus || (record.exitAt ? 'synced' : ''),
-      localUpdatedAt: record.localUpdatedAt || nowIso()
-    };
-  }
-
-  function getAttendance(id) {
-    return get(STORES.attendance, id);
   }
 
   async function saveAttendance(record) {
@@ -586,6 +585,30 @@
     if (!item) return null;
     Object.assign(item, clone(changes), { updatedAt: nowIso() });
     await put(STORES.queue, item);
+    emitChange();
+    return item;
+  }
+
+  async function attachGpsToQueue(id, gps) {
+    if (!gps || !Number.isFinite(Number(gps.latitude)) || !Number.isFinite(Number(gps.longitude))) {
+      throw new Error('La ubicación GPS no es válida.');
+    }
+    const item = await get(STORES.queue, id);
+    if (!item) throw new Error('No se encontró la marca pendiente.');
+    item.gps = clone(gps);
+    item.status = 'pending';
+    item.lastError = '';
+    item.updatedAt = nowIso();
+    await put(STORES.queue, item);
+    const current = await getAttendance(item.attendanceId);
+    if (current) {
+      const prefix = item.type === 'entry' ? 'entry' : 'exit';
+      current[`${prefix}Gps`] = clone(gps);
+      current[`${prefix}SyncStatus`] = 'pending';
+      current[`${prefix}SyncError`] = '';
+      current.localUpdatedAt = nowIso();
+      await put(STORES.attendance, current);
+    }
     emitChange();
     return item;
   }
@@ -911,6 +934,7 @@
     listQueue,
     pendingCount,
     updateQueue,
+    attachGpsToQueue,
     markSynced,
     markError,
     retryErrors,

@@ -1,60 +1,65 @@
-# Lubayd SA V21.0.1 — Corrección IndexedDB
+# Lubayd SA V21.1.0 — sincronización, asistencia GPS y Safari
 
-Esta compilación corrige el acceso al almacenamiento offline cuando el dispositivo ya tenía creada la base local en la versión 5. La aplicación migra a la versión 6 sin borrar los datos existentes.
+Aplicación web progresiva (PWA) para gestión forestal con Firebase, funcionamiento offline, partes, combustible, asistencia con fotografía/GPS y chat.
 
-## Después de publicar
+## Correcciones y mejoras
 
-1. Reemplazar todos los archivos del sitio con los incluidos en este paquete.
-2. Abrir la aplicación con internet y recargar una vez.
-3. Si está instalada como PWA, cerrarla por completo y volver a abrirla para activar la caché V21.0.1.
+- **Sincronización de asistencia:** las marcas pueden autenticarse con la sesión Firebase del operador o con la credencial del teléfono offline.
+- **Registros protegidos:** una marca no se elimina del teléfono hasta recibir confirmación del servidor.
+- **Reintentos idempotentes:** si el servidor recibió la marca pero el celular perdió la respuesta, el próximo intento no duplica la llegada o salida.
+- **GPS obligatorio:** llegada y salida exigen una ubicación válida antes de confirmar.
+- **Reparación de marcas anteriores:** al tocar **Sincronizar ahora**, la app puede agregar GPS a registros antiguos que quedaron pendientes sin ubicación.
+- **Interfaz simplificada:** una tarjeta de jornada muestra estado, hora, duración, coordenadas, precisión y acceso al mapa.
+- **Safari/iPhone:** guía integrada para instalar la PWA en la pantalla de inicio y activar notificaciones desde el icono instalado.
 
-# Lubayd SA V20.8.8 — Parte único de combustible
+## Publicación obligatoria
 
-Esta versión agrega un control acumulativo de combustible independiente del parte diario forestal.
-
-## Funcionamiento
-
-1. Cuando no existe una carga activa, un operador registra los litros totales cargados y adjunta el comprobante inicial.
-2. Mientras exista saldo, cualquier operador activo puede agregar consumos diarios.
-3. Cada consumo exige una foto, fecha, hora y litros utilizados.
-4. El servidor calcula el saldo restante de forma transaccional, incluso si varios teléfonos sincronizan al mismo tiempo.
-5. Al llegar a cero litros, el parte se cierra y pasa al historial.
-6. Administradores y supervisores pueden consultar la carga, todos los movimientos y las fotografías.
-
-## Modo offline
-
-- La carga o el consumo se guarda primero en IndexedDB.
-- La fotografía se comprime antes de almacenarse.
-- Al recuperar internet, la aplicación intenta sincronizar automáticamente.
-- También se puede pulsar **Combustible → Sincronizar**.
-- No desinstalar la PWA ni borrar sus datos mientras existan registros pendientes.
-
-## Despliegue
-
-Después de subir todos los archivos a GitHub, desplegar:
+Subir solamente los archivos estáticos a GitHub Pages no actualiza la función que recibe las marcas. Para que la corrección de sincronización quede activa, publica también Firebase Functions y las reglas:
 
 ```bash
-cd ~/LUBAYD-SA-PRUEBA
-git pull origin main
-npm --prefix functions install
-firebase deploy --only "functions:syncFuelRecord" --project lubayd-sa
-firebase deploy --only firestore:rules --project lubayd-sa
+npm install -g firebase-tools
+firebase login
+cd functions
+npm install
+cd ..
+firebase deploy --only functions,firestore:rules
 ```
 
-Verificar:
+Si la web se publica con Firebase Hosting:
 
 ```bash
-firebase functions:list --project lubayd-sa
+firebase deploy --only hosting,functions,firestore:rules
 ```
 
-Debe aparecer `syncFuelRecord` junto con las Functions existentes.
+Después de publicar:
 
-## Prueba recomendada
+1. Abrir la app con internet.
+2. Pulsar **Actualizar aplicación** o recargar forzadamente.
+3. Cerrar y volver a abrir la PWA instalada.
+4. Entrar a **Asistencia** y probar una llegada.
 
-1. Abrir la V20.8.8 con internet en un operador.
-2. Entrar a **Combustible** y crear una carga de 1500 L con foto.
-3. Desactivar internet y registrar un consumo de 500 L con foto.
-4. Confirmar que el saldo local muestre 1000 L y el movimiento figure pendiente.
-5. Recuperar internet y esperar la sincronización.
-6. Registrar otro consumo de 300 L desde otro teléfono preparado.
-7. Confirmar en administración que el saldo final sea 700 L y que se vean ambas fotos.
+## Prueba de llegada y salida
+
+1. Iniciar sesión como operador.
+2. Abrir **Asistencia**.
+3. Tocar **Marcar llegada**.
+4. Permitir cámara y ubicación precisa.
+5. Tomar la fotografía.
+6. Confirmar cuando aparezcan las coordenadas GPS.
+7. Comprobar que la tarjeta muestre la ubicación y el estado **Sincronizada**.
+8. Repetir con **Marcar salida**.
+
+Si una marca queda pendiente, permanece guardada localmente. Al recuperar internet, tocar **Sincronizar ahora**.
+
+## Notificaciones en iPhone
+
+Requisitos:
+
+- iOS/iPadOS 16.4 o posterior.
+- Sitio publicado con HTTPS.
+- Abrir la página en Safari.
+- Safari → **Compartir** → **Agregar a pantalla de inicio**.
+- Abrir Lubayd desde el icono instalado.
+- Iniciar sesión y tocar **Activar notificaciones**.
+
+El permiso se solicita únicamente después de una acción del usuario.

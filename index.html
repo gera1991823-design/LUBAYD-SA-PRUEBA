@@ -6,17 +6,17 @@
   <meta name="theme-color" content="#0b7a45">
   <meta name="description" content="Gestión de partes diarios, producción y ubicaciones forestales de Lubayd SA">
   <title>Lubayd SA | Centro de Operaciones Forestales</title>
-  <link rel="manifest" href="./manifest.json?v=21.0.1">
+  <link rel="manifest" href="./manifest.json?v=21.1.0">
   <link rel="icon" href="./assets/icon-192.png">
   <link rel="apple-touch-icon" href="./assets/icon-192.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Gestión Forestal">
-  <link rel="stylesheet" href="./style.css?v=21.0.1">
-  <link rel="stylesheet" href="./operations.css?v=21.0.1">
-  <link rel="stylesheet" href="./attendance.css?v=21.0.1">
-  <link rel="stylesheet" href="./fuel.css?v=21.0.1">
+  <link rel="stylesheet" href="./style.css?v=21.1.0">
+  <link rel="stylesheet" href="./operations.css?v=21.1.0">
+  <link rel="stylesheet" href="./attendance.css?v=21.1.0">
+  <link rel="stylesheet" href="./fuel.css?v=21.1.0">
 
   <script>
     window.LubaydLogoFallback = function (img) {
@@ -161,7 +161,7 @@
         <div><strong id="sidebarUserName">Operador</strong><small id="sidebarUserEmail">Sesión segura</small></div>
         <svg><use href="#i-chevron-left"></use></svg>
       </button>
-      <div class="sidebar-version">V20.8.8 · Combustible offline + comprobantes</div>
+      <div class="sidebar-version">V21.1.0 · Sync robusta + GPS + Safari</div>
     </aside>
 
     <main class="main">
@@ -247,20 +247,28 @@
           <div id="attendanceOnlineNotice" class="attendance-online-notice"><i></i><span><strong>Comprobando conexión</strong><small>Las marcas pueden guardarse en este teléfono y sincronizarse después.</small></span></div>
         </div>
 
-        <div id="attendancePersonalArea" class="attendance-personal-grid">
-          <article class="attendance-profile-card">
-            <div class="attendance-profile-top"><div id="attendanceUserAvatar" class="attendance-avatar">OP</div><div><span>JORNADA DE HOY</span><h3 id="attendanceUserName">Operador</h3><p id="attendanceTodayDate">—</p></div><div id="attendanceStatusPill" class="attendance-status pendiente"><i></i>Sin marcar</div></div>
-            <div class="attendance-duration"><span>Tiempo registrado</span><strong id="attendanceLiveDuration">0 h 00 min</strong><small>Se calcula entre la llegada y la salida.</small></div>
-            <div class="attendance-security-note"><svg><use href="#i-shield"></use></svg><div><strong>Registro protegido</strong><small>El operador no puede alterar la marca. Las correcciones administrativas quedan auditadas.</small></div></div>
+        <div id="attendancePersonalArea" class="attendance-simple-shell">
+          <article class="attendance-shift-card">
+            <div class="attendance-shift-header">
+              <div class="attendance-person-compact"><div id="attendanceUserAvatar" class="attendance-avatar">OP</div><div><span>JORNADA DE HOY</span><h3 id="attendanceUserName">Operador</h3><p id="attendanceTodayDate">—</p></div></div>
+              <div id="attendanceStatusPill" class="attendance-status pendiente"><i></i>Sin marcar</div>
+            </div>
+            <div class="attendance-shift-summary"><div><span>Tiempo de jornada</span><strong id="attendanceLiveDuration">0 h 00 min</strong></div><div class="attendance-security-note"><svg><use href="#i-shield"></use></svg><div><strong>Registro seguro</strong><small>Foto, hora y ubicación quedan vinculadas a cada marca.</small></div></div></div>
+            <div class="attendance-shift-flow">
+              <article id="attendance-entry-card" class="attendance-mark-card"></article>
+              <div class="attendance-flow-line"><span></span></div>
+              <article id="attendance-exit-card" class="attendance-mark-card"></article>
+            </div>
+            <div id="attendanceLocationSummary" class="attendance-location-summary">
+              <span class="attendance-location-icon"><svg><use href="#i-pin"></use></svg></span>
+              <div><span>UBICACIÓN DE LA MARCA</span><strong>Se mostrará después de registrar la llegada</strong><small>La ubicación GPS es obligatoria para sincronizar.</small></div>
+            </div>
           </article>
-
-          <article id="attendance-entry-card" class="attendance-mark-card"></article>
-          <article id="attendance-exit-card" class="attendance-mark-card"></article>
         </div>
 
-        <div id="attendanceActionBar" class="attendance-action-bar">
-          <div><strong>Marca tu jornada desde el lugar de trabajo</strong><span>La cámara frontal se abrirá y el GPS se capturará automáticamente.</span></div>
-          <div><button id="attendanceEntryBtn" type="button" class="btn btn-primary btn-lg"><svg><use href="#i-camera"></use></svg> Registrar llegada</button><button id="attendanceExitBtn" type="button" class="btn btn-dark btn-lg" disabled><svg><use href="#i-camera"></use></svg> Registrar salida</button></div>
+        <div id="attendanceActionBar" class="attendance-action-bar attendance-action-simple">
+          <div><strong>¿Qué deseas registrar?</strong><span>Toca un botón, permite cámara y ubicación, y confirma.</span></div>
+          <div><button id="attendanceEntryBtn" type="button" class="btn btn-primary btn-lg"><svg><use href="#i-log-in"></use></svg> Marcar llegada</button><button id="attendanceExitBtn" type="button" class="btn btn-dark btn-lg" disabled><svg><use href="#i-log-out"></use></svg> Marcar salida</button></div>
         </div>
 
         <article id="attendancePersonalHistoryCard" class="ops-card attendance-history-card">
@@ -625,7 +633,7 @@
 
       <section id="configuracion" class="view admin-view">
         <div class="section-heading-row"><div><span class="section-kicker"><svg><use href="#i-settings"></use></svg> PREFERENCIAS</span><h2>Configuración de la aplicación</h2><p>Ajusta apariencia, accesibilidad y comportamiento del sistema.</p></div></div>
-        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2 notification-settings-card"><div class="ops-card-head"><div><span>NOTIFICACIONES</span><h3>Avisos en celular y computadora</h3></div><span class="notification-settings-state" id="notificationSettingsState">Pendiente</span></div><div class="notification-settings-body"><div class="notification-settings-visual"><svg><use href="#i-bell"></use></svg><span></span></div><div><strong>Mensajes nuevos con nombre y vista previa</strong><p>Activa sonido, vibración y aviso del sistema. La prueba confirma que el teléfono puede mostrarlos.</p></div><div class="notification-settings-actions"><button type="button" class="btn btn-primary" data-enable-notifications><svg><use href="#i-bell"></use></svg><span data-notification-label>Activar notificaciones</span></button><button type="button" class="btn btn-soft hidden" data-test-notification><svg><use href="#i-check"></use></svg> Enviar prueba</button></div></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 20.8.8 · Parte único de combustible + modo offline</span><small>Usuarios, asistencia con foto, firma digital, chat con notificaciones, sonido, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
+        <div class="settings-grid"><article class="ops-card"><div class="ops-card-head"><div><span>APARIENCIA</span><h3>Interfaz</h3></div></div><div class="settings-list"><label><span><strong>Modo de visualización</strong><small>Claro, oscuro o automático.</small></span><select id="themePreference"><option value="light">Claro</option><option value="dark">Oscuro</option><option value="system">Sistema</option></select></label><label><span><strong>Tamaño del texto</strong><small>Mejora la lectura en campo.</small></span><select id="fontSizePreference"><option value="normal">Normal</option><option value="large">Grande</option><option value="xlarge">Muy grande</option></select></label><label class="switch-row"><span><strong>Reducir animaciones</strong><small>Ideal para dispositivos lentos.</small></span><input id="reduceMotionPreference" type="checkbox"></label></div></article><article class="ops-card"><div class="ops-card-head"><div><span>FORMULARIOS</span><h3>Comportamiento</h3></div></div><div class="settings-list"><label class="switch-row"><span><strong>Confirmar antes de guardar</strong><small>Muestra el resumen final.</small></span><input id="confirmSavePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Recordar último monte</strong><small>Agiliza la siguiente carga.</small></span><input id="rememberMontePreference" type="checkbox" checked></label><label class="switch-row"><span><strong>Sonidos de confirmación</strong><small>Aviso breve al completar acciones.</small></span><input id="soundPreference" type="checkbox"></label></div></article><article class="ops-card span-2 notification-settings-card"><div class="ops-card-head"><div><span>NOTIFICACIONES</span><h3>Avisos en celular y computadora</h3></div><span class="notification-settings-state" id="notificationSettingsState">Pendiente</span></div><div class="notification-settings-body"><div class="notification-settings-visual"><svg><use href="#i-bell"></use></svg><span></span></div><div><strong>Mensajes nuevos con nombre y vista previa</strong><p>Activa sonido, vibración y aviso del sistema. La prueba confirma que el teléfono puede mostrarlos.</p></div><div class="notification-settings-actions"><button type="button" class="btn btn-primary" data-enable-notifications><svg><use href="#i-bell"></use></svg><span data-notification-label>Activar notificaciones</span></button><button type="button" class="btn btn-soft hidden" data-test-notification><svg><use href="#i-check"></use></svg> Enviar prueba</button></div></div></article><article class="ops-card span-2"><div class="ops-card-head"><div><span>INFORMACIÓN</span><h3>Versión y soporte</h3></div></div><div class="app-info-panel"><div class="brand-mark"><img src="./assets/logo-transparent.png?v=17.0.0" data-lubayd-logo onerror="LubaydLogoFallback(this)" alt="Lubayd SA"></div><div><strong>Lubayd SA · Gestión Forestal</strong><span>Versión 21.1.0 · Asistencia GPS + Safari PWA</span><small>Usuarios, asistencia con foto, firma digital, chat con notificaciones, sonido, reportes y modo offline.</small></div><button class="btn btn-soft" id="resetAppCacheBtn">Actualizar aplicación</button></div></article></div>
       </section>
 
     </main>
@@ -651,6 +659,11 @@
       <div class="attendance-camera-head"><div><span>CONTROL HORARIO SEGURO</span><h2 id="attendanceCameraTitle">Registrar asistencia</h2><p id="attendanceCameraSubtitle">Foto y ubicación obtenidas en este momento</p></div><button id="attendanceCloseCamera" type="button" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button></div>
       <div class="attendance-camera-stage"><video id="attendanceCameraVideo" autoplay muted playsinline></video><img id="attendanceCameraPreview" class="hidden" alt="Vista previa de la fotografía"><canvas id="attendanceCameraCanvas" class="hidden"></canvas><div class="camera-guide"><span></span></div><div class="camera-live-badge"><i></i> CAPTURA EN VIVO</div></div>
       <div id="attendanceCameraState" class="camera-state loading"><span class="camera-state-icon"><svg><use href="#i-camera"></use></svg></span><div><strong>Preparando cámara</strong><small>Permite el acceso a la cámara frontal.</small></div></div>
+      <div id="attendanceGpsPreview" class="attendance-gps-preview loading">
+        <span class="attendance-gps-preview-icon"><svg><use href="#i-pin"></use></svg></span>
+        <div><span>UBICACIÓN GPS</span><strong id="attendanceGpsPreviewTitle">Buscando ubicación…</strong><small id="attendanceGpsPreviewText">Espera hasta que la ubicación quede confirmada.</small></div>
+        <button id="attendanceRetryGpsBtn" type="button" class="hidden"><svg><use href="#i-refresh"></use></svg> Reintentar</button>
+      </div>
       <div class="attendance-camera-privacy"><svg><use href="#i-shield"></use></svg><span>La imagen se usa únicamente como comprobante. Sin señal se guarda en este teléfono y luego se sincroniza con Firebase.</span></div>
       <div class="attendance-camera-actions"><button id="attendanceCancelCamera" type="button" class="btn btn-ghost">Cancelar</button><button id="attendanceRetakeBtn" type="button" class="btn btn-soft hidden"><svg><use href="#i-refresh"></use></svg> Repetir</button><button id="attendanceCaptureBtn" type="button" class="btn btn-primary btn-lg" disabled><svg><use href="#i-camera"></use></svg> Tomar foto</button><button id="attendanceConfirmBtn" type="button" class="btn btn-primary btn-lg hidden"><svg><use href="#i-check"></use></svg> Confirmar registro</button></div>
     </div>
@@ -681,6 +694,19 @@
   <div id="fuelPhotoModal" class="fuel-photo-modal hidden" role="dialog" aria-modal="true" aria-labelledby="fuelPhotoTitle"><div class="fuel-photo-backdrop"></div><div class="fuel-photo-panel"><div class="fuel-photo-head"><h3 id="fuelPhotoTitle">Comprobante</h3><button id="fuelPhotoClose" type="button" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button></div><img id="fuelPhotoImage" alt="Comprobante de combustible"></div></div>
   <div id="detailModal" class="modal-overlay hidden"><div class="modal"><button id="detailClose" class="modal-close" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button><div id="detailContent"></div></div></div>
   <div id="messageNotificationStack" class="message-notification-stack" aria-live="polite" aria-label="Notificaciones de mensajes"></div>
+
+  <div id="iosNotificationGuide" class="ios-notification-guide hidden" role="dialog" aria-modal="true" aria-labelledby="iosNotificationGuideTitle">
+    <div class="ios-notification-guide-backdrop"></div>
+    <div class="ios-notification-guide-panel">
+      <button id="iosNotificationGuideClose" type="button" aria-label="Cerrar"><svg><use href="#i-close"></use></svg></button>
+      <span class="ios-guide-icon"><svg><use href="#i-bell"></use></svg></span>
+      <span class="section-kicker">IPHONE · SAFARI</span>
+      <h3 id="iosNotificationGuideTitle">Instala la app para recibir notificaciones</h3>
+      <p>En iPhone con iOS 16.4 o posterior, las notificaciones funcionan desde la app agregada a la pantalla de inicio.</p>
+      <ol><li>Abre esta página en Safari.</li><li>Toca <strong>Compartir</strong>.</li><li>Elige <strong>Agregar a pantalla de inicio</strong>.</li><li>Abre el nuevo icono de Lubayd y toca <strong>Activar notificaciones</strong>.</li></ol>
+      <button id="iosNotificationGuideOk" type="button" class="btn btn-primary">Entendido</button>
+    </div>
+  </div>
   <div id="toast" class="toast hidden"><span class="toast-icon"><svg><use href="#i-check"></use></svg></span><div><strong id="toastTitle">Listo</strong><small id="toastText">Acción completada correctamente.</small></div></div>
   <div id="updateBanner" class="update-banner hidden"><div><strong>Nueva versión disponible</strong><span>Actualiza para recibir las últimas mejoras.</span></div><button id="updateBtn">Actualizar</button></div>
 
@@ -688,14 +714,14 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
-  <script src="./firebase-init.js?v=21.0.1"></script>
-  <script src="./offline-store.js?v=21.0.1"></script>
-  <script src="./push-notifications.js?v=21.0.1"></script>
-  <script src="./app.js?v=21.0.1"></script>
-  <script src="./charts.js?v=21.0.1"></script>
-  <script src="./chat.js?v=21.0.1"></script>
-  <script src="./attendance.js?v=21.0.1"></script>
-  <script src="./fuel.js?v=21.0.1"></script>
-  <script src="./operations.js?v=21.0.1"></script>
+  <script src="./firebase-init.js?v=21.1.0"></script>
+  <script src="./offline-store.js?v=21.1.0"></script>
+  <script src="./push-notifications.js?v=21.1.0"></script>
+  <script src="./app.js?v=21.1.0"></script>
+  <script src="./charts.js?v=21.1.0"></script>
+  <script src="./chat.js?v=21.1.0"></script>
+  <script src="./attendance.js?v=21.1.0"></script>
+  <script src="./fuel.js?v=21.1.0"></script>
+  <script src="./operations.js?v=21.1.0"></script>
 </body>
 </html>

@@ -1,8 +1,8 @@
-/* Lubayd SA V21.0.1 - parte único de combustible con consumo diario y modo offline */
+/* Lubayd SA V21.1.0 - parte único de combustible con consumo diario y modo offline */
 (function () {
   'use strict';
 
-  const VERSION = '21.0.1';
+  const VERSION = '21.1.0';
   const MAX_PHOTO_DATA_LENGTH = 620000;
   let loads = [];
   let movements = [];

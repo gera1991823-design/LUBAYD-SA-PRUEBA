@@ -1,4 +1,4 @@
-/* Lubayd SA V20.1 - Push corregido con registro FCM verificable */
+/* Lubayd SA V21.1.0 - Push FCM compatible con Safari PWA e instalación guiada en iPhone */
 (function () {
   'use strict';
 
@@ -83,6 +83,34 @@
     );
   }
 
+  function isIosDevice() {
+    const ua = navigator.userAgent || '';
+    return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  function iosVersion() {
+    const ua = String(navigator.userAgent || '');
+    const match = ua.match(/OS (\d+)[._](\d+)/i) || ua.match(/Version\/(\d+)[._](\d+)/i);
+    return match ? Number(`${match[1]}.${match[2]}`) : 0;
+  }
+
+  function unsupportedIosVersion() {
+    const version = iosVersion();
+    return isIosDevice() && version > 0 && version < 16.4;
+  }
+
+  function requiresIosInstallation() {
+    return isIosDevice() && !unsupportedIosVersion() && !isInstalledPwa();
+  }
+
+  function showIosGuide() {
+    $('#iosNotificationGuide')?.classList.remove('hidden');
+  }
+
+  function closeIosGuide() {
+    $('#iosNotificationGuide')?.classList.add('hidden');
+  }
+
   async function isMessagingSupported() {
     if (!window.isSecureContext || !('serviceWorker' in navigator) || !('Notification' in window)) return false;
     if (!window.firebase?.messaging) return false;
@@ -97,15 +125,26 @@
   }
 
   function localSupported() {
-    return Boolean(window.isSecureContext && 'serviceWorker' in navigator && 'Notification' in window);
+    return Boolean(
+      window.isSecureContext &&
+      'serviceWorker' in navigator &&
+      'Notification' in window &&
+      'PushManager' in window
+    );
   }
 
   function state(extra) {
+    const requiresInstall = requiresIosInstallation();
+    const iosUnsupported = unsupportedIosVersion();
     const permission = 'Notification' in window ? Notification.permission : 'unsupported';
-    const locallyEnabled = permission === 'granted' && localStorage.getItem(LOCAL_ENABLED_KEY) === '1';
+    const locallyEnabled = !requiresInstall && permission === 'granted' && localStorage.getItem(LOCAL_ENABLED_KEY) === '1';
     const tokenRegistered = Boolean(localStorage.getItem(LOCAL_TOKEN_KEY));
     return Object.assign({
-      supported: localSupported(),
+      supported: localSupported() && !requiresInstall && !iosUnsupported,
+      browserPushSupported: localSupported(),
+      requiresInstall,
+      unsupportedIosVersion: iosUnsupported,
+      iosVersion: iosVersion(),
       permission,
       enabled: locallyEnabled,
       locallyEnabled,
@@ -113,6 +152,7 @@
       pushReady: tokenRegistered,
       platform: detectPlatform(),
       installedPwa: isInstalledPwa(),
+      iosDevice: isIosDevice(),
       tokenError: lastTokenError
     }, extra || {});
   }
@@ -154,7 +194,7 @@
 
     let registration = await navigator.serviceWorker.getRegistration('./').catch(() => null);
     if (!registration) {
-      registration = await navigator.serviceWorker.register('./service-worker.js?v=21.0.1', {
+      registration = await navigator.serviceWorker.register('./service-worker.js?v=21.1.0', {
         scope: './',
         updateViaCache: 'none'
       });
@@ -225,7 +265,7 @@
     const saved = await withTimeout(
       saveToken(token),
       20000,
-      'El token se generó, pero no pudo guardarse en Firestore. Publica las reglas V21.0.0.'
+      'El token se generó, pero no pudo guardarse en Firestore. Publica las reglas V21.1.0.'
     );
     return { tokenRegistered: true, tokenId: saved.tokenId };
   }
@@ -250,7 +290,9 @@
   async function enable(options) {
     const opts = options || {};
     if (!currentUser()) throw new Error('Debes iniciar sesión primero.');
-    if (!localSupported()) throw new Error('Este navegador no admite notificaciones del sistema.');
+    if (unsupportedIosVersion()) throw new Error('Las notificaciones en iPhone requieren iOS 16.4 o posterior.');
+    if (requiresIosInstallation()) throw new Error('En iPhone debes agregar Lubayd a la pantalla de inicio y abrirla desde su icono.');
+    if (!localSupported()) throw new Error('Este navegador no admite notificaciones push.');
 
     let permission = Notification.permission;
     if (permission === 'default') permission = await Notification.requestPermission();
@@ -333,9 +375,19 @@
   }
 
   function statusCopy(detail) {
+    if (detail.unsupportedIosVersion) return {
+      title: 'Actualiza el iPhone',
+      text: 'Las notificaciones web requieren iOS 16.4 o posterior.',
+      tone: 'error'
+    };
+    if (detail.requiresInstall) return {
+      title: 'Instala la app en tu iPhone',
+      text: 'En Safari toca Compartir → Agregar a pantalla de inicio. Luego abre el icono y activa los avisos.',
+      tone: 'warning'
+    };
     if (!detail.supported) return {
       title: 'Notificaciones no compatibles',
-      text: 'Abre la aplicación con Chrome, Edge o desde el icono instalado.',
+      text: 'Usa un navegador con Push API o abre la aplicación desde el icono instalado.',
       tone: 'error'
     };
     if (detail.permission === 'denied') return {
@@ -400,11 +452,13 @@
     setup?.classList.toggle('is-enabled', info.locallyEnabled);
 
     $$('[data-enable-notifications]').forEach(button => {
-      button.disabled = !info.supported || info.permission === 'denied';
+      button.disabled = info.unsupportedIosVersion || ((!info.supported && !info.requiresInstall) || info.permission === 'denied');
       const label = button.querySelector('[data-notification-label]');
-      const value = info.locallyEnabled
-        ? (info.tokenRegistered ? 'Notificaciones activas' : 'Avisos activos')
-        : (info.permission === 'denied' ? 'Avisos bloqueados' : 'Activar notificaciones');
+      const value = info.requiresInstall
+        ? 'Cómo activar en iPhone'
+        : info.locallyEnabled
+          ? (info.tokenRegistered ? 'Notificaciones activas' : 'Avisos activos')
+          : (info.permission === 'denied' ? 'Avisos bloqueados' : 'Activar notificaciones');
       if (label) label.textContent = value;
       else if (button.dataset.compact !== 'true') button.textContent = value;
       button.dataset.enabled = info.locallyEnabled ? 'true' : 'false';
@@ -417,6 +471,11 @@
 
   async function handleEnableClick(event) {
     const button = event.currentTarget;
+    const current = state();
+    if (current.requiresInstall) {
+      showIosGuide();
+      return;
+    }
     const originalDisabled = button.disabled;
     button.disabled = true;
     button.classList.add('is-loading');
@@ -463,6 +522,9 @@
       localStorage.setItem(DISMISSED_KEY, '1');
       $('#notificationActivationBanner')?.classList.add('hidden');
     });
+    $('#iosNotificationGuideClose')?.addEventListener('click', closeIosGuide);
+    $('#iosNotificationGuideOk')?.addEventListener('click', closeIosGuide);
+    $('.ios-notification-guide-backdrop')?.addEventListener('click', closeIosGuide);
     updateNotificationUi(state());
   }
 
@@ -479,7 +541,11 @@
       serviceWorkerRegistered: Boolean(registration),
       serviceWorkerScope: registration?.scope || '',
       firebaseMessagingLoaded: Boolean(window.firebase?.messaging),
-      tokenDocumentId: localStorage.getItem(LOCAL_TOKEN_DOC_KEY) || ''
+      tokenDocumentId: localStorage.getItem(LOCAL_TOKEN_DOC_KEY) || '',
+      pushManagerAvailable: 'PushManager' in window,
+      requiresIosInstallation: requiresIosInstallation(),
+      iosVersion: iosVersion(),
+      unsupportedIosVersion: unsupportedIosVersion()
     };
   }
 
