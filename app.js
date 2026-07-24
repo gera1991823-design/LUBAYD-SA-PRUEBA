@@ -2034,7 +2034,7 @@ window.addEventListener('appinstalled', () => $('#installBtn').classList.add('hi
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./service-worker.js?v=21.0.0', { scope: './', updateViaCache: 'none' });
+      const registration = await navigator.serviceWorker.register('./service-worker.js?v=21.0.1', { scope: './', updateViaCache: 'none' });
       registration.update().catch(() => {});
       window.addEventListener('focus', () => registration.update().catch(() => {}));
       document.addEventListener('visibilitychange', () => {

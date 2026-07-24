@@ -1,4 +1,4 @@
-/* Lubayd SA V21.0.0 - Firebase, acceso offline multidispositivo y sesión controlada */
+/* Lubayd SA V21.0.1 - Firebase, acceso offline multidispositivo y sesión controlada */
 (function () {
   const firebaseConfig = {
     apiKey: "AIzaSyCQDwcbAox4QEDe_czZX_YSd9jVx9g5BkY",

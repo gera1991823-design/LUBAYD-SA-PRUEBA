@@ -154,7 +154,7 @@
 
     let registration = await navigator.serviceWorker.getRegistration('./').catch(() => null);
     if (!registration) {
-      registration = await navigator.serviceWorker.register('./service-worker.js?v=21.0.0', {
+      registration = await navigator.serviceWorker.register('./service-worker.js?v=21.0.1', {
         scope: './',
         updateViaCache: 'none'
       });

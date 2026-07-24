@@ -1,19 +1,13 @@
-# Lubayd SA V21.0.0
+# Lubayd SA V21.0.1
 
-## Renovación de interfaz
+## Corrección de acceso offline
 
-- Diseño visual más limpio y profesional en escritorio y celular.
-- Mejor contraste, tipografía y jerarquía de información.
-- Botones y campos más grandes para uso en campo.
-- Inicio operativo con tarjetas KPI y accesos rápidos mejorados.
-- Navegación móvil flotante con acceso destacado a Nuevo parte.
-- Formularios, asistencia, combustible, historial y panel administrador unificados.
-- Mejoras de accesibilidad, foco visible y modo oscuro.
-- Se conserva la lógica offline, Firebase, GPS, cámara, chat y sincronización.
+- IndexedDB se actualiza de la versión 4 a la versión 6.
+- Corrige el error `The requested version (4) is less than the existing version (5)`.
+- La migración conserva usuarios preparados, registros, fotos y colas pendientes.
+- Se renueva la caché de la PWA para evitar que el navegador continúe cargando el archivo anterior.
 
----
-
-# Lubayd SA V21.0.0
+# Lubayd SA V20.8.8
 
 ## Parte único de combustible
 

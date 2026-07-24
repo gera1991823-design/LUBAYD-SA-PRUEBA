@@ -1,4 +1,14 @@
-# Lubayd SA V21.0.0 — Parte único de combustible
+# Lubayd SA V21.0.1 — Corrección IndexedDB
+
+Esta compilación corrige el acceso al almacenamiento offline cuando el dispositivo ya tenía creada la base local en la versión 5. La aplicación migra a la versión 6 sin borrar los datos existentes.
+
+## Después de publicar
+
+1. Reemplazar todos los archivos del sitio con los incluidos en este paquete.
+2. Abrir la aplicación con internet y recargar una vez.
+3. Si está instalada como PWA, cerrarla por completo y volver a abrirla para activar la caché V21.0.1.
+
+# Lubayd SA V20.8.8 — Parte único de combustible
 
 Esta versión agrega un control acumulativo de combustible independiente del parte diario forestal.
 
@@ -41,7 +51,7 @@ Debe aparecer `syncFuelRecord` junto con las Functions existentes.
 
 ## Prueba recomendada
 
-1. Abrir la V21.0.0 con internet en un operador.
+1. Abrir la V20.8.8 con internet en un operador.
 2. Entrar a **Combustible** y crear una carga de 1500 L con foto.
 3. Desactivar internet y registrar un consumo de 500 L con foto.
 4. Confirmar que el saldo local muestre 1000 L y el movimiento figure pendiente.

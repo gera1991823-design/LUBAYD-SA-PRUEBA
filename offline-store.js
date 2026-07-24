@@ -1,9 +1,9 @@
-/* Lubayd SA V20.8 - acceso local, asistencia y partes completos sin conexión */
+/* Lubayd SA V21.0.1 - acceso local, asistencia y partes completos sin conexión */
 (function () {
   'use strict';
 
   const DB_NAME = 'lubayd-sa-v20-1-offline';
-  const DB_VERSION = 4;
+  const DB_VERSION = 6;
   const SESSION_DURATION_MS = 60 * 60 * 1000;
   const STORES = {
     profiles: 'profiles',

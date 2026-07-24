@@ -1,0 +1,12 @@
+CORRECCION V21.0.1
+
+Error corregido:
+The requested version (4) is less than the existing version (5).
+
+Causa:
+El navegador ya tenía la base IndexedDB en versión 5, pero el archivo offline-store.js intentaba abrirla en versión 4. IndexedDB no permite bajar la versión.
+
+Solución aplicada:
+- DB_VERSION actualizado a 6.
+- Caché PWA y parámetros de versión actualizados a 21.0.1.
+- La actualización no elimina usuarios, fotos ni registros guardados.
